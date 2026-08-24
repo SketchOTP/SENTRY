@@ -206,3 +206,33 @@ The same-event reduction was 5.4%; the final bridge measurement was 5.6% below t
 
 ### Architect decision required
 YES. Accept or reject the isolated runtime hardening result. M1 webcam/perception remains separately gated and unauthorized.
+
+---
+
+## OUTCOME-SENTRY-M1-PERCEPTION-001 — Local perception implementation target-tested; live gate blocked
+- Date: 2026-08-24
+- Directive: `SENTRY-M1-PERCEPTION-001`
+- Evidence level: E2_TARGET_TESTED; live criteria BLOCKED/NOT RUN
+- Retrieval confidence: ADEQUATE for repository/host state; INSUFFICIENT for live camera qualification because the device could not be opened.
+
+### Result
+Implemented the smallest observation-only local service. It uses OpenCV HOG for person-only detection, a SENTRY-owned two-stage IoU tracker, and a size-one latest-frame buffer. It emits `online`, `degraded`, or `offline` observations and never treats camera failure as an empty room. The perception path contains no Codex/Luna invocation.
+
+### Validation
+- Python compilation: PASSED.
+- Five deterministic unit tests: PASSED.
+- Config validation, detector contract, multi-track stability, dropout retention, latest-frame dropping, and structured observation shape: PASSED.
+- Unavailable-camera CLI: PASSED. Any/Media Foundation/DirectShow attempts produced `offline / camera_open_failed`, exit code 3, and `codex_luna_calls: 0`.
+- Live visible-person detection, tracking, recovery, FPS/latency, resource measurements, and ten-minute soak: BLOCKED/NOT RUN. The NexiGo N60 FHD Webcam is enumerated but cannot be opened by OpenCV on this host.
+
+### Selected stack and external discovery
+OpenCV 4.5+ is Apache-2.0 and bundles the HOG default people detector coefficients. YOLOX is Apache-2.0 and ByteTrack is MIT, but their common deployment path requires separately sourced model artifacts and a larger runtime. The detector interface remains replaceable for a later measured YOLOX/ONNX comparison. CPU was selected because the adopted HOG path is CPU-only; NVIDIA adapters remain available for a future qualified backend.
+
+### Files
+`perception/sentry_perception.py`, `perception/config.example.json`, `tests/test_sentry_perception.py`, `requirements.txt`, `docs/M1_PERCEPTION.md`, `README.md`, and M1 task evidence.
+
+### Decision boundary
+M1 is not accepted. Restore camera access or authorize a replacement device, then rerun the actual-host gate. Do not begin M2.
+
+### Governance correction
+The earlier M0 context-optimization record stated that `.agent/PROJECT_GOAL.md` was absent. The M1 synchronization checked the live repository and confirmed that `.agent/PROJECT_GOAL.md` exists. The historical statement remains preserved; this entry is the superseding current-state correction.

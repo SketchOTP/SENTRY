@@ -216,3 +216,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# SENTRY local perception runtime data. Raw frames, captures, logs, model
+# weights, and observation exports are never source-controlled by default.
+perception-data/
+captures/
+logs/
+perception-observations*.jsonl
+*.onnx
+*.pth
+*.pt
+.gstack/

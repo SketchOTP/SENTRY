@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Windows PC, one
 
 ## Current status
 
-**Scope defined. Implementation not yet started. Current authorized milestone: M0 — bootstrap and DAWN integration feasibility.**
+**M0 is accepted. Current authorized milestone: M1 — local Windows webcam perception.** The first implementation is target-tested locally, but live acceptance is blocked until the office webcam can be opened by the Windows capture stack.
 
 ## Project links
 
@@ -50,6 +50,10 @@ SENTRY must be able to:
 - allow a physical event to become a proactive assistant candidate;
 - suppress duplicate/repetitive speech with cooldowns and an interruption budget;
 - report camera/assistant failures explicitly rather than inventing state.
+
+## M1 implementation
+
+The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](docs/M1_PERCEPTION.md). It uses a bounded latest-frame buffer, OpenCV's local HOG person detector, and a replaceable two-stage IoU tracker. It produces observation data only and makes zero Codex/Luna calls. Identity, persistence, semantic entry/exit events, and assistant integration remain later milestones.
 
 ## Explicitly out of V0.1
 

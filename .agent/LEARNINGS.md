@@ -81,3 +81,19 @@ Development Codex sessions must retain repository Authority. Runtime event reaso
 
 ### Recheck trigger
 Recheck after Codex CLI upgrades, instruction-discovery changes, auth/model changes, or before moving the bridge beyond a trusted local process.
+
+---
+
+## LEARNING-SENTRY-006 — Camera enumeration is not capture readiness
+- Date: 2026-08-24
+- Evidence source: SENTRY-M1-PERCEPTION-001 host inspection and OpenCV 4.12.0 Any/Media Foundation/DirectShow attempts
+- Confidence: VERIFIED HOST-OBSERVED
+
+### Learning
+The NexiGo N60 FHD Webcam appears in Windows PnP enumeration, but that does not prove an application can open it. On this host, OpenCV reported camera index 0 unavailable through all three tested backends.
+
+### Why it matters
+SENTRY must qualify actual capture before claiming detection, tracking, FPS, or soak behavior. The runtime must report degraded/offline explicitly and must not convert device failure into an empty-room observation.
+
+### Recheck trigger
+Recheck after Windows camera privacy/driver/device changes or when a replacement webcam is connected.

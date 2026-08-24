@@ -39,3 +39,15 @@ No external discovery was required for this governance-only bootstrap. The direc
 - Rationale: Repo-root audit reported `\\atlas\ATLAS\100_ACTIVE\Projects\SENTRY\AGENTS.md`; the isolated cwd had zero `AGENTS*` files. The same-event input reduction was 5.4%, and the final bridge retained schema/grounding equivalence. A 50% reduction was not achieved, so no further unsupported optimization was attempted.
 - Limitations: The isolated run retained installed skills context and measured approximately 18.2k input tokens. OAuth/local behavior is trusted-host evidence only; subscription quota and plan-wide idle billing remain unavailable from the CLI.
 - Recheck trigger: Codex CLI release, AGENTS discovery/config changes, model/auth policy changes, or a move to service/scheduler deployment.
+
+---
+
+## EXTERNAL-SENTRY-004 — M1 detector/tracker/runtime/license comparison
+- Date: 2026-08-24
+- Freshness: Official upstream pages retrieved through `/browse` on 2026-08-24.
+- Sources: [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX), [ByteTrack](https://github.com/FoundationVision/ByteTrack), [ONNX Runtime execution providers](https://onnxruntime.ai/docs/execution-providers/), [OpenCV license](https://opencv.org/license/), and [OpenCV HOGDescriptor API](https://docs.opencv.org/4.x/d5/d33/structcv_1_1HOGDescriptor.html).
+- Overlap: Local person detection, permissive licensing, model provenance, tracking, and Windows execution-provider selection.
+- Disposition: ADOPT OpenCV HOG plus SENTRY-owned IoU tracking for the first narrow implementation; REFERENCE YOLOX plus ByteTrack and ONNX Runtime for a future benchmark.
+- Rationale: OpenCV 4.5+ is Apache-2.0 and its HOG people detector coefficients are bundled, avoiding a separate model-weight provenance step for this slice. YOLOX is Apache-2.0 and ByteTrack is MIT, but the usual stack adds separately sourced artifacts and a larger runtime before camera access is proven. Host GPUs were observed but not required by the selected CPU path.
+- Limitation: No live detector quality or performance claim is made because the actual webcam could not be opened.
+- Recheck trigger: Webcam access restored, a detector performance shortfall, a qualified model artifact becoming available, or authorization for a YOLOX/ONNX benchmark.

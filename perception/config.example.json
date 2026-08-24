@@ -1,0 +1,26 @@
+{
+  "camera": {
+    "index": 0,
+    "backend": "auto",
+    "width": 1280,
+    "height": 720,
+    "fps": 15,
+    "buffer_size": 1,
+    "read_failure_limit": 5
+  },
+  "detector": {
+    "name": "opencv_hog",
+    "frame_scale": 0.5,
+    "confidence_threshold": 0.5,
+    "win_stride": [8, 8],
+    "padding": [8, 8],
+    "scale": 1.05,
+    "group_threshold": 2
+  },
+  "tracker": {
+    "match_iou_threshold": 0.3,
+    "high_confidence_threshold": 0.55,
+    "new_track_confidence_threshold": 0.5,
+    "max_missing_frames": 12
+  }
+}

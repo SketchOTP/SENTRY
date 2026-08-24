@@ -62,3 +62,17 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - External discovery: REQUIRED; official Codex noninteractive, AGENTS.md, and authentication documentation inspected through `/browse`.
 - Stop conditions: Authority weakening, OAuth/model/provenance/schema breakage, four successful calls consumed, or unsupported configuration required.
 - Source: Architect directive supplied as `SENTRY-M0-CODEX-CONTEXT-OPT-001`, following accepted M0 result.
+
+---
+
+## SENTRY-M1-PERCEPTION-001 — Implement and prove local Windows webcam perception
+- Issued: 2026-08-24
+- Status: BLOCKED — implementation target-tested; actual-camera live gate could not run
+- Project stage: M1 — Local Windows Perception
+- Goal link: Establish reliable local observation before identity, persistence, assistant grounding, or proactive behavior.
+- Objective: Implement `webcam → local person detection → temporary multi-person tracking → explicit camera health → structured observations`.
+- Scope: One Windows webcam, configurable capture, local person-only detection, bounded latest-frame behavior, temporary tracking, health states, structured observations, automated tests, and actual-host live validation.
+- Exclusions: No identity recognition, persistence, sessions, semantic entry/exit events, local API, voice, DAWN integration, Codex/Luna calls from perception, raw-frame persistence, additional hardware, or M2 behavior.
+- External discovery: REQUIRED; YOLOX, ByteTrack, ONNX Runtime, and OpenCV documentation/licenses reviewed through `/browse`.
+- Stop condition reached: NexiGo N60 enumerates but OpenCV 4.12.0 could not open index 0 through Any, Media Foundation, or DirectShow. Live criteria are BLOCKED/NOT RUN.
+- Source: Architect directive supplied as `SENTRY-M1-PERCEPTION-001`, accepted M0 Notion state, SENTRY scope, and host evidence.

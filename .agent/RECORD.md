@@ -77,3 +77,22 @@ The same synthetic event measured 19,308 input tokens at repo root and 18,266 in
 
 ### Consequence
 The runtime boundary avoids unnecessary SENTRY development/governance context, but the observed floor remains approximately 18.2k input tokens. M1 webcam/perception remains separately gated and requires explicit Architect authorization.
+
+---
+
+## RECORD-SENTRY-005 — M1 perception implementation stopped at physical-camera gate
+- Date: 2026-08-24
+- Type: MILESTONE / BLOCKER
+- Related directive/outcome: `SENTRY-M1-PERCEPTION-001` / `OUTCOME-SENTRY-M1-PERCEPTION-001`
+
+### Context
+M0 was accepted and explicitly authorized the next milestone: local Windows webcam perception with zero Codex/Luna calls in the continuous loop.
+
+### Decision / event
+Implemented the observation-only service and deterministic contracts, then stopped live qualification at the actual-device gate. OpenCV 4.12.0 could not open the enumerated NexiGo N60 through Any, Media Foundation, or DirectShow.
+
+### Evidence
+Five deterministic tests passed. The unavailable-camera run returned `degraded` startup followed by `offline / camera_open_failed`, exit code 3, and zero Luna calls. No frame, detection, tracking, FPS, recovery, or ten-minute soak claim was made.
+
+### Consequence
+M1 remains unaccepted and M2 remains unauthorized. Restore camera access or authorize a replacement device before live validation resumes.

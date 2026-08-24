@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: M0 — Codex/Luna Feasibility
-- Active directive: SENTRY-M0-CODEX-CONTEXT-OPT-001
-- Active task packet: `.agent/tasks/completed/SENTRY-M0-CODEX-CONTEXT-OPT-001/`
-- Last accepted outcome: OUTCOME-SENTRY-M0-DAWN-FEASIBILITY-001
-- Latest recorded outcome: OUTCOME-SENTRY-M0-CODEX-CONTEXT-OPT-001 — awaiting Architect acceptance
-- Last state sync: 2026-08-24T12:20:27-04:00
+- Current stage: M1 — Local Windows Perception
+- Active directive: SENTRY-M1-PERCEPTION-001
+- Active task packet: `.agent/tasks/active/SENTRY-M1-PERCEPTION-001/`
+- Last accepted outcome: M0 Codex/Luna reasoning and context optimization — Architect accepted
+- Latest recorded outcome: OUTCOME-SENTRY-M1-PERCEPTION-001 — implementation target-tested; live camera gate blocked
+- Last state sync: 2026-08-24T13:35:00-04:00
 
 ## Mandatory kernel
 Read these before substantial work:
