@@ -1,6 +1,6 @@
 # Current Project State
 
-Last updated: 2026-08-24T12:20:27-04:00
+Last updated: 2026-08-24T12:48:00-04:00
 
 ## Current stage
 M0 — Codex/Luna Feasibility
@@ -9,7 +9,7 @@ M0 — Codex/Luna Feasibility
 Determine whether an OAuth-authenticated Codex CLI turn using GPT-5.6 Luna only can consume a genuine synthetic SENTRY `person.entered` event and return bounded grounded structured reasoning on demand before perception work begins.
 
 ## Active directive
-SENTRY-M0-CODEX-FEASIBILITY-001 — target-tested; awaiting Architect acceptance of the bounded reasoning boundary.
+SENTRY-M0-CODEX-CONTEXT-OPT-001 — target-tested; awaiting Architect acceptance of the runtime-context hardening result.
 
 ## Current verified state
 - The repository is documentation-first with no application source, tests, dependency manifest, or runtime implementation.
@@ -23,6 +23,8 @@ SENTRY-M0-CODEX-FEASIBILITY-001 — target-tested; awaiting Architect acceptance
 - `codex exec --ephemeral --json --output-schema` is the supported local programmatic surface used by the proof.
 - The bridge forces `gpt-5.6-luna`, accepts only explicit effort values, removes API-key environment variables from the child, and returns one bounded JSON result or a structured error.
 - Low and high Luna turns independently grounded synthetic `person.entered` events and reported per-turn token usage.
+- Repo-root baseline measured 19,308 input tokens for a low-effort event. An isolated temporary runtime measured 18,266 input tokens for the same event, and the final bridge measured 18,223 input tokens for a second event.
+- Isolation is now adopted only for the runtime reasoning subprocess: a fresh temporary cwd, `--skip-git-repo-check`, and an absolute copied schema path. Development Codex sessions remain governed by the SENTRY repository `AGENTS.md`.
 
 ## Current hypotheses / unknowns
 - A clean SENTRY-to-DAWN environmental-event boundary remains unavailable in the inspected upstream.
@@ -39,13 +41,14 @@ SENTRY-M0-CODEX-FEASIBILITY-001 — target-tested; awaiting Architect acceptance
 ## Latest recorded evidence
 - `OUTCOME-SENTRY-AUTHORITY-BOOTSTRAP-001`: Authority tree and SENTRY state initialized; structural validation target-tested.
 - `OUTCOME-SENTRY-M0-DAWN-FEASIBILITY-001`: Supported synthetic physical-event path decisively blocked by upstream boundary inspection; evidence is E1_OBSERVED.
-- `OUTCOME-SENTRY-M0-CODEX-FEASIBILITY-001`: OAuth-only Luna bounded event-to-reasoning proof passed at low and high effort; evidence is E3_TARGET_TESTED; Architect acceptance is pending.
+- `OUTCOME-SENTRY-M0-CODEX-FEASIBILITY-001`: OAuth-only Luna bounded event-to-reasoning proof passed at low and high effort; evidence is E3_TARGET_TESTED; accepted by Architect.
+- `OUTCOME-SENTRY-M0-CODEX-CONTEXT-OPT-001`: isolated runtime context reduced measured input by 5.4% to 5.6% and preserved grounding/schema behavior; evidence is E3_TARGET_TESTED; Architect acceptance is pending.
 
 ## Current risks
 - Treating documentation or governance presence as runtime capability would overstate the project state.
 - DAWN integration and licensing details may alter the M0 implementation choice after investigation.
 
 ## Next Architect decision point
-Choose whether to accept the bounded Codex/Luna reasoning boundary and authorize the next narrowly scoped SENTRY milestone. Keep Luna-only selection, event gating, duplicate suppression, call-rate limits, bounded context, and usage observability as required architecture rules. Do not begin webcam/perception work until this M0 result is accepted.
+Choose whether to accept the isolated runtime-context hardening result and separately authorize M1. Keep Luna-only selection, event gating, duplicate suppression, call-rate limits, bounded context, and usage observability as required architecture rules. Do not begin webcam/perception work until M1 is explicitly authorized.
 
 This file is a mutable snapshot. Do not use it to erase historical outcomes or decisions.

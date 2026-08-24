@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -101,23 +102,6 @@ def _parse_jsonl(stdout: str) -> tuple[str | None, dict[str, Any] | None, dict[s
 
 def invoke(event: dict[str, Any], effort: str, timeout_seconds: int) -> dict[str, Any]:
     repo_root = Path(__file__).resolve().parents[1]
-    cli_args = [
-        "exec",
-        "--ephemeral",
-        "--json",
-        "--ignore-user-config",
-        "--model",
-        MODEL,
-        "--output-schema",
-        "tools/sentry_codex_response.schema.json",
-        "-c",
-        f'model_reasoning_effort="{effort}"',
-        "-s",
-        "read-only",
-        "-C",
-        ".",
-        "-",
-    ]
     launcher = os.environ.get("SENTRY_CODEX_EXECUTABLE") or shutil.which("codex.cmd") or shutil.which("codex")
     if not launcher:
         return _error("codex_unavailable", "codex executable was not found", effort=effort)
@@ -126,31 +110,51 @@ def invoke(event: dict[str, Any], effort: str, timeout_seconds: int) -> dict[str
         codex_js = launcher_path.parent / "node_modules" / "@openai" / "codex" / "bin" / "codex.js"
         node = shutil.which("node.exe")
         if node and codex_js.is_file():
-            args = [node, str(codex_js), *cli_args]
+            launcher_args = [node, str(codex_js)]
         else:
             # The batch wrapper changes a UNC cwd to C:\\; use it only as a last resort.
-            args = ["cmd.exe", "/d", "/c", launcher, *cli_args]
+            launcher_args = ["cmd.exe", "/d", "/c", launcher]
     else:
-        args = [launcher, *cli_args]
+        launcher_args = [launcher]
     child_env = os.environ.copy()
     # A ChatGPT OAuth proof must not silently fall back to an API key.
     child_env.pop("OPENAI_API_KEY", None)
     child_env.pop("OPENAI_ADMIN_KEY", None)
-    try:
-        completed = subprocess.run(
-            args,
-            cwd=repo_root,
-            env=child_env,
-            input=_prompt(event, effort),
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
-            check=False,
-        )
-    except FileNotFoundError:
-        return _error("codex_unavailable", "codex executable was not found", effort=effort)
-    except subprocess.TimeoutExpired:
-        return _error("codex_timeout", "bounded Codex turn exceeded its timeout", effort=effort)
+    with tempfile.TemporaryDirectory(prefix="sentry-codex-") as runtime_dir:
+        schema_path = Path(runtime_dir) / "sentry_codex_response.schema.json"
+        shutil.copyfile(repo_root / "tools" / "sentry_codex_response.schema.json", schema_path)
+        cli_args = [
+            "exec",
+            "--ephemeral",
+            "--json",
+            "--ignore-user-config",
+            "--skip-git-repo-check",
+            "--model",
+            MODEL,
+            "--output-schema",
+            str(schema_path),
+            "-c",
+            f'model_reasoning_effort="{effort}"',
+            "-s",
+            "read-only",
+            "-",
+        ]
+        args = [*launcher_args, *cli_args]
+        try:
+            completed = subprocess.run(
+                args,
+                cwd=runtime_dir,
+                env=child_env,
+                input=_prompt(event, effort),
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except FileNotFoundError:
+            return _error("codex_unavailable", "codex executable was not found", effort=effort)
+        except subprocess.TimeoutExpired:
+            return _error("codex_timeout", "bounded Codex turn exceeded its timeout", effort=effort)
 
     thread_id, result, usage = _parse_jsonl(completed.stdout)
     if completed.returncode != 0:

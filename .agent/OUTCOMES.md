@@ -154,3 +154,55 @@ The direct preliminary probes also succeeded at low and high effort, but the pac
 
 ### Architect decision required
 YES. Accept or reject the bounded Codex/Luna event-to-reasoning boundary. If accepted, authorize the next SENTRY milestone with the Luna-only rule, default low/medium effort, justified high/xhigh/max effort, no idle calls, bounded context, duplicate suppression, hard call-rate limits, and observable usage metrics. Webcam/perception remains gated until acceptance.
+
+---
+
+## OUTCOME-SENTRY-M0-CODEX-CONTEXT-OPT-001 — Directive SENTRY-M0-CODEX-CONTEXT-OPT-001
+- Completed: 2026-08-24
+- Verdict: PASS — isolated runtime hardening target-tested; awaiting Architect acceptance
+- Retrieval confidence: ADEQUATE for the bridge and runtime surface; jCodemunch was unavailable and narrow direct inspection was used
+- Evidence level: E3_TARGET_TESTED
+- Codex version: `codex-cli 0.145.0`
+- Authentication: `codex login status` reported `Logged in using ChatGPT`; child processes removed `OPENAI_API_KEY` and `OPENAI_ADMIN_KEY`.
+- Model: all four successful calls explicitly selected `gpt-5.6-luna`; all used low effort.
+
+### Technical state discovered
+The SENTRY root contains one applicable project instruction file, `AGENTS.md`. A repo-root Codex audit returned that exact path. Official Codex guidance states that project instructions are discovered from the project root down to the current directory. The isolated runtime was a fresh non-repository temporary directory with zero `AGENTS*` files, so it did not load SENTRY Authority instructions. `--ignore-user-config` was retained in both configurations.
+
+### Measurements
+| Call | Context | Input | Output | Reasoning |
+|---|---|---:|---:|---:|
+| 1 | Existing repo-root bridge, event `...0101` | 19,308 | 76 | 0 |
+| 2 | Direct isolated runtime, event `...0101` | 18,266 | 103 | 21 |
+| 3 | Repo-root instruction-source audit | 18,845 | 132 | 86 |
+| 4 | Updated isolated bridge, event `...0102` | 18,223 | 80 | 0 |
+
+The same-event reduction was 5.4%; the final bridge measurement was 5.6% below the original baseline. The observed practical floor is approximately 18.2k input tokens. The 50% reduction target was not reached, and no unsupported further optimization was attempted.
+
+### Work performed
+- Updated `tools/sentry_codex_bridge.py` to run each event in a fresh temporary cwd outside the repository.
+- Added `--skip-git-repo-check` and copied the schema to an absolute local temporary path.
+- Preserved one bounded ephemeral turn, read-only sandbox, OAuth-only child environment, explicit Luna, structured errors, and no worker/timer/retry/resume path.
+- No M1/perception/product work was added.
+
+### Acceptance results
+- Repo-root baseline retained: PASSED
+- Isolated same-event comparison: PASSED
+- Authority `AGENTS.md` excluded from runtime reasoning cwd: PASSED
+- Absolute schema path and structured output: PASSED
+- Physical-event provenance and grounding: PASSED
+- OAuth and explicit Luna: PASSED
+- Four-call budget: PASSED, exactly four successful calls
+- Failure handling and idle behavior: PASSED by bounded design and process checks
+- M1 scope: PASSED, not started
+- Notion/GitHub/Authority updates: PENDING at ledger-write time; completed before final handoff
+
+### Limitations / risks
+- The 5.4% to 5.6% reduction is measurable but modest, below the 50% target.
+- The installed skills context warning remained in the isolated run; approximately 18.2k is an observed floor, not a theoretical minimum.
+- Local CLI output does not expose subscription-wide quota or plan-wide idle billing.
+- OAuth evidence remains trusted-host evidence; the bridge must not accept untrusted public input or expose credentials.
+- Repository sync also found that the mandatory `PROJECT_GOAL.md` named by `AGENTS.md` is absent. Existing Authority state and accepted records were readable; the missing kernel file remains an open governance documentation gap and was not fabricated in this task.
+
+### Architect decision required
+YES. Accept or reject the isolated runtime hardening result. M1 webcam/perception remains separately gated and unauthorized.

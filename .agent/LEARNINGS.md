@@ -65,3 +65,19 @@ SENTRY can own persistence, event provenance, gating, and idle behavior while tr
 
 ### Recheck trigger
 Recheck after Codex CLI upgrades, ChatGPT plan/authentication changes, model alias changes, or before deploying the adapter beyond a trusted local process.
+
+---
+
+## LEARNING-SENTRY-005 — Runtime reasoning should execute outside the repository instruction chain
+- Date: 2026-08-24
+- Evidence source: SENTRY-M0-CODEX-CONTEXT-OPT-001; official Codex AGENTS.md/noninteractive documentation; four successful Luna calls
+- Confidence: VERIFIED TARGET-TESTED
+
+### Learning
+The SENTRY event bridge can preserve the accepted OAuth/Luna/schema boundary while running each runtime reasoning turn from a fresh non-repository temporary directory. With `--skip-git-repo-check` and an absolute copied schema path, the runtime excludes SENTRY's `AGENTS.md` chain and reduced measured input from 19,308 to 18,266 tokens for the same event, with a final 18,223-token measurement.
+
+### Why it matters
+Development Codex sessions must retain repository Authority. Runtime event reasoning does not need that development context and should use the isolated boundary. The observed reduction is modest, so usage metrics remain required and further optimization must stop unless a supported lower-context configuration is identified.
+
+### Recheck trigger
+Recheck after Codex CLI upgrades, instruction-discovery changes, auth/model changes, or before moving the bridge beyond a trusted local process.

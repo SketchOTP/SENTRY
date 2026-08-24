@@ -58,3 +58,22 @@ Two independent runs passed: low effort on event `...0101` and high effort on ev
 
 ### Consequence
 SENTRY now has a target-tested on-demand reasoning boundary candidate without a continuous Codex worker or model escalation. The Architect must accept this M0 result before webcam/perception work. The full governor, persistence, and perception system remain unauthorized.
+
+---
+
+## RECORD-SENTRY-004 — Isolated runtime context adopted for event reasoning
+- Date: 2026-08-24
+- Type: MILESTONE / RUNTIME HARDENING
+- Related directive/outcome: SENTRY-M0-CODEX-CONTEXT-OPT-001 / OUTCOME-SENTRY-M0-CODEX-CONTEXT-OPT-001
+
+### Context
+The accepted Codex/Luna bridge measured 19,308 input tokens for a trivial event while executing from the SENTRY repository root, where Codex discovered the repository `AGENTS.md` Authority instructions.
+
+### Decision / event
+Runtime event reasoning now executes from a fresh temporary non-repository directory with `--skip-git-repo-check` and an absolute local copy of the output schema. Development Codex sessions and repository Authority are unchanged.
+
+### Evidence
+The same synthetic event measured 19,308 input tokens at repo root and 18,266 in isolation, a 5.4% reduction. The final bridge event measured 18,223 input tokens. All four successful calls used ChatGPT OAuth, explicit `gpt-5.6-luna`, and low effort. Both semantic events remained schema-valid and grounded the physical event as distinct from user speech.
+
+### Consequence
+The runtime boundary avoids unnecessary SENTRY development/governance context, but the observed floor remains approximately 18.2k input tokens. M1 webcam/perception remains separately gated and requires explicit Architect authorization.

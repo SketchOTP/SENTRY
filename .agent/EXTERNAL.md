@@ -27,3 +27,15 @@ No external discovery was required for this governance-only bootstrap. The direc
 - Rationale: The supported CLI surface matches SENTRY's required on-demand shape without adding an assistant framework. Two OAuth-only local turns passed with independent synthetic event IDs and measurable per-turn usage.
 - Limitations: The current proof is trusted-local, not public unattended service deployment. Official docs state ChatGPT-managed auth is supported locally but general automation often uses API keys; SENTRY's architecture must preserve credential privacy. Subscription quota remaining and plan-wide idle billing were not exposed by the CLI; only per-turn JSONL token usage and process behavior were observed.
 - Recheck trigger: Codex CLI/model/auth changes, ChatGPT plan policy changes, or any move from a trusted local process to a scheduler/service.
+
+---
+
+## EXTERNAL-SENTRY-003 — Codex instruction discovery and isolated execution context
+- Date: 2026-08-24
+- Freshness: Official OpenAI Codex documentation retrieved through `/browse` on 2026-08-24; Codex CLI `0.145.0` behavior tested on the same host
+- Sources: [Codex non-interactive mode](https://developers.openai.com/codex/noninteractive/), [Codex AGENTS.md guidance](https://learn.chatgpt.com/docs/agent-configuration/agents-md), [Codex authentication](https://developers.openai.com/codex/auth/), and local `codex exec --help`
+- Overlap: Codex project instruction discovery explains the 19k baseline; supported noninteractive flags provide ephemeral JSONL, schema output, `--ignore-user-config`, and `--skip-git-repo-check`.
+- Disposition: ADOPT the isolated cwd for SENTRY runtime reasoning; REFERENCE the discovery rules for development sessions.
+- Rationale: Repo-root audit reported `\\atlas\ATLAS\100_ACTIVE\Projects\SENTRY\AGENTS.md`; the isolated cwd had zero `AGENTS*` files. The same-event input reduction was 5.4%, and the final bridge retained schema/grounding equivalence. A 50% reduction was not achieved, so no further unsupported optimization was attempted.
+- Limitations: The isolated run retained installed skills context and measured approximately 18.2k input tokens. OAuth/local behavior is trusted-host evidence only; subscription quota and plan-wide idle billing remain unavailable from the CLI.
+- Recheck trigger: Codex CLI release, AGENTS discovery/config changes, model/auth policy changes, or a move to service/scheduler deployment.

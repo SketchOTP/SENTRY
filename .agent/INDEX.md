@@ -8,10 +8,10 @@
 
 ## Current pointers
 - Current stage: M0 — Codex/Luna Feasibility
-- Active directive: SENTRY-M0-CODEX-FEASIBILITY-001
-- Active task packet: `.agent/tasks/completed/SENTRY-M0-CODEX-FEASIBILITY-001/`
+- Active directive: SENTRY-M0-CODEX-CONTEXT-OPT-001
+- Active task packet: `.agent/tasks/active/SENTRY-M0-CODEX-CONTEXT-OPT-001/`
 - Last accepted outcome: OUTCOME-SENTRY-M0-DAWN-FEASIBILITY-001
-- Latest recorded outcome: OUTCOME-SENTRY-M0-CODEX-FEASIBILITY-001 — awaiting Architect acceptance
+- Latest recorded outcome: OUTCOME-SENTRY-M0-CODEX-CONTEXT-OPT-001 — awaiting Architect acceptance
 - Last state sync: 2026-08-24T12:20:27-04:00
 
 ## Mandatory kernel
