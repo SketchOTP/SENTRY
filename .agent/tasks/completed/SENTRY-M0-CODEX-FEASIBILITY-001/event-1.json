@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "event_id": "00000000-0000-4000-8000-000000000101",
+  "event_type": "person.entered",
+  "room_id": "office",
+  "person_id": "primary_user",
+  "display_name": "Tym",
+  "source": "synthetic",
+  "occurred_at": "2026-08-24T12:10:00-04:00"
+}

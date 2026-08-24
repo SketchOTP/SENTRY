@@ -49,3 +49,19 @@ SENTRY must not send a physical event through a user-message path and call it gr
 
 ### Recheck trigger
 Recheck when DAWN adds a documented external event API, a supported generic event/tool ingress, or the Architect authorizes DAWN modification/forking or a foundation change.
+
+---
+
+## LEARNING-SENTRY-004 — Codex CLI provides a bounded OAuth/Luna reasoning boundary
+- Date: 2026-08-24
+- Evidence source: SENTRY-M0-CODEX-FEASIBILITY-001; Codex CLI `0.145.0`; official Codex noninteractive/authentication docs; GPT-5.6 Luna docs
+- Confidence: VERIFIED TARGET-TESTED
+
+### Learning
+On this Windows host, `codex exec --ephemeral --json --output-schema` can be invoked locally with saved ChatGPT OAuth credentials after API-key environment variables are removed. Explicit `--model gpt-5.6-luna` plus `model_reasoning_effort` selects Luna effort without model escalation. Per-turn JSONL usage is available, and a fresh bounded turn is sufficient for independent synthetic events.
+
+### Why it matters
+SENTRY can own persistence, event provenance, gating, and idle behavior while treating Codex/Luna as an on-demand reasoning layer. The bridge must be called only after a meaningful semantic event, with bounded context, duplicate suppression, call-rate limits, and failure handling.
+
+### Recheck trigger
+Recheck after Codex CLI upgrades, ChatGPT plan/authentication changes, model alias changes, or before deploying the adapter beyond a trusted local process.

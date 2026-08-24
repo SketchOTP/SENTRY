@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SENTRY Codex bounded reasoning response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "room_id",
+    "person_id",
+    "understood",
+    "response",
+    "effort"
+  ],
+  "properties": {
+    "event_id": { "type": "string" },
+    "event_type": { "type": "string", "const": "person.entered" },
+    "room_id": { "type": "string", "const": "office" },
+    "person_id": { "type": "string" },
+    "understood": { "type": "boolean", "const": true },
+    "response": { "type": "string", "minLength": 1 },
+    "effort": {
+      "enum": ["none", "low", "medium", "high", "xhigh", "max"]
+    }
+  }
+}

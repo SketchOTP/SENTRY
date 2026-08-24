@@ -21,6 +21,7 @@
 
 ## Important integrations
 - DAWN, https://github.com/The-OASIS-Project/dawn, is the preferred conversational/persistent assistant foundation under evaluation. Integration is not implemented.
+- Codex CLI `0.145.0`, authenticated with ChatGPT OAuth on the current host, is the accepted candidate on-demand reasoning layer under M0 feasibility evaluation. Integration is limited to the bounded bridge in `tools/` and is not yet Architect-accepted as M0 complete.
 - Xiaomi Miloco, https://github.com/XiaoMi/xiaomi-miloco, is an architectural reference only and is not a dependency.
 - Notion is the strategic project record; GitHub is the committed repository record.
 
@@ -39,6 +40,12 @@
 - DAWN inspected at `a0c0b13c65f1b02a3416d846f6a0d331244eee9d` on `main`.
 - DAWN's documented server path is x86_64 Linux/Docker; current host has Docker and WSL commands installed, but no DAWN runtime was started after the supported-ingress stop condition.
 - Current DAWN surfaces do not provide a supported external trusted `person.entered` event ingress that autonomously starts reasoning without user-message masquerading or DAWN source/build changes.
+
+## M0 Codex/Luna verification snapshot
+- Official Codex docs document `codex exec`, `--ephemeral`, JSONL output, and `--output-schema`; official auth docs document ChatGPT sign-in for Codex CLI and saved credential reuse.
+- Installed host: Codex CLI `0.145.0`; `codex login status` reports ChatGPT; bundled Python runtime is available under the Codex primary runtime dependencies.
+- The bridge forces `gpt-5.6-luna`, controls `none|low|medium|high|xhigh|max`, removes API-key environment variables from the child, and performs no work without an explicit event file.
+- Low and high synthetic `person.entered` turns passed with structured output and per-turn usage. The proof does not claim subscription quota remaining or optional speech.
 
 ## Source-of-truth boundaries
 - Notion: strategic/project understanding and Architect state.

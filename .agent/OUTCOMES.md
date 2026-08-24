@@ -103,3 +103,54 @@ SENTRY remains documentation-first with no application source, tests, dependency
 
 ### Architect decision required
 YES. Choose whether to authorize an explicit DAWN upstream change/maintained fork, evaluate another assistant foundation, or revise the M0 acceptance boundary. Webcam/perception work remains gated.
+
+---
+
+## OUTCOME-SENTRY-M0-CODEX-FEASIBILITY-001 — Directive SENTRY-M0-CODEX-FEASIBILITY-001
+- Completed: 2026-08-24
+- Verdict: PASS — bounded feasibility proof target-tested; awaiting Architect acceptance
+- Retrieval confidence: ADEQUATE
+- Evidence level: E3_TARGET_TESTED
+- Codex version: `codex-cli 0.145.0`
+- Authentication: `codex login status` reported `Logged in using ChatGPT`; the bridge removed `OPENAI_API_KEY` and `OPENAI_ADMIN_KEY` from each child process.
+- Model: explicitly forced as `gpt-5.6-luna` for every invocation; no model switching or escalation occurred.
+
+### Technical state discovered
+The host has a supported noninteractive Codex CLI surface, OAuth ChatGPT credentials, and a bundled Python runtime at `C:\Users\sketc\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe`. Official Codex documentation documents `codex exec` for scripts, `--ephemeral` for non-persisted rollout files, JSONL events for machine-readable processing, `--output-schema` for structured output, and saved CLI authentication reuse. Official GPT-5.6 Luna documentation confirms the model alias and effort levels `none`, `low`, `medium`, `high`, `xhigh`, and `max`.
+
+### Work performed
+- Implemented `tools/sentry_codex_bridge.py`, a single-event adapter with schema validation, explicit Luna model, effort selection, OAuth-only child environment, `--ephemeral`, read-only sandbox, schema-constrained JSON output, one timeout, no retry, no thread resume, and structured failure results.
+- Implemented `tools/sentry_codex_response.schema.json` for stable downstream parsing.
+- Used fresh bounded turns rather than persistent/resumable threads. This keeps event causality explicit and avoids an idle Codex worker.
+- No webcam, perception, persistence, voice, DAWN, OpenClaw, hardware, or M1 implementation was added.
+
+### Runtime acceptance results
+- OAuth-authenticated local invocation without API key: PASSED. Two successful calls ran after removing the API-key variables from the child environment.
+- Luna selection: PASSED. CLI invocation and returned bridge envelope both identify `gpt-5.6-luna`.
+- Synthetic event grounding: PASSED. Event IDs `...0101` and `...0102` returned `event_type=person.entered`, `room_id=office`, `person_id=primary_user`, `understood=true`, and responses explicitly described environmental/physical context as not user speech.
+- Parseable response: PASSED. Both calls satisfied the JSON Schema through `--output-schema` and were parsed from JSONL `agent_message` plus `turn.completed` usage.
+- Independent second event: PASSED. A fresh ephemeral thread handled event `...0102` independently.
+- Two Luna effort levels: PASSED. Low and high were selected without changing the model; returned `effort` matched the requested value.
+- No repeated/background turns: PASSED. The adapter has no worker, timer, poll, retry, or resume path; after each run no `sentry_codex_bridge.py` Python process remained.
+- Failure detection: PASSED. Missing event file returned `invalid_event_file` without a Codex call; a forced missing executable returned `codex_unavailable` without crashing the bridge.
+- Idle behavior: PASSED by bounded design and process check. No invocation occurs without an explicit event file, and no bridge process remained during the post-run check. Subscription-wide idle billing cannot be independently measured from the CLI.
+- Optional speech: NOT APPLICABLE. This directive tests the reasoning/tool layer only and excludes the voice stack.
+
+### Measured per-turn usage
+The JSONL `turn.completed` usage object is the available local measurement, not a claim about remaining ChatGPT plan quota:
+
+| Turn | Model | Effort | Input | Output | Reasoning output |
+|---|---|---:|---:|---:|---:|
+| event `...0101` | `gpt-5.6-luna` | `low` | 19,100 | 80 | 0 |
+| event `...0102` | `gpt-5.6-luna` | `high` | 19,100 | 139 | 55 |
+
+The direct preliminary probes also succeeded at low and high effort, but the packaged bridge measurements above are the representative acceptance evidence. The CLI did not expose a subscription quota-before/after counter; future governance should use these per-turn token metrics plus available account analytics.
+
+### Limitations / risks
+- ChatGPT OAuth is proven on this trusted host, not as a general public or unattended service deployment. Codex credentials remain local secrets and the bridge must not be exposed to untrusted input.
+- The proof uses the installed bundled Python runtime because the ordinary Windows `python` command is only a Microsoft Store alias. No third-party package was added.
+- Codex CLI may initialize configured optional MCP servers unless disabled or absent; the packaged bridge uses `--ignore-user-config` and does not request tools, but it still depends on the installed CLI's local startup behavior.
+- The model/provider selection is enforced by the invocation constant and CLI flag. The JSONL stream reports the explicit command's selected model through the bridge envelope, but does not provide a separate server attestation field.
+
+### Architect decision required
+YES. Accept or reject the bounded Codex/Luna event-to-reasoning boundary. If accepted, authorize the next SENTRY milestone with the Luna-only rule, default low/medium effort, justified high/xhigh/max effort, no idle calls, bounded context, duplicate suppression, hard call-rate limits, and observable usage metrics. Webcam/perception remains gated until acceptance.

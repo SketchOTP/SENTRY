@@ -7,11 +7,11 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: M0 — Bootstrap + DAWN Integration Feasibility
-- Active directive: SENTRY-M0-DAWN-FEASIBILITY-001
-- Active task packet: `.agent/tasks/completed/SENTRY-M0-DAWN-FEASIBILITY-001/`
-- Last accepted outcome: OUTCOME-SENTRY-AUTHORITY-BOOTSTRAP-001
-- Last state sync: 2026-08-24T11:12:06-04:00
+- Current stage: M0 — Codex/Luna Feasibility
+- Active directive: SENTRY-M0-CODEX-FEASIBILITY-001
+- Active task packet: `.agent/tasks/completed/SENTRY-M0-CODEX-FEASIBILITY-001/`
+- Last accepted outcome: OUTCOME-SENTRY-M0-CODEX-FEASIBILITY-001
+- Last state sync: 2026-08-24T12:20:27-04:00
 
 ## Mandatory kernel
 Read these before substantial work:
