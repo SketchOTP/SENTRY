@@ -36,10 +36,10 @@ SENTRY-M0-CODEX-FEASIBILITY-001 — target-tested; awaiting Architect acceptance
 - DAWN tool extension requires source/build registration, which violates the no-fork/no-substantial-modification boundary for this spike.
 - ChatGPT OAuth is usable for this trusted local run, but Codex documentation cautions that general unattended automation commonly uses API keys; future deployment must keep credentials private and must not expose the bridge to untrusted inputs.
 
-## Latest accepted evidence
+## Latest recorded evidence
 - `OUTCOME-SENTRY-AUTHORITY-BOOTSTRAP-001`: Authority tree and SENTRY state initialized; structural validation target-tested.
 - `OUTCOME-SENTRY-M0-DAWN-FEASIBILITY-001`: Supported synthetic physical-event path decisively blocked by upstream boundary inspection; evidence is E1_OBSERVED.
-- `OUTCOME-SENTRY-M0-CODEX-FEASIBILITY-001`: OAuth-only Luna bounded event-to-reasoning proof passed at low and high effort; evidence is E3_TARGET_TESTED.
+- `OUTCOME-SENTRY-M0-CODEX-FEASIBILITY-001`: OAuth-only Luna bounded event-to-reasoning proof passed at low and high effort; evidence is E3_TARGET_TESTED; Architect acceptance is pending.
 
 ## Current risks
 - Treating documentation or governance presence as runtime capability would overstate the project state.
