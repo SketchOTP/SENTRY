@@ -8,10 +8,10 @@
 
 ## Current pointers
 - Current stage: M0 — Bootstrap + DAWN Integration Feasibility
-- Active directive: SENTRY-AUTHORITY-BOOTSTRAP-001
-- Active task packet: `.agent/tasks/completed/SENTRY-AUTHORITY-BOOTSTRAP-001/`
+- Active directive: SENTRY-M0-DAWN-FEASIBILITY-001
+- Active task packet: `.agent/tasks/completed/SENTRY-M0-DAWN-FEASIBILITY-001/`
 - Last accepted outcome: OUTCOME-SENTRY-AUTHORITY-BOOTSTRAP-001
-- Last state sync: 2026-08-24T10:30:00-04:00
+- Last state sync: 2026-08-24T11:12:06-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

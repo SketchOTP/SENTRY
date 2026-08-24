@@ -35,6 +35,11 @@
 - Do not expose local state beyond localhost without deliberate authorization and appropriate authentication.
 - Do not silently derive from or fork DAWN, upload continuous video, add hardware, or expand to whole-home scope.
 
+## M0 upstream verification snapshot
+- DAWN inspected at `a0c0b13c65f1b02a3416d846f6a0d331244eee9d` on `main`.
+- DAWN's documented server path is x86_64 Linux/Docker; current host has Docker and WSL commands installed, but no DAWN runtime was started after the supported-ingress stop condition.
+- Current DAWN surfaces do not provide a supported external trusted `person.entered` event ingress that autonomously starts reasoning without user-message masquerading or DAWN source/build changes.
+
 ## Source-of-truth boundaries
 - Notion: strategic/project understanding and Architect state.
 - GitHub: committed implementation and governance evidence.

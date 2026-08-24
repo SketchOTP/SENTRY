@@ -33,3 +33,19 @@ Future results must distinguish static repository facts, committed evidence, and
 
 ### Recheck trigger
 Recheck if project governance or source-of-truth ownership changes by explicit decision.
+
+---
+
+## LEARNING-SENTRY-003 — Current DAWN upstream lacks the required external event boundary
+- Date: 2026-08-24
+- Evidence source: SENTRY-M0-DAWN-FEASIBILITY-001; DAWN upstream `a0c0b13c65f1b02a3416d846f6a0d331244eee9d`
+- Confidence: VERIFIED STATIC UPSTREAM INSPECTION
+
+### Learning
+DAWN's current WebSocket and satellite inputs are conversational text, its generic MQTT device relay becomes a user-role `[DEVICE DATA]` turn, and SAGE attention is limited to DAWN-owned telemetry watches. System-context injection can inform a later turn but does not trigger one. No supported external `person.entered` environmental-event ingress was found.
+
+### Why it matters
+SENTRY must not send a physical event through a user-message path and call it grounded environmental context. A clean bridge requires an explicit upstream capability or a separately authorized architecture decision.
+
+### Recheck trigger
+Recheck when DAWN adds a documented external event API, a supported generic event/tool ingress, or the Architect authorizes DAWN modification/forking or a foundation change.
