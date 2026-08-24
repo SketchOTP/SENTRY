@@ -77,8 +77,8 @@ SENTRY remains documentation-first with no application source, tests, dependency
 - Event-to-assistant flow reproducible: BLOCKED
 - No webcam/perception scope introduced: PASSED
 - No DAWN fork/vendor dependency created: PASSED
-- Authority state and Notion update: PENDING final commit/update
-- Commit/push: PENDING final record commit
+- Authority state and Notion update: PASSED
+- Commit/push: PASSED (`157fb3e`)
 
 ### External surface findings
 - WebSocket `text` and DAP2 `satellite_query` are documented and implemented as conversational text input. They would make the physical event appear as a user utterance.
