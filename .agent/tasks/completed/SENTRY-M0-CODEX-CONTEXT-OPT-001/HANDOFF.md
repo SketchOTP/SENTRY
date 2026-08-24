@@ -10,3 +10,9 @@ Do not release M1 automatically. M1 remains gated on Architect acceptance of thi
 
 The measured floor is approximately 18.2k input tokens on this Codex CLI host. The installed skills context remains present, and the CLI exposes no supported smaller runtime-context switch that was justified within the four-call budget. Subscription quota and plan-wide billing remain outside local CLI measurement.
 
+## Closure
+
+- Commit: `fd363e6` — `perf: isolate Codex runtime context`
+- Push: successful to `origin/main`
+- Notion: SENTRY page updated with before/after measurements and runtime-context architecture.
+- M1: not released; remains gated on Architect acceptance and separate authorization.

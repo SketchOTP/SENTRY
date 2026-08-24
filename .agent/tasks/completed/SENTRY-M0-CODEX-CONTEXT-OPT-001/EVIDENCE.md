@@ -55,3 +55,8 @@ The same-event baseline fell from 19,308 to 18,266 input tokens, a 5.4% reductio
 - The bridge now uses `TemporaryDirectory`, copies the schema to an absolute local path, runs with `--skip-git-repo-check`, and has no worker, timer, retry, or resume path.
 - Missing event input and a forced unavailable executable remain bounded structured errors and do not invoke Luna.
 
+## Closure
+
+- Notion result appended and re-fetch verification completed.
+- GitHub commit: `fd363e6` (`perf: isolate Codex runtime context`), pushed to `origin/main`.
+- Final branch state and working tree verification are recorded in the handoff.
