@@ -1,187 +1,108 @@
-# AGENTS.md — SENTRY AI Coder Contract
+# Authority Repository Agent Router
 
-## Mission
+This repository is governed by Authority.
 
-Build SENTRY from the formal scope in [`docs/PROJECT_SCOPE.md`](docs/PROJECT_SCOPE.md). SENTRY is a persistent room-aware AI presence. The current authorized implementation is **V0.1: one office, one Windows PC, one webcam, microphone, and speakers**.
+Codex is the AI Coder and live-codebase authority. The ChatGPT AI Architect controls strategic project direction, project-plan progression, and acceptance of project stages. Codex implements or investigates the active directive and returns technical evidence; it does not silently redefine the project goal or roadmap.
 
-Do not assume any prior conversation context. Everything required to understand the project should be derivable from this repository plus the linked Notion scope.
+## Mandatory startup
 
-## Authority
+Before substantial planning, editing, coding, or validation:
 
-1. Product intent and scope: SENTRY Notion page and `docs/PROJECT_SCOPE.md`.
-2. Implementation reality: repository code, tests, logs, and measured runtime evidence.
-3. Upstream behavior: current upstream documentation/source, verified before depending on it.
+1. Confirm the repository root and all applicable root/nested `AGENTS.md` files.
+2. Read `.agents/skills/authority/SKILL.md` and follow it for this task.
+3. Read `.agent/INDEX.md`.
+4. Read the mandatory current-state kernel listed by `INDEX.md`.
+5. Resolve the incoming Architect directive and retrieve only the relevant historical records required to understand it.
+6. Review relevant Notion and GitHub project state when available.
+7. Inspect the current Git/working-tree state before changing anything. Preserve unfamiliar or uncommitted work.
+8. Inspect the actual implementation, relevant callers, interfaces, tests, dependencies, and integration boundaries before changing shared behavior.
+9. State retrieval confidence as `ADEQUATE`, `UNCERTAIN`, or `INSUFFICIENT` for substantial/shared-behavior work. `INSUFFICIENT` blocks implementation until the relevant surface has been investigated.
 
-If scope and implementation evidence conflict, do not silently reinterpret either. Record the conflict and make the smallest justified change.
+Do not implement from the directive alone when repository evidence is available.
 
-## Current authorized milestone
+## Role boundary
 
-**M0 — Bootstrap and DAWN feasibility spike.**
+The Architect decides what the project should accomplish next and why.
 
-Do not jump ahead into a full perception stack until the assistant integration path has been demonstrated with a synthetic event.
+Codex determines what is technically true in the live repository and how to satisfy the authorized directive with the smallest correct change.
 
-Required first vertical slice:
-
-```text
-synthetic person.entered event
--> SENTRY event contract
--> assistant bridge
--> assistant receives grounded context
--> optional spoken response
-```
-
-Then place real webcam perception behind the same contract.
-
-## Core implementation rules
-
-- Do not use an LLM as the continuous camera processor.
-- Webcam frames remain local by default.
-- Convert perception into structured state/events before involving an LLM.
-- Prefer `unknown` to a wrong human identity.
-- Camera unavailable means `degraded`/`offline`, never fabricated `empty`.
-- Keep physical event/session history in SENTRY storage, not only assistant memory.
-- Use SQLite for V0.1 unless measured evidence demonstrates a real need for more infrastructure.
-- Keep detector, tracker, identity model, and assistant integrations behind replaceable interfaces.
-- Use bounded queues/backoff; do not accumulate stale frames or hot-retry failures.
-- All meaningful state transitions and proactive decisions must be diagnosable from logs/data.
-- Do not commit private recordings, enrollment photos, face embeddings, generated databases, secrets, model caches, or large model weights.
-
-## Reuse before rebuild
-
-D.A.W.N. is the preferred assistant foundation under evaluation:
-https://github.com/The-OASIS-Project/dawn
-
-Before implementing duplicate voice, memory, weather, scheduling, or proactive-assistant infrastructure, inspect current DAWN capabilities and determine whether they can be reused.
-
-Treat DAWN as external upstream initially. DAWN is GPLv3. Do not copy/fork substantial DAWN code without documenting the integration need and license consequences.
-
-Xiaomi Miloco is architectural reference only:
-https://github.com/XiaoMi/xiaomi-miloco
-
-Do not add Xiaomi hardware/service dependencies to V0.1.
-
-## Scope guardrails
-
-Do not add the following to make the office prototype pass:
-
-- ESP32 hardware
-- mmWave sensors
-- BLE room tracking
-- Wi-Fi CSI
-- Home Assistant
-- Frigate
-- multiple rooms
-- multiple cameras unless the single-camera requirement is objectively impossible and documented
-- TV/avatar embodiment
-- smart-home actuation
-- full routine learning
-- cloud continuous-video analysis
-
-Those are later phases.
-
-## Preferred implementation shape
-
-Use a small Python service on Windows unless measurement or upstream integration requires otherwise.
-
-Expected logical modules:
-
-```text
-camera -> detector/tracker -> identity -> presence state machine
-                                      -> semantic events
-                                      -> SQLite sessions/history
-                                      -> local API/event stream
-                                      -> assistant bridge
-                                      -> proactive policy
-```
-
-Do not create empty abstraction layers solely to match a diagram. Build only what the current vertical slice needs.
+If repository evidence disproves a material Architect assumption, acceptance is impossible as written, scope must materially expand, qualified work would be damaged, or a discovery would change strategic direction, stop short of silently changing direction and return evidence to the Architect.
 
 ## Engineering requirements
 
-- Type public/domain interfaces.
-- Pin dependencies reproducibly.
-- Use schema migrations from database version 1.
-- Store timezone-aware timestamps.
-- Add unit tests for hysteresis/state transitions before relying on live testing alone.
-- Add integration tests for persistence/restart and API contracts.
-- Verify code **and model-weight licenses** for any vision/identity dependency.
-- Provide `.env.example`/example configuration, never real secrets.
-- Keep local APIs on loopback by default.
-- Use structured logging.
-- Document commands required to reproduce each milestone on Windows.
+- Make the smallest correct change.
+- Read existing behavior before changing it.
+- Reuse existing project code and declared dependencies where appropriate.
+- Prefer simple, explicit, testable behavior.
+- Preserve established conventions unless the directive requires change.
+- Fix root causes; do not silence failures to obtain success.
+- Protect security, privacy, data integrity, secrets, and applicable accessibility boundaries.
+- Add focused validation for non-trivial behavior.
+- Avoid unrelated cleanup, speculative abstractions, and unnecessary rewrites.
+- Preserve qualified existing work unless the active directive explicitly authorizes replacement and the evidence justifies it.
 
-## Required domain states
+## Search before reinventing
 
-Room state:
-- `empty`
-- `occupied`
-- `degraded`
-- `offline`
+Use `.agents/skills/external-discovery/SKILL.md` when the Authority workflow triggers external discovery.
 
-Identity state should distinguish at least:
-- recognized enrolled person
-- unknown person
-- unresolved/not evaluated
+External discovery is proportional. It is expected before substantial new subsystems, frameworks, algorithms, models, agent mechanisms, protocols, infrastructure, evaluation systems, major abstractions, difficult custom mechanisms, rewrites, repeated failed attempts, unfamiliar domains, major course corrections, or novelty claims.
 
-Presence and identity are separate. A face disappearing does not mean a person left.
+Do not replace stable/qualified work merely because an alternative exists.
 
-## Minimum semantic events
+## Validation and evidence
 
-- `room.camera_online`
-- `room.camera_offline`
-- `room.became_occupied`
-- `room.became_empty`
-- `person.entered`
-- `person.identified`
-- `person.identity_changed`
-- `person.left`
-- `person.unknown_entered`
-- `presence.session_started`
-- `presence.session_ended`
-- `system.started`
-- `system.stopped`
-- `system.error`
+Report every meaningful check as one of:
 
-Events are append-oriented and versioned.
+- `PASSED`
+- `FAILED`
+- `NOT RUN`
+- `NOT APPLICABLE`
+- `BLOCKED`
 
-## Proactivity rule
+Never convert a timeout, unavailable tool, skipped check, partial execution, or unrun check into a pass.
 
-Physical event does **not** automatically mean speech.
+Use the Authority evidence ladder:
 
-Use:
+- `E0_CLAIMED`
+- `E1_OBSERVED`
+- `E2_REPRODUCED`
+- `E3_TARGET_TESTED`
+- `E4_REGRESSION_PROTECTED`
+- `E5_OPERATIONALLY_OBSERVED`
 
-```text
-stable event
--> enrich context
--> deterministic eligibility/dedupe/cooldown gate
--> optional LLM judgment
--> speak or remain silent
--> persist decision + suppression reason
-```
+New target tests alone are at most E3. E4 requires relevant broader/pre-existing regression evidence in addition to the target validation.
 
-Silence is a successful outcome when there is nothing useful to say.
+## Task packets
 
-## Milestone order
+Use `.agent/tasks/active/<directive-id>/` only for genuinely complex, long-running, multi-stage, research-heavy, high-risk, or handoff-sensitive work. Ordinary tasks do not require a task packet.
 
-- M0 Bootstrap + DAWN integration feasibility
-- M1 Camera + human presence
-- M2 Presence sessions + persistence
-- M3 Primary-user identity
-- M4 Conversational grounding
-- M5 Proactive arrival behavior
-- M6 72-hour soak + acceptance
+## State and history
 
-Routine learning begins only after M6 passes.
+`.agent/` is project state, not disposable scratch space.
 
-## Completion discipline
+Follow `.agent/INDEX.md` and `.agents/skills/authority/references/state-files.md` for update rules.
 
-At the end of each milestone:
+Preserve append-only history. Never rewrite failed outcomes or inconvenient evidence to make project history appear cleaner.
 
-1. Run the defined acceptance tests.
-2. Record actual evidence/results.
-3. Update README/project documentation to match reality.
-4. State known failures and limitations.
-5. Identify the next bounded milestone.
-6. Do not describe future capabilities as implemented.
+## Safety
 
-Read `docs/PROJECT_SCOPE.md` in full before coding.
+Do not delete unknown source, discard unfamiliar uncommitted work, rewrite Git history, force-push, deploy, migrate production data, alter infrastructure, rotate credentials, destroy external resources, or perform other irreversible actions without exact authorization.
+
+## Completion
+
+Before reporting a directive complete:
+
+1. Re-read its acceptance criteria.
+2. Inspect all changed areas and the final diff.
+3. Confirm unrelated work was preserved.
+4. Run the required validation.
+5. Record failed/unrun/blocked checks honestly.
+6. Establish the achieved evidence level.
+7. Update the required `.agent/` records.
+8. Update Notion/project records when required and authorized.
+9. Commit/push only when authorized, and ensure GitHub accurately represents the reported state.
+10. Return the canonical `CODEX RESULT` format from `.agents/skills/authority/references/result-contract.md`.
+
+Code existing is not proof of completion. Acceptance requires evidence.
+
+Nested `AGENTS.md` files may add more specific local instructions, but they may not bypass this Authority lifecycle or weaken higher-priority safety/user instructions.
