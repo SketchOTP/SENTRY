@@ -132,3 +132,17 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Current result: OpenVINO `2026.3.1` installed in ignored `.venv`; CPU/GPU devices enumerated; the checksummed model loaded, compiled, and produced `(1, 1, 200, 7)` on bounded zero-array inference. Production integration and 9/9 tests pass. Two telemetry-only camera runs are not acceptance evidence because operator confirmation was not recorded.
 - Stop/pending boundary: Obtain an operator-confirmed one-person office segment before accepting or rejecting Stage A. Do not infer human presence from model output alone.
 - Source: Architect directive `SENTRY-M1-DETECTOR-RUNTIME-001`, SENTRY Notion, prior detector-replan evidence, official OpenVINO documentation, and host runtime evidence.
+
+---
+
+## SENTRY-M1-OPENVINO-LIVE-001 — Operator-confirmed live quality qualification
+- Issued: 2026-08-26
+- Status: STOPPED AT ACCEPTED QUALITY-FAILURE BOUNDARY — current OpenVINO detector/tracker combination failed confirmed one-person quality
+- Project stage: M1 — Local Windows Perception
+- Objective: Run an operator-marked empty baseline and continuously confirmed one-person segment using the committed OpenVINO detector and unchanged IoU tracker; continue to dropout/soak only if quality gates pass.
+- Scope: Existing NexiGo N60, DirectShow index 0, 1280x720/15 FPS, OpenVINO CPU, configured threshold, size-one latest-frame buffer, structured metadata-only telemetry.
+- Exclusions: No detector/tracker/dependency/threshold changes, camera recovery detour, identity, persistence, events, API, voice, Codex/Luna calls, or M2.
+- Acceptance boundary reached: Stage A confirmed-empty passed. Stage B confirmed-one-person failed: 827 processed online observations included 480 zero-detection, 318 exactly-one, and 29 multi-detection observations; the unchanged tracker produced 19 unique IDs and 32 visible-ID-set changes for one continuously visible person.
+- Stop condition reached: Current detector quality is materially inadequate; Stage C synchronized dropout and Stage E soak were not run. Multi-person live evidence is blocked without a second person. Camera recovery remains a separate M1 gate.
+- External discovery: NOT REQUIRED.
+- Source: Architect directive `SENTRY-M1-OPENVINO-LIVE-001`, operator-confirmed ground-truth markers, metadata-only live telemetry, and current committed runtime.

@@ -169,3 +169,19 @@ Host devices were `CPU`, `GPU.0`, and `GPU.1`; CPU was selected. The model XML/B
 
 ### Consequence
 The runtime blocker is resolved, but M1 remains unaccepted. A human-confirmed one-person segment is required before deciding whether the detector is adequate and whether the unchanged tracker is the next bottleneck. No alternate runtime, tracker change, or M2 work is authorized.
+
+---
+
+## RECORD-SENTRY-010 — Confirmed OpenVINO live detector-quality failure
+- Date: 2026-08-26
+- Type: MILESTONE / M1 QUALITY FAILURE / ARCHITECT DECISION REQUIRED
+- Related directive/outcome: `SENTRY-M1-OPENVINO-LIVE-001` / `OUTCOME-SENTRY-M1-OPENVINO-LIVE-001`
+
+### Decision / event
+The operator confirmed an empty baseline, then confirmed one real person remained continuously visible for the live segment. The committed OpenVINO detector and unchanged IoU tracker were evaluated without tuning or architecture changes.
+
+### Evidence
+The empty baseline passed with 205/205 zero-person observations. The continuous-one-person run processed 827 online observations: 480 zero detections, 318 exactly one, and 29 multiple detections. The tracker produced 19 unique IDs, first ID 1, final visible ID 19, 32 visible-ID-set changes, and up to 3 active records. Throughput was 9.154 FPS with 9.518 ms median and 15.753 ms p95 latency.
+
+### Consequence
+The current detector is materially inadequate for M1 office presence sensing. Dropout and soak stages were stopped at the authorized quality boundary. The Architect must decide whether to authorize another detector/calibration path; do not change the tracker or begin M2 from this evidence.

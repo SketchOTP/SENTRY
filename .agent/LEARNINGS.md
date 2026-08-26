@@ -157,3 +157,19 @@ The live gate must preserve the distinction between executable software, observe
 
 ### Recheck trigger
 Recheck with an explicitly operator-confirmed one-person office segment, then evaluate the unchanged tracker before considering any tracker change.
+
+---
+
+## LEARNING-SENTRY-011 — Confirmed continuous visibility exposes OpenVINO detector inadequacy
+- Date: 2026-08-26
+- Evidence source: `OUTCOME-SENTRY-M1-OPENVINO-LIVE-001`; operator-marked empty and continuous-one-person live runs
+- Confidence: VERIFIED LIVE QUALITY FAILURE
+
+### Learning
+The committed OpenVINO `person-detection-0202` path stayed above the FPS floor and produced no false-person output during the confirmed-empty baseline, but during approximately 83.9 seconds of continuously confirmed one-person visibility it produced exactly one detector box in only 318/827 observations, no detector box in 480/827, and multiple boxes in 29/827. The unchanged IoU tracker consequently created 19 IDs and 32 visible-ID-set changes.
+
+### Why it matters
+The model/runtime integration is technically valid but not adequate for this office scene. Tracker churn cannot be isolated as the primary bottleneck until a detector provides reliable one-person observations.
+
+### Recheck trigger
+Recheck only after an explicitly authorized detector replan or calibration directive; preserve this negative live result.

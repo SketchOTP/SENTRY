@@ -378,3 +378,44 @@ Do not accept M1. Do not begin M2. The current HOG plus SENTRY IoU tracker is no
 
 ### Decision boundary
 The authorized runtime path is technically usable and the detector replacement is ready for proper live qualification. Do not accept M1 or claim detector adequacy until a human-confirmed one-person segment is completed. Do not change the tracker or add another runtime.
+
+---
+
+## OUTCOME-SENTRY-M1-OPENVINO-LIVE-001 — Confirmed one-person quality failure
+- Date: 2026-08-26
+- Directive: `SENTRY-M1-OPENVINO-LIVE-001`
+- Verdict: PARTIAL — **DETECTOR QUALITY FAILURE**; Architect decision required before further M1 qualification
+- Retrieval confidence: ADEQUATE for repository, runtime, telemetry, and operator markers
+- Evidence level: E5_OPERATIONALLY_OBSERVED
+
+### Pre-live gates
+- Working tree was clean before live operation, local `main` matched `origin/main` at `ec4a2f3af1f8ad245d3d0c0f8d41dc528d97d438`, the FP32 XML/BIN checksums passed, and the existing automated suite passed 9/9.
+- Runtime remained the committed `openvino==2026.3.1` CPU path with no production changes. Runtime Codex/Luna calls remained 0.
+
+### Operator-confirmed markers
+- Stage A marker: `CONFIRMED_EMPTY — START`, recorded at `2026-08-26T15:07:31.1859602Z`; an extended confirmed-empty run provided approximately 20.6 seconds of online telemetry.
+- Stage B marker: `CONFIRMED_ONE_PERSON — START`, recorded at `2026-08-26T15:09:55.9480344Z`.
+- Operator end confirmation: `CONFIRMED_ONE_PERSON — END — CONTINUOUS`; the operator confirmed the subject remained continuously visible for the recorded segment.
+- No raw frames or video were persisted.
+
+### Stage A — confirmed empty
+- 205 processed online observations.
+- 205 zero-person, 0 one-person, 0 multi-person observations.
+- Maximum false-person confidence: none; no sustained false-person period.
+- 8.095 processed FPS; 0 dropped frames.
+- Result: PASSED.
+
+### Stage B — confirmed one person and unchanged tracker
+- Online telemetry span: approximately 83.9 seconds; 827 processed observations; 9.154 processed FPS; median/p95 processing latency 9.518/15.753 ms; 1 dropped frame.
+- Detector-visible observations: 480 zero detections, 318 exactly one detection, and 29 more-than-one detections; maximum simultaneous detector boxes 2.
+- Detector-visible detection rate while the person was continuously confirmed visible: 347/827 observations, 42.0%.
+- Duplicate/multi-detection observations were present in 29/827 observations, 3.5%; no persistent second physical person was confirmed.
+- Unchanged tracker: first visible ID `1`, final visible ID `19`, 19 unique IDs, 32 visible-ID-set changes, maximum 3 active tracker records, 265 predicted/missed tracker records, and maximum missed count 12.
+- Result: FAILED. The detector missed the continuously visible subject in a large fraction of observations and produced repeated ID churn/extra tracker records. This is a detector-quality failure; tracker rework was not attempted.
+
+### Stop boundary and remaining gates
+- Stage C synchronized dropout: NOT RUN because Stage B failed.
+- Ten-minute soak: NOT RUN because Stage B failed.
+- Live two-person behavior: BLOCKED — no second person available; automated tests were not substituted.
+- Camera offline/recovery: NOT RUN under this directive; remains a separate final M1 gate and no privileged device manipulation was attempted.
+- Recommendation: **DETECTOR REPLAN**. Do not accept M1, do not modify the tracker in this result, and do not begin M2.
