@@ -8,11 +8,11 @@
 
 ## Current pointers
 - Current stage: M1 — Local Windows Perception
-- Active directive: SENTRY-M1-DETECTOR-CALIBRATION-001 — stopped at calibration failure; Architect decision required
+- Active directive: SENTRY-M1-DETECTOR-0303-001 — stopped at confirmed one-person detector-quality failure; Architect decision required
 - Active task packet: `.agent/tasks/active/SENTRY-M1-PERCEPTION-001/`
 - Last accepted outcome: M0 Codex/Luna reasoning and context optimization — Architect accepted
-- Latest recorded outcome: OUTCOME-SENTRY-M1-DETECTOR-CALIBRATION-001 — no tested threshold separated confirmed-empty from confirmed-one-person quality
-- Last state sync: 2026-08-26T12:30:00-04:00
+- Latest recorded outcome: OUTCOME-SENTRY-M1-DETECTOR-0303-001 — 0303 produced zero candidates during the confirmed one-person segment
+- Last state sync: 2026-08-26T15:17:52-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

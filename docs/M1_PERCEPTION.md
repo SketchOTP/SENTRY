@@ -10,12 +10,12 @@ It makes zero SENTRY Codex/Luna calls. It does not perform identity recognition,
 
 ## Selected stack
 
-The current implementation uses Intel Open Model Zoo `person-detection-0202` through the official OpenVINO Python Runtime and a small SENTRY-owned two-stage IoU tracker. The tracker is unchanged from the HOG qualification.
+The current implementation uses Intel Open Model Zoo `person-detection-0303` through the official OpenVINO Python Runtime and a small SENTRY-owned two-stage IoU tracker. The tracker is unchanged from the HOG and 0202 qualifications.
 
 - `openvino==2026.3.1`, Apache-2.0, used for local CPU inference of the externally downloaded IR model.
 - `opencv-python-headless==4.12.0.88`, used for camera and image handling.
 - `psutil==7.0.0`, BSD-3-Clause, used only for process metrics.
-- `person-detection-0202` is the official Open Model Zoo FP32 XML/BIN artifact. Its manifest-provided SHA-384 checksums are recorded in Authority and the files remain outside Git under `perception-data/models/person-detection-0202/FP32/`.
+- `person-detection-0303` is the official Open Model Zoo FP32 XML/BIN artifact. Its manifest-provided SHA-384 checksums are recorded in Authority and the files remain outside Git under `perception-data/models/person-detection-0303/FP32/`. The model uses native `1x3x720x1280` BGR input, `boxes` `(N,5)` absolute pixel coordinates, and `labels` `(N,)` where `1` is person.
 - The tracker is original SENTRY code. It keeps a bounded track table, associates high-confidence detections before lower-confidence detections, and retains unmatched tracks for a configured short dropout window.
 
 YOLOX plus ByteTrack was evaluated first because YOLOX is Apache-2.0 and ByteTrack is MIT, and both are viable future options. It was not adopted for this first live attempt because the host had no Python/CV runtime, the YOLOX deployment path requires a separately sourced model artifact, and adding a PyTorch/ONNX stack before proving camera access would increase the installation and provenance surface. The detector interface is replaceable so a later benchmark can compare YOLOX-Nano or another permissive model on the same observation contract.
@@ -45,4 +45,6 @@ Automated tracker/configuration/contract tests can establish deterministic behav
 - [ONNX Runtime execution providers](https://onnxruntime.ai/docs/execution-providers/)
 - [OpenVINO Python installation](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-pip.html)
 - [OpenVINO repository and Apache-2.0 license](https://github.com/openvinotoolkit/openvino)
-- [Open Model Zoo person-detection-0202 README](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-0202/README.md)
+- [Open Model Zoo person-detection-0303 README](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-0303/README.md)
+- [Open Model Zoo person-detection-0303 manifest](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-0303/model.yml)
+- [Open Model Zoo Apache-2.0 license](https://github.com/openvinotoolkit/open_model_zoo/blob/master/LICENSE)

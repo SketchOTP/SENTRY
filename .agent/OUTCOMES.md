@@ -474,3 +474,49 @@ All rows below were computed from the same raw candidate files; no camera rerun 
 
 ### Recommendation
 Return to Architect with **REPLAN MODEL**. Preserve `person-detection-0202` and this negative calibration evidence. Do not change the tracker or implement `person-detection-0303` until separately authorized.
+
+---
+
+## OUTCOME-SENTRY-M1-DETECTOR-0303-001 — Confirmed one-person quality failure
+- Date: 2026-08-26
+- Directive: `SENTRY-M1-DETECTOR-0303-001`
+- Verdict: PARTIAL — **0303 DETECTOR QUALITY FAILURE**
+- Retrieval confidence: ADEQUATE for repository, upstream provenance, runtime, model artifacts, decoding, tests, performance, operator markers, and live metadata
+- Evidence level: E5_OPERATIONALLY_OBSERVED for the operator-confirmed empty and continuous-one-person segments; bounding-box sanity was NOT ACCEPTED because no candidate box existed in the one-person segment
+
+### Implementation and provenance
+- Replaced only the 0202-specific decoder/configuration path with Open Model Zoo `person-detection-0303` through the existing `openvino==2026.3.1` CPU runtime. The NexiGo capture path, native 1280x720/15 FPS request, size-one latest-frame buffer, raw-candidate diagnostic path, detector contract, and unchanged SENTRY IoU tracker were preserved.
+- Official FP32 XML source: `https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/person-detection-0303/FP32/person-detection-0303.xml`; size 1,119,623 bytes; SHA-384 `a3d4b43461bcd5a8d3740a093d069a828d494b23ef4758fb531b9174d5ad0a827da7baf7a46f75d61092563cbab82cde`; verified on host.
+- Official FP32 BIN source: `https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/person-detection-0303/FP32/person-detection-0303.bin`; size 9,279,356 bytes; SHA-384 `0f74ec88ff3667e272a70a245edfff86048fe7de15f2deb7a4a0796f6b8aa870f08f4d1b0867f2d3b175204633f61805`; verified on host.
+- The official manifest and README identify Apache-2.0 provenance, MobileNetV2 with ATSS, BGR input `[1,3,720,1280]`, absolute-pixel `boxes (N,5)`, and `labels (N,)` with person label `1`. Runtime inspection matched those semantics: zero-array inference returned `boxes (22,5)` and `labels (22,)`.
+- Model files remain outside Git under ignored canonical `perception-data/models/person-detection-0303/FP32/`. No raw frame or video was persisted.
+
+### Pre-live performance
+- Short native-camera CPU check: DirectShow, 1280x720, 107 captured / 105 processed, 6.852 processed FPS, 79.056 ms median and 114.636 ms p95 processing latency, 1 dropped frame, camera online, zero Codex/Luna calls. This exceeded the 5 FPS stop boundary; no ten-minute soak was run after quality failure.
+
+### Operator-confirmed live calibration
+- Stage A user marker: `CONFIRMED_EMPTY — START`; runner marker `2026-08-26T19:13:21.697481+00:00`; 279 online observations over 30.863 seconds; operator-confirmed empty; zero raw candidates at every threshold from `0.10` through `0.90`; no false-person detections. **PASSED**.
+- Stage B user marker: `CONFIRMED_ONE_PERSON — START`; runner marker `2026-08-26T19:15:44.376944+00:00`; 588 online observations over 60.91 seconds; operator confirmed `CONFIRMED_ONE_PERSON — END — CONTINUOUS`; one person was continuously visible; zero raw candidates at every threshold from `0.10` through `0.90`. **FAILED**.
+- Metadata-only evidence files: `perception-data/runtime/m1-0303-calibration-empty-20260826.jsonl` and `perception-data/runtime/m1-0303-calibration-one-person-20260826.jsonl`; raw camera frames and video were not written.
+
+### Threshold table from the same raw outputs
+All 17 tested thresholds (`0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90`) produced the same result:
+
+| Threshold | Empty FP observations | One-person recall | Exactly one | Multi | Longest false-positive run | Longest miss run | Longest duplicate run |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.10–0.90, each 0.05 | 0/279 (0.000%) | 0/588 (0.000%) | 0/588 (0.000%) | 0/588 (0.000%) | 0.000 s | 60.910 s | 0.000 s |
+
+- Bounding-box sanity: **NOT ACCEPTED**. The one-person segment yielded no candidate boxes to inspect; no visual artifact was retained.
+- Tracker stage: **NOT RUN** because detector calibration failed. Synchronized dropout: **NOT RUN**. Ten-minute soak: **NOT RUN**. Live two-person behavior: **BLOCKED** — no second person available. Camera recovery: **NOT RUN** and remains a separate M1 gate.
+- Automated tests: **11/11 PASSED**. Py-compile: **PASSED**. Git fsck: **PASSED**. Runtime Codex/Luna calls: `0`.
+
+### Acceptance boundary
+- Model provenance/checksums: PASSED.
+- OpenVINO load/compile/output semantics: PASSED.
+- CPU performance floor: PASSED for short check.
+- Confirmed-empty false-positive gate: PASSED.
+- Confirmed-one-person detection gate: FAILED decisively.
+- Directive stop condition: `STOP — 0303 DETECTOR QUALITY FAILURE`.
+
+### Recommendation
+Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch runtime/device/precision, add another detector candidate, or begin M2 from this result.

@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Any, Iterable
 
 
-DEFAULT_THRESHOLDS = (0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50)
+DEFAULT_THRESHOLDS = tuple(round(value / 100, 2) for value in range(10, 91, 5))
 
 
 def _parse_timestamp(value: str) -> datetime:

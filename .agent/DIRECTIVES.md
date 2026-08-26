@@ -160,3 +160,17 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Stop condition reached: `DETECTOR CALIBRATION FAILED — REPLAN MODEL`. Tracker diagnostics, dropout, soak, and camera recovery were not run because detector calibration failed.
 - Evidence level: E5_OPERATIONALLY_OBSERVED for the operator-confirmed segments; bounding-box visual sanity was NOT ACCEPTED because headless OpenCV lacks GUI support.
 - Source: Architect directive `SENTRY-M1-DETECTOR-CALIBRATION-001`, current OpenVINO implementation, metadata-only live captures, and offline threshold evaluation.
+
+---
+
+## SENTRY-M1-DETECTOR-0303-001 — Replace the failed detector with Open Model Zoo person-detection-0303
+- Issued: 2026-08-26
+- Status: STOPPED AT CONFIRMED QUALITY FAILURE — returned to Architect for detector decision
+- Project stage: M1 — Local Windows Perception
+- Objective: Replace only the failed `person-detection-0202` model with the official Open Model Zoo `person-detection-0303` FP32 model through the existing OpenVINO runtime, then calibrate it before evaluating the unchanged IoU tracker.
+- Scope: Official provenance/checksum verification, native 1280x720 model integration, metadata-only operator-confirmed empty/one-person calibration, and short CPU performance check.
+- Exclusions: No tracker tuning/replacement, alternate detector/runtime, GPU/FP16 switch, identity, persistence, events, API, voice, M2, or Codex/Luna perception calls.
+- Acceptance boundary reached: 0303 loaded/compiled and produced documented `boxes`/`labels` outputs. Stage A passed with 279 empty observations over 30.863 seconds and zero candidates. Stage B failed with 588 observations over 60.91 seconds of continuously confirmed one-person visibility and zero candidates at every threshold from 0.10 through 0.90.
+- Stop condition reached: `STOP — 0303 DETECTOR QUALITY FAILURE`. Tracker, dropout, soak, and camera recovery were not run under this directive.
+- External discovery: REQUIRED and completed narrowly against the official Open Model Zoo manifest, README, license, and artifact sources.
+- Source: Architect directive `SENTRY-M1-DETECTOR-0303-001`, official Open Model Zoo records, current OpenVINO implementation, and operator-confirmed metadata-only live runs.

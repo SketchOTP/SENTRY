@@ -7,7 +7,8 @@ Last verified against: `main` and working-tree inspection on 2026-08-24.
 - `docs/PROJECT_SCOPE.md` — formal product scope, architecture guidance, acceptance targets, and handoff rules.
 
 ## Major modules / packages
-- `perception/sentry_perception.py` — observation-only local webcam service, OpenVINO `person-detection-0202` detector, bounded latest-frame buffer, two-stage IoU tracker, health states, and metrics.
+- `perception/sentry_perception.py` — observation-only local webcam service, OpenVINO `person-detection-0303` detector, bounded latest-frame buffer, two-stage IoU tracker, health states, and metrics.
+- `perception/calibration.py` and `tools/m1_detector_calibration.py` — metadata-only raw-candidate capture and offline threshold evaluation used by the 0202 and 0303 detector gates; no raw frames are written.
 - `perception/calibration.py` and `tools/m1_detector_calibration.py` — metadata-only raw-candidate capture and offline confidence-threshold evaluation for the bounded M1 calibration directive; no frames are persisted and candidates do not enter the tracker.
 - `perception/config.example.json` — configurable camera, detector, and tracker settings.
 - `tests/test_sentry_perception.py` — deterministic M1 contract tests.

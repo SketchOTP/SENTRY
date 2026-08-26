@@ -187,3 +187,19 @@ The model cannot be accepted by threshold calibration alone. A model replan is j
 
 ### Recheck trigger
 Recheck only after a separately authorized model candidate is integrated and its artifacts/runtime are independently verified.
+
+---
+
+## LEARNING-SENTRY-013 — Native 0303 model failed confirmed seated-office detection
+- Date: 2026-08-26
+- Evidence source: `OUTCOME-SENTRY-M1-DETECTOR-0303-001`; official Open Model Zoo records; operator-confirmed metadata-only live runs
+- Confidence: VERIFIED LIVE QUALITY FAILURE
+
+### Learning
+Open Model Zoo `person-detection-0303` loaded and executed through the existing OpenVINO CPU runtime, and a short camera check exceeded 5 processed FPS. However, during 588 observations over 60.91 seconds of continuously confirmed one-person visibility, the model emitted zero person candidates before thresholding. A 30.863-second confirmed-empty segment also emitted zero candidates.
+
+### Why it matters
+The native 1280x720 candidate does not satisfy the M1 detector gate in the tested office scene, even at thresholds as low as 0.10. The unchanged IoU tracker remains unjudged because no valid detector input was available.
+
+### Recheck trigger
+Recheck only after a separately authorized detector decision. Preserve the 0202 calibration failure, the 0303 failure, and the unchanged tracker boundary.

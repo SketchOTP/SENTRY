@@ -204,3 +204,19 @@ The empty segment had 303 observations over 30.639 seconds. The one-person segme
 
 ### Consequence
 Calibration failed with `DETECTOR CALIBRATION FAILED — REPLAN MODEL`. No production threshold, tracker, model, runtime, camera, or preprocessing change was made. Tracker evaluation, dropout, soak, and camera recovery were not run. The next Architect candidate is `person-detection-0303`; it is not implemented by this record.
+
+---
+
+## RECORD-SENTRY-012 — Person-detection-0303 failed confirmed live quality gate
+- Date: 2026-08-26
+- Type: MILESTONE / DETECTOR QUALITY FAILURE / ARCHITECT DECISION REQUIRED
+- Related directive/outcome: `SENTRY-M1-DETECTOR-0303-001` / `OUTCOME-SENTRY-M1-DETECTOR-0303-001`
+
+### Decision / event
+The Architect authorized a bounded replacement of failed `person-detection-0202` with official Open Model Zoo `person-detection-0303`, preserving OpenVINO CPU execution, native 1280x720 capture, the detector contract, and the unchanged IoU tracker.
+
+### Evidence
+0303 provenance, Apache-2.0 license linkage, FP32 XML/BIN checksums, OpenVINO load/compile, output semantics, and a short CPU performance check passed. A confirmed-empty segment produced zero candidates for 279 observations over 30.863 seconds. A confirmed continuous-one-person segment produced zero candidates for 588 observations over 60.91 seconds, across every threshold from 0.10 through 0.90.
+
+### Consequence
+0303 is not adequate for the tested office scene. Tracker qualification, dropout, soak, and camera recovery were stopped at the detector-quality boundary. The Architect must decide the next detector direction; do not change the tracker, runtime/device, or begin M2 from this evidence.

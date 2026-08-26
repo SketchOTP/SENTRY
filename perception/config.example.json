@@ -9,9 +9,9 @@
     "read_failure_limit": 5
   },
   "detector": {
-    "name": "openvino_person_detection_0202",
-    "model_xml": "perception-data/models/person-detection-0202/FP32/person-detection-0202.xml",
-    "model_bin": "perception-data/models/person-detection-0202/FP32/person-detection-0202.bin",
+    "name": "openvino_person_detection_0303",
+    "model_xml": "perception-data/models/person-detection-0303/FP32/person-detection-0303.xml",
+    "model_bin": "perception-data/models/person-detection-0303/FP32/person-detection-0303.bin",
     "device": "CPU",
     "confidence_threshold": 0.5
   },

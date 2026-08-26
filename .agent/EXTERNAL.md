@@ -75,3 +75,15 @@ No external discovery was required for this governance-only bootstrap. The direc
 - Rationale: The official package installed cleanly in the isolated Python 3.12 environment, exposed `CPU`, `GPU.0`, and `GPU.1`, and directly loaded/compiled the existing FP32 XML/BIN model. Bounded inference produced the documented `1x1x200x7` output. No OpenCV replacement or second inference framework was needed.
 - Limitations: Runtime compatibility is reproduced, but live detector adequacy remains unproven pending operator-confirmed ground truth. The 2025 documentation page was used for the installation workflow because it was the reachable official page; the current official repository README also documents `pip install -U openvino` and version verification.
 - Recheck trigger: OpenVINO package/model format changes, Python or Windows support changes, or a future Architect-authorized runtime replacement.
+
+---
+
+## EXTERNAL-SENTRY-007 — Open Model Zoo person-detection-0303 provenance and output semantics
+- Date: 2026-08-26
+- Freshness: Official Open Model Zoo manifest, README, license, and artifact sources retrieved through `/browse` on 2026-08-26; model download, checksum, OpenVINO load/compile, and output inspection reproduced on the same date.
+- Sources: [person-detection-0303 manifest](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-0303/model.yml), [person-detection-0303 README](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-0303/README.md), [Open Model Zoo Apache-2.0 license](https://github.com/openvinotoolkit/open_model_zoo/blob/master/LICENSE), and the manifest's [FP32 XML](https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/person-detection-0303/FP32/person-detection-0303.xml) / [FP32 BIN](https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/person-detection-0303/FP32/person-detection-0303.bin) sources.
+- Overlap: Local person detection through the existing OpenVINO runtime, native 1280x720 BGR input, absolute-coordinate box decoding, and preservation of SENTRY's detector/tracker boundary.
+- Disposition: REFERENCE provenance and output semantics; REJECT 0303 for the tested office scene after operator-confirmed live quality failure.
+- Rationale: The candidate met artifact/runtime/performance prerequisites, but emitted zero person candidates during 588 observations of continuously confirmed one-person visibility, including at threshold 0.10. No tracker change or alternate runtime was introduced.
+- Limitation: Bounding-box visual sanity and tracker qualification were not reached because no one-person candidate was produced. Camera recovery remains untested.
+- Recheck trigger: A separately authorized detector decision; do not switch model, runtime/device, precision, or tracker under this completed directive.

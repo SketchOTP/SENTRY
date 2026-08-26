@@ -214,15 +214,17 @@ class Detector(Protocol):
 
 
 class OpenVINOPersonDetector:
-    """Local person detector backed by the Open Model Zoo IR model."""
+    """Local person detector backed by Open Model Zoo person-detection-0303."""
 
     def __init__(self, config: dict[str, Any]) -> None:
         try:
             import numpy as np
             from openvino import Core
         except ImportError as exc:  # pragma: no cover - depends on runtime install
-            raise RuntimeError("openvino is required for the person-detection-0202 detector") from exc
+            raise RuntimeError("openvino is required for the person-detection-0303 detector") from exc
         self._np = np
+        if config.get("name") != "openvino_person_detection_0303":
+            raise ValueError("only the explicitly selected openvino_person_detection_0303 detector is implemented")
         self.confidence_threshold = float(config.get("confidence_threshold", 0.50))
         self.model_xml = Path(config.get("model_xml", ""))
         self.model_bin = Path(config.get("model_bin", ""))
@@ -234,12 +236,15 @@ class OpenVINOPersonDetector:
         try:
             core = Core()
             model = core.read_model(str(self.model_xml), str(self.model_bin))
-            outputs = list(model.outputs)
-            if len(outputs) != 1 or list(outputs[0].shape) != [1, 1, 200, 7]:
-                raise ValueError(f"expected one output shaped [1, 1, N, 7], got {[list(output.shape) for output in outputs]}")
             input_shape = list(model.inputs[0].shape)
-            if input_shape != [1, 3, 512, 512]:
-                raise ValueError(f"expected input shape [1, 3, 512, 512], got {input_shape}")
+            if input_shape != [1, 3, 720, 1280]:
+                raise ValueError(f"expected input shape [1, 3, 720, 1280], got {input_shape}")
+            outputs = list(model.outputs)
+            output_names = {name for output in outputs for name in output.get_names()}
+            if len(outputs) != 2 or "boxes" not in output_names or "labels" not in output_names:
+                raise ValueError(f"expected boxes and labels outputs, got {sorted(output_names)}")
+            self._boxes_output_name = next(output.any_name for output in outputs if "boxes" in output.get_names())
+            self._labels_output_name = next(output.any_name for output in outputs if "labels" in output.get_names())
             self._compiled_model = core.compile_model(model, self.device)
             self._input_name = model.inputs[0].any_name
             self._request = self._compiled_model.create_infer_request()
@@ -248,21 +253,26 @@ class OpenVINOPersonDetector:
 
     @staticmethod
     def _decode_detections(
-        output: Any,
+        boxes: Any,
+        labels: Any,
         width: int,
         height: int,
         confidence_threshold: float | None,
     ) -> list[Detection]:
         detections: list[Detection] = []
-        for image_id, label, confidence, x_min, y_min, x_max, y_max in output[0, 0]:
-            if image_id < 0 or int(label) != 0:
+        for (x_min, y_min, x_max, y_max, confidence), label in zip(
+            boxes.reshape(-1, 5), labels.reshape(-1), strict=True
+        ):
+            if int(label) != 1:
                 continue
             if confidence_threshold is not None and float(confidence) < confidence_threshold:
                 continue
-            left = max(0.0, min(float(width), float(x_min) * width))
-            top = max(0.0, min(float(height), float(y_min) * height))
-            right = max(0.0, min(float(width), float(x_max) * width))
-            bottom = max(0.0, min(float(height), float(y_max) * height))
+            # 0303 reports absolute pixel coordinates. Native 1280x720
+            # capture therefore needs no coordinate transform beyond clipping.
+            left = max(0.0, min(float(width), float(x_min)))
+            top = max(0.0, min(float(height), float(y_min)))
+            right = max(0.0, min(float(width), float(x_max)))
+            bottom = max(0.0, min(float(height), float(y_max)))
             if right <= left or bottom <= top:
                 continue
             detections.append(Detection((left, top, right, bottom), float(confidence)))
@@ -274,13 +284,18 @@ class OpenVINOPersonDetector:
             raise ValueError("detector expects a BGR image with three channels")
         import cv2
 
-        resized = cv2.resize(image, (512, 512))
-        tensor = self._np.asarray(resized, dtype=self._np.float32).transpose(2, 0, 1)[self._np.newaxis, ...]
+        input_image = image if (width, height) == (1280, 720) else cv2.resize(image, (1280, 720))
+        tensor = self._np.asarray(input_image, dtype=self._np.float32).transpose(2, 0, 1)[self._np.newaxis, ...]
         result = self._request.infer({self._input_name: tensor})
-        output = next(iter(result.values()))
-        if tuple(output.shape) != (1, 1, 200, 7):
-            raise RuntimeError(f"unexpected detector output shape: {tuple(output.shape)}")
-        return self._decode_detections(output, width, height, None), width, height
+        outputs = {output.any_name: value for output, value in result.items()}
+        try:
+            boxes = outputs[self._boxes_output_name]
+            labels = outputs[self._labels_output_name]
+        except KeyError as exc:
+            raise RuntimeError(f"unexpected detector outputs: {sorted(outputs)}") from exc
+        if boxes.ndim != 2 or boxes.shape[1] != 5 or labels.ndim != 1 or boxes.shape[0] != labels.shape[0]:
+            raise RuntimeError(f"unexpected detector output shapes: boxes={boxes.shape}, labels={labels.shape}")
+        return self._decode_detections(boxes, labels, width, height, None), width, height
 
     def detect_raw(self, image: Any) -> list[Detection]:
         """Return valid person candidates before the configured threshold.
@@ -363,8 +378,8 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ValueError(f"camera.{key} must be positive")
     if int(camera.get("buffer_size", 1)) != 1:
         raise ValueError("camera.buffer_size must remain 1 to enforce latest-frame behavior")
-    if detector.get("name") != "openvino_person_detection_0202":
-        raise ValueError("only the explicitly selected openvino_person_detection_0202 detector is implemented")
+    if detector.get("name") != "openvino_person_detection_0303":
+        raise ValueError("only the explicitly selected openvino_person_detection_0303 detector is implemented")
     if not 0 <= float(detector.get("confidence_threshold", 0.5)) <= 1:
         raise ValueError("detector.confidence_threshold must be between 0 and 1")
     if not detector.get("model_xml") or not detector.get("model_bin"):

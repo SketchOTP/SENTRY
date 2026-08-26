@@ -81,14 +81,15 @@ class PerceptionTests(unittest.TestCase):
 
     def test_detector_output_contract(self):
         detector = OpenVINOPersonDetector({
-            "model_xml": "perception-data/models/person-detection-0202/FP32/person-detection-0202.xml",
-            "model_bin": "perception-data/models/person-detection-0202/FP32/person-detection-0202.bin",
+            "name": "openvino_person_detection_0303",
+            "model_xml": "perception-data/models/person-detection-0303/FP32/person-detection-0303.xml",
+            "model_bin": "perception-data/models/person-detection-0303/FP32/person-detection-0303.bin",
             "device": "CPU",
             "confidence_threshold": 0.5,
         })
         import numpy as np
 
-        detections = detector.detect(np.zeros((240, 320, 3), dtype=np.uint8))
+        detections = detector.detect(np.zeros((720, 1280, 3), dtype=np.uint8))
         self.assertIsInstance(detections, list)
         for detection in detections:
             self.assertIsInstance(detection, Detection)
@@ -98,11 +99,9 @@ class PerceptionTests(unittest.TestCase):
     def test_detector_decodes_person_boxes_and_filters_other_classes(self):
         import numpy as np
 
-        output = np.full((1, 1, 200, 7), -1.0, dtype=np.float32)
-        output[0, 0, 0] = [0, 0, 0.8, 0.1, 0.2, 0.6, 0.9]
-        output[0, 0, 1] = [0, 1, 0.99, 0.0, 0.0, 1.0, 1.0]
-        output[0, 0, 2] = [0, 0, 0.2, 0.0, 0.0, 1.0, 1.0]
-        detections = OpenVINOPersonDetector._decode_detections(output, 320, 240, 0.5)
+        boxes = np.array([[32.0, 48.0, 192.0, 216.0, 0.8], [0.0, 0.0, 320.0, 240.0, 0.99], [0.0, 0.0, 320.0, 240.0, 0.2]], dtype=np.float32)
+        labels = np.array([1, 0, 1], dtype=np.int64)
+        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 320, 240, 0.5)
         self.assertEqual(len(detections), 1)
         for actual, expected in zip(detections[0].bbox, (32.0, 48.0, 192.0, 216.0)):
             self.assertAlmostEqual(actual, expected, places=4)
@@ -111,10 +110,9 @@ class PerceptionTests(unittest.TestCase):
     def test_detector_decodes_raw_person_candidates_before_threshold(self):
         import numpy as np
 
-        output = np.full((1, 1, 200, 7), -1.0, dtype=np.float32)
-        output[0, 0, 0] = [0, 0, 0.2, 0.1, 0.2, 0.6, 0.9]
-        output[0, 0, 1] = [0, 1, 0.99, 0.0, 0.0, 1.0, 1.0]
-        raw = OpenVINOPersonDetector._decode_detections(output, 320, 240, None)
+        boxes = np.array([[32.0, 48.0, 192.0, 216.0, 0.2], [0.0, 0.0, 320.0, 240.0, 0.99]], dtype=np.float32)
+        labels = np.array([1, 0], dtype=np.int64)
+        raw = OpenVINOPersonDetector._decode_detections(boxes, labels, 320, 240, None)
         filtered = [detection for detection in raw if detection.confidence >= 0.5]
         self.assertEqual(len(raw), 1)
         self.assertEqual(len(filtered), 0)
@@ -137,17 +135,19 @@ class PerceptionTests(unittest.TestCase):
     def test_missing_model_fails_explicitly(self):
         with self.assertRaisesRegex(RuntimeError, "model XML file not found"):
             OpenVINOPersonDetector({
-                "model_xml": str(Path("perception-data/models/person-detection-0202/FP32/missing.xml")),
-                "model_bin": "perception-data/models/person-detection-0202/FP32/person-detection-0202.bin",
+                "name": "openvino_person_detection_0303",
+                "model_xml": str(Path("perception-data/models/person-detection-0303/FP32/missing.xml")),
+                "model_bin": "perception-data/models/person-detection-0303/FP32/person-detection-0303.bin",
             })
 
     def test_corrupt_model_fails_explicitly(self):
         with tempfile.TemporaryDirectory() as directory:
-            corrupt_bin = Path(directory) / "person-detection-0202.bin"
+            corrupt_bin = Path(directory) / "person-detection-0303.bin"
             corrupt_bin.write_bytes(b"corrupt model")
             with self.assertRaisesRegex(RuntimeError, "unable to load or compile OpenVINO model"):
                 OpenVINOPersonDetector({
-                    "model_xml": "perception-data/models/person-detection-0202/FP32/person-detection-0202.xml",
+                    "name": "openvino_person_detection_0303",
+                    "model_xml": "perception-data/models/person-detection-0303/FP32/person-detection-0303.xml",
                     "model_bin": str(corrupt_bin),
                     "device": "CPU",
                 })

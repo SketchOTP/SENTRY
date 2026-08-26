@@ -14,13 +14,13 @@
 
 ## Technical profile
 - Language: Python 3.12 runtime for the local M1 slice.
-- Frameworks: no application framework; OpenCV provides local capture/frame handling and OpenVINO provides the local `person-detection-0202` inference runtime.
+- Frameworks: no application framework; OpenCV provides local capture/frame handling and OpenVINO provides the local `person-detection-0303` inference runtime.
 - Major dependencies: `opencv-python-headless==4.12.0.88`, `psutil==7.0.0`.
 - Test command: `python -m unittest discover -s tests -v`.
 - Runtime environment: existing Windows/x86 office PC. The local service and actual NexiGo N60 capture path are operationally observed, but detector quality remains unqualified for M1.
 
 ## Important integrations
-- DAWN, https://github.com/The-OASIS-Project/dawn, is the preferred conversational/persistent assistant foundation under evaluation. Integration is not implemented.
+- Direct OAuth-authenticated Codex/Luna invocation through the bounded SENTRY bridge is the accepted V0.1 reasoning layer. DAWN feasibility work is historical evidence/reference only; integration is not implemented.
 - Codex CLI `0.145.0`, authenticated with ChatGPT OAuth on the current host, is the accepted on-demand reasoning layer from M0. Integration remains limited to the bounded bridge in `tools/`; continuous perception never invokes it.
 - Xiaomi Miloco, https://github.com/XiaoMi/xiaomi-miloco, is an architectural reference only and is not a dependency.
 - Notion is the strategic project record; GitHub is the committed repository record.

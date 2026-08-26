@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Windows PC, one
 
 ## Current status
 
-**M0 is accepted. Current authorized milestone: M1 — local Windows webcam perception.** The first implementation is target-tested locally, but live acceptance is blocked until the office webcam can be opened by the Windows capture stack.
+**M0 is accepted. Current authorized milestone: M1 — local Windows webcam perception.** The current 0303 detector replan is blocked by a confirmed one-person live quality failure; camera recovery is also still unproven.
 
 ## Project links
 
@@ -53,7 +53,7 @@ SENTRY must be able to:
 
 ## M1 implementation
 
-The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](docs/M1_PERCEPTION.md). It uses a bounded latest-frame buffer, the local Open Model Zoo `person-detection-0202` detector through OpenVINO, and a replaceable two-stage IoU tracker. It produces observation data only and makes zero Codex/Luna calls. Identity, persistence, semantic entry/exit events, and assistant integration remain later milestones.
+The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](docs/M1_PERCEPTION.md). It uses a bounded latest-frame buffer, the local Open Model Zoo `person-detection-0303` detector through OpenVINO, and a replaceable two-stage IoU tracker. It produces observation data only and makes zero Codex/Luna calls. Identity, persistence, semantic entry/exit events, and assistant integration remain later milestones.
 
 ## Explicitly out of V0.1
 
@@ -61,11 +61,11 @@ Do not expand the first build with ESP32s, mmWave, BLE room positioning, Wi-Fi C
 
 ## Reuse strategy
 
-### DAWN
+### Accepted V0.1 reasoning layer
 
-[D.A.W.N.](https://github.com/The-OASIS-Project/dawn) is the preferred assistant foundation under evaluation. It already supplies major assistant infrastructure such as voice interaction, local/cloud LLM support, persistent memory, tools, Web UI voice modes, smart-home paths, and proactive-attention concepts.
+Direct OAuth-authenticated Codex/Luna invocation through the bounded SENTRY bridge is the accepted V0.1 reasoning layer. Perception remains local and never invokes Codex/Luna continuously.
 
-SENTRY should initially treat DAWN as an external upstream dependency/service. Before copying or forking upstream code, prove the narrowest supported integration path for querying SENTRY state and delivering SENTRY events to the assistant. DAWN is GPLv3, so direct derivation has licensing implications that must be documented.
+DAWN feasibility work is preserved as historical evidence and architectural reference only. DAWN-derived code and the DAWN runtime are not part of the accepted V0.1 foundation. Any future change requires an explicit Architect decision.
 
 ### Miloco
 
