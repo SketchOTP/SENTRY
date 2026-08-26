@@ -132,6 +132,7 @@ class PerceptionTests(unittest.TestCase):
         self.assertEqual(results["empty"]["0.50"]["zero_detections"], 2)
         self.assertEqual(results["one_person"]["0.10"]["any_detection_rate"], 1.0)
         self.assertEqual(results["one_person"]["0.50"]["any_detection_rate"], 0.5)
+        self.assertEqual(results["one_person"]["0.10"]["duplicate_detection_rate"], 0.0)
 
     def test_missing_model_fails_explicitly(self):
         with self.assertRaisesRegex(RuntimeError, "model XML file not found"):

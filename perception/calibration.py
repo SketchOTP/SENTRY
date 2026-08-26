@@ -82,7 +82,10 @@ def evaluate_thresholds(
                 for record in segment_records
             ]
             misses = [count == 0 for count in counts]
-            false_positive = [count > 0 for count in counts]
+            # In the confirmed-empty segment any detection is false-positive
+            # evidence. In the confirmed-one-person segment, a multi-box
+            # observation is the corresponding duplicate/phantom evidence.
+            false_positive = [count > 0 for count in counts] if segment == "empty" else [count > 1 for count in counts]
             miss_count, miss_seconds = _longest_run(misses, timestamps)
             false_count, false_seconds = _longest_run(false_positive, timestamps)
             key = f"{threshold_value:.2f}"
@@ -92,6 +95,7 @@ def evaluate_thresholds(
                 "exactly_one_detection": sum(count == 1 for count in counts),
                 "more_than_one_detection": sum(count > 1 for count in counts),
                 "any_detection_rate": round(sum(count > 0 for count in counts) / len(counts), 6) if counts else 0.0,
+                "duplicate_detection_rate": round(sum(count > 1 for count in counts) / len(counts), 6) if counts else 0.0,
                 "maximum_simultaneous_detections": max(counts, default=0),
                 "longest_consecutive_miss_observations": miss_count,
                 "longest_consecutive_miss_seconds": miss_seconds,
