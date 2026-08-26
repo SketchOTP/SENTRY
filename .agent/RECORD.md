@@ -115,3 +115,22 @@ Remote HEAD and canonical HEAD are `73b43f3398c0dc0738d23d389c2a79b48c5af29d`; `
 
 ### Consequence
 Repository integrity is restored and M1 live qualification may safely resume from the canonical checkout. M1 remains unaccepted until its remaining human/tracking/recovery gates are evidenced. No storage migration, architecture change, dependency change, or M2 work was performed.
+
+---
+
+## RECORD-SENTRY-007 — M1 live gate rejected current detector quality
+- Date: 2026-08-25
+- Type: MILESTONE / DETECTOR QUALITY BLOCKER
+- Related directive/outcome: `SENTRY-M1-LIVE-QUALIFICATION-001` / `OUTCOME-SENTRY-M1-LIVE-QUALIFICATION-001`
+
+### Context
+The repository, camera path, throughput foundation, and automated contracts were accepted/current. The remaining M1 question was whether the existing HOG detector and SENTRY IoU tracker behaved adequately on a real office scene.
+
+### Decision / event
+An operator-visible preview confirmed one real person. Live SENTRY runs produced high track churn and multiple simultaneous track records in that known one-person scene. The current stack is therefore not acceptable for M1 office presence sensing. A controlled camera interruption could not be executed because device disable/restart required unavailable administrative access.
+
+### Evidence
+The 30-second run had 238/271 non-empty observation rows, up to 3 reported people, and IDs 1–14. The 90-second run had up to 6 reported people and IDs 1–29, while maintaining 9.435 processed FPS and zero Luna calls. Automated tests remained 5/5. No raw frame was retained.
+
+### Consequence
+M1 remains unaccepted. The Architect must separately authorize detector replanning or another bounded investigation. Camera recovery also requires a user/admin or physical-interruption path before it can be accepted. M2 remains unauthorized.

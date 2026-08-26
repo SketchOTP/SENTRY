@@ -113,3 +113,19 @@ A transient visibility or consistency failure can look like deletion. Recovery m
 
 ### Recheck trigger
 Recheck on any future Atlas path disappearance, Git metadata inconsistency, or share instability before replacing a canonical project directory.
+
+---
+
+## LEARNING-SENTRY-008 — HOG plus IoU track telemetry can overstate office presence quality
+- Date: 2026-08-25
+- Evidence source: `SENTRY-M1-LIVE-QUALIFICATION-001`; human-visible NexiGo N60 preview and 30/90-second live runs
+- Confidence: VERIFIED HOST-OBSERVED QUALITY FAILURE
+
+### Learning
+In the observed one-person office scene, OpenCV HOG produced non-empty person records frequently but the SENTRY IoU tracker emitted multiple simultaneous tracks and high ID churn: up to 3 tracks and IDs 1–14 in 30 seconds, then up to 6 tracks and IDs 1–29 in 90 seconds. Non-empty output and FPS therefore do not establish reliable presence sensing.
+
+### Why it matters
+M1 acceptance must prioritize human-correlated detection and track stability over execution, throughput, or detector-row counts. The current evidence supports a detector-quality bottleneck and a separate Architect decision; it does not authorize silent detector/tracker replacement.
+
+### Recheck trigger
+Recheck only after an explicitly authorized detector/tracker change or a new bounded calibration/investigation directive.

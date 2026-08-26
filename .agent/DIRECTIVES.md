@@ -90,3 +90,17 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - External discovery: NOT REQUIRED.
 - Stop conditions: Share instability, neighboring checkout corruption, unique uncommitted remnants, remote divergence, failed clean clone, or recovery requiring destructive storage repair/data loss.
 - Source: Architect directive `SENTRY-REPO-RECOVERY-001`, SENTRY Notion, and GitHub `SketchOTP/SENTRY`.
+
+---
+
+## SENTRY-M1-LIVE-QUALIFICATION-001 — Complete live M1 acceptance evidence
+- Issued: 2026-08-25
+- Status: PARTIAL — returned to Architect; current detector/tracker is not acceptable for the observed office scene and camera recovery is blocked
+- Project stage: M1 — Local Windows Perception
+- Objective: Demonstrate human-confirmed detection, stable tracking, short dropout continuity, multi-person behavior, controlled camera failure/recovery, and performance on the actual office setup using the existing implementation first.
+- Scope: Local live observation, transient human-visible preview, structured diagnostics, and minimal fixes only if live evidence proves them necessary.
+- Exclusions: No silent HOG/tracker replacement, identity, persistence, events, state machine, API, voice, Codex/Luna integration, M2, additional hardware, or unrelated system changes.
+- Acceptance boundary reached: Human-visible single-person operation was observed, but the known one-person scene produced severe track churn and multiple simultaneous track records. The required controlled camera interruption could not be performed because device disable/restart required unavailable administrative access.
+- External discovery: NOT REQUIRED.
+- Stop condition reached: Current HOG/tracker quality is materially inadequate; Architect must separately decide whether to replan the detector. Camera recovery remains unproven.
+- Source: Architect directive `SENTRY-M1-LIVE-QUALIFICATION-001`, accepted camera-access evidence, and actual-host live runs.

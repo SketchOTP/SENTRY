@@ -262,3 +262,49 @@ M1 is not accepted. Restore camera access or authorize a replacement device, the
 
 ### Governance correction
 The earlier M0 context-optimization record stated that `.agent/PROJECT_GOAL.md` was absent. The M1 synchronization checked the live repository and confirmed that `.agent/PROJECT_GOAL.md` exists. The historical statement remains preserved; this entry is the superseding current-state correction.
+
+---
+
+## OUTCOME-SENTRY-M1-LIVE-QUALIFICATION-001 — Live quality gate returned to Architect
+- Date: 2026-08-25
+- Directive: `SENTRY-M1-LIVE-QUALIFICATION-001`
+- Verdict: PARTIAL — **M1 NOT ACCEPTABLE — detector quality bottleneck**; camera recovery also remains unproven
+- Retrieval confidence: ADEQUATE for canonical repository and live runtime; UNCERTAIN for exact per-frame human ground truth outside the operator-visible previews
+- Evidence level: E5_OPERATIONALLY_OBSERVED
+
+### Human-confirmed scene
+- Windows Camera preview visibly showed one real seated person in the office scene, centered in the NexiGo N60 view.
+- A later preview showed the operator intentionally covering the lens, establishing a real occlusion action, but the subsequent SENTRY timing was not sufficiently synchronized to accept that particular dropout as a controlled gate.
+- No raw preview or overlay frame remains: the transient overlay was cleared after inspection and no image/video was added to the repository.
+
+### Single-person detection and tracking
+- 30-second SENTRY run: 271 observation rows; 238 rows contained person records (87.8%); maximum reported people was 3; track IDs were `1` through `14`.
+- 90-second SENTRY run: 854 observation rows; maximum reported people was 6; track IDs were `1` through `29`; 295 track records were detector-visible and 12 was the maximum retained miss count.
+- In the known one-person scene, simultaneous extra track records and rapid ID churn are material false-positive/identity-quality indicators. Exact research-grade per-frame false-positive labeling was not attempted; the evidence is already sufficient to reject stable office-presence adequacy.
+- Stable real-person track: FAILED. The 30-second run changed IDs 13 times in a known one-person scene.
+
+### Dropout and multi-person
+- Short dropout continuity: NOT ACCEPTED. One synchronized attempt showed track `1` with two visible detections followed by predicted observations through miss count 12, but the physical occlusion timing and predicted box correspondence were not independently sufficient to establish the required detector-miss-versus-track-retention result.
+- Live two-person behavior: BLOCKED. A second real person was not available; automated multi-track tests were not substituted.
+
+### Camera failure/recovery
+- Existing implementation remained online during a 90-second run; summary: 852 processed, 9.435 processed FPS, 19.391 ms median, 23.164 ms p95, 12 dropped frames, zero Luna calls.
+- Controlled device interruption: BLOCKED/NOT RUN. `Disable-PnpDevice` returned `Generic failure`; `pnputil /restart-device` returned `Access is denied`. No physical disconnect/reconnect or administrative workaround was performed.
+- Camera offline state, recovery, and no-false-empty-on-controlled-failure: NOT RUN. The service has no demonstrated reopen path from this directive.
+
+### Required validation
+- Existing automated tests: PASSED — 5/5.
+- Real single-person detection: FAILED for acceptance adequacy due false-positive indicators and unstable outputs despite 87.8% non-empty observation rows.
+- Stable real-person track: FAILED.
+- Short dropout continuity: NOT RUN / NOT ACCEPTED.
+- Live two-person behavior: BLOCKED.
+- Camera offline state: BLOCKED.
+- Camera recovery: BLOCKED.
+- No false `empty` on failure: NOT RUN.
+- At least 5 processed FPS: PASSED — 9.435 FPS in the 90-second run.
+- Raw-frame persistence: PASSED — none in repository; transient overlay cleared.
+- Runtime Codex/Luna calls: PASSED — 0.
+- Working tree: PASSED — clean before record update.
+
+### Decision boundary
+Do not accept M1. Do not begin M2. The current HOG plus SENTRY IoU tracker is not acceptable for the observed office scene. Return to Architect for a separate detector-replan decision; do not silently add YOLOX, ByteTrack, or another stack.
