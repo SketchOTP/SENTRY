@@ -1,19 +1,19 @@
 # Current Project State
 
-Last updated: 2026-08-25T21:46:40-04:00
+Last updated: 2026-08-25T23:58:00-04:00
 
 ## Current stage
 M1 — Local Windows Perception
 
 ## Current objective
-Complete the remaining M1 live qualification only after the current detector/tracker quality and camera recovery gates are resolved by Architect direction.
+Resolve the detector-replan compatibility blocker before attempting another M1 live qualification.
 
 ## Active directive
-SENTRY-M1-LIVE-QUALIFICATION-001 — partial; live evidence returned to Architect.
+SENTRY-M1-DETECTOR-REPLAN-001 — BLOCKED; `person-detection-0202` is provenance-verified but cannot load through the pinned generic OpenCV wheel.
 
 ## Current verified state
 - Canonical path `\\atlas\\ATLAS\\100_ACTIVE\\Projects\\SENTRY` contains a valid Git checkout restored from GitHub after the damaged path was absent on repeated inventory reads.
-- `main` and `origin/main` are both `73b43f3398c0dc0738d23d389c2a79b48c5af29d`; the final working tree is clean.
+- `main` and `origin/main` are both `bad1b54ed1e52d37ce3fe6420df2507e1b7c86ba`; the final working tree is clean.
 - `git fsck --full` passed with exit code 0 and no reported errors.
 - Authority kernel, reusable skills, perception source, configuration, requirements, documentation, and tests are present.
 - Existing automated tests pass 5/5.
@@ -24,6 +24,8 @@ SENTRY-M1-LIVE-QUALIFICATION-001 — partial; live evidence returned to Architec
 - A synchronized occlusion attempt produced one track with two detector-visible observations followed by bounded predicted misses through miss count 12, but the physical timing/box correspondence was not sufficient to accept controlled dropout continuity.
 - The existing service remained online during a 90-second run. An authorized PnP disable attempt returned `Generic failure`, and a restart attempt returned `Access is denied`; controlled offline/reopen recovery was not executed.
 - M0 remains complete; M2, identity, persistence, events, and broader embodiment remain unauthorized.
+- Architect-authorized FP32 `person-detection-0202` XML/BIN artifacts were downloaded under ignored canonical `perception-data/models/person-detection-0202/FP32/`; both match the Open Model Zoo manifest SHA-384 checksums.
+- The pinned generic `opencv-python-headless==4.12.0.88` failed both `cv2.dnn.readNet` and `cv2.dnn.readNetFromModelOptimizer` with `Backend (plugin) is not available: 'openvino'`. The detector experiment was reverted; no alternate runtime was introduced.
 
 ## Current hypotheses / unknowns
 - The original SENTRY disappearance is consistent with a transient Atlas share/filesystem visibility or consistency failure, but deletion versus transient visibility cannot be proven from the surviving evidence.
@@ -31,13 +33,15 @@ SENTRY-M1-LIVE-QUALIFICATION-001 — partial; live evidence returned to Architec
 
 ## Current blockers
 - M1 live acceptance is still open pending human-confirmed detection/tracking/dropout/recovery evidence.
-- Current HOG plus IoU tracking evidence is materially inadequate for the observed office scene; Architect decision is required before any detector replan or replacement.
+- Current HOG plus IoU tracking evidence is materially inadequate for the observed office scene.
+- The first authorized replacement candidate cannot execute with the existing dependency. Any OpenVINO Runtime, different OpenCV build, or other inference stack requires a new Architect decision.
 - Controlled camera failure/recovery remains blocked pending an authorized physical disconnect/reconnect or administrative device-interruption path.
 - The original Atlas incident has no proven low-level root cause; no broad storage repair or migration was attempted.
 
 ## Latest recorded evidence
 - `OUTCOME-SENTRY-REPO-RECOVERY-001`: fresh clone at `73b43f3`, `git fsck` passed, Authority/source checks passed, automated tests 5/5 passed, canonical reread stable, and local/remote `main` matched.
 - `OUTCOME-SENTRY-M1-LIVE-QUALIFICATION-001`: human-visible single-person scene observed; detector/tracker produced severe track churn and false-positive indicators; performance remained above target; controlled camera recovery was blocked by device-operation access failure.
+- `OUTCOME-SENTRY-M1-DETECTOR-REPLAN-001`: official model/license/checksum evidence passed, but generic OpenCV DNN IR loading failed; no production detector change was retained and live Stage A/B/C did not run.
 - `OUTCOME-SENTRY-M1-PERCEPTION-001`: implementation target-tested; live camera gate was later restored but M1 acceptance remains open.
 - `OUTCOME-SENTRY-M0-CODEX-FEASIBILITY-001` and `OUTCOME-SENTRY-M0-CODEX-CONTEXT-OPT-001`: accepted M0 Luna boundary and runtime isolation evidence remain historical and unchanged.
 
@@ -47,6 +51,6 @@ SENTRY-M1-LIVE-QUALIFICATION-001 — partial; live evidence returned to Architec
 - HOG/tracker telemetry must not be promoted to person-quality acceptance when one known person produces multiple simultaneous tracks and high ID churn.
 
 ## Next Architect decision point
-Architect must choose whether to authorize a detector replan or another bounded M1 investigation. Do not accept M1 or begin M2 from the current evidence.
+Architect must decide whether to authorize a compatible OpenCV build, OpenVINO Runtime, or another detector path. Do not accept M1 or begin M2 from the current evidence.
 
 This file is a mutable snapshot. Do not use it to erase historical outcomes or decisions.

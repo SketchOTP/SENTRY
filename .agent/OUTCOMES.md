@@ -308,3 +308,32 @@ The earlier M0 context-optimization record stated that `.agent/PROJECT_GOAL.md` 
 
 ### Decision boundary
 Do not accept M1. Do not begin M2. The current HOG plus SENTRY IoU tracker is not acceptable for the observed office scene. Return to Architect for a separate detector-replan decision; do not silently add YOLOX, ByteTrack, or another stack.
+
+---
+
+## OUTCOME-SENTRY-M1-DETECTOR-REPLAN-001 — Open Model Zoo candidate blocked by generic OpenCV runtime
+- Date: 2026-08-25
+- Directive: `SENTRY-M1-DETECTOR-REPLAN-001`
+- Verdict: BLOCKED — `person-detection-0202` provenance passed, but the pinned generic OpenCV DNN runtime cannot load the candidate
+- Retrieval confidence: ADEQUATE for repository, upstream metadata, artifact checksums, and host runtime; live detector quality remains NOT RUN
+- Evidence level: E3_TARGET_TESTED
+
+### Model provenance
+- Official Open Model Zoo `model.yml` identifies `person-detection-0202`, MobileNetV2-SSD, 512x512 BGR input, and output shape `1x1x200x7`.
+- FP32 XML source: `https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/person-detection-0202/FP32/person-detection-0202.xml`; 185,467 bytes; manifest SHA-384 `fc218405d14ca82811a239f841a90eb9f6e1a8d2e8269956471e79bfaba34f3f5ac7070e1d33aa5d2101460854b72a6a`; verified on host.
+- FP32 BIN source: `https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/person-detection-0202/FP32/person-detection-0202.bin`; 7,269,196 bytes; manifest SHA-384 `e807fab165c5327cf726eea6f5d70832dd4bbaec865d929b1ead67061759cf809debf0e43d53b23d612b4c3320eab578`; verified on host.
+- Manifest license points to the Open Model Zoo Apache-2.0 license; official license text was retrieved.
+
+### Runtime investigation
+- Existing `opencv-python-headless==4.12.0.88` was tested without adding dependencies.
+- `cv2.dnn.readNetFromModelOptimizer(xml, bin)` failed with `Backend (plugin) is not available: 'openvino'`.
+- `cv2.dnn.readNet(bin, xml)` failed with the same error.
+- The candidate therefore did not reach single-frame inference, output decoding, or live Stage A/B/C qualification.
+- The attempted detector/config/test/docs changes were reverted. No OpenVINO Runtime, alternate OpenCV build, YOLOX, tracker change, or M2 work was introduced.
+
+### Validation and decision boundary
+- Existing HOG regression suite after revert: PASSED — 5/5.
+- DNN candidate contract tests were exercised during the bounded implementation attempt, but are not retained because the production candidate cannot load in the authorized runtime.
+- Model files remain outside Git under ignored canonical `perception-data/models/person-detection-0202/FP32/`.
+- Runtime Codex/Luna calls: 0. Raw frames: none.
+- Do not claim detector improvement or M1 acceptance. Return to Architect for a runtime decision; do not add a new inference runtime implicitly.

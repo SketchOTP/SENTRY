@@ -104,3 +104,17 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - External discovery: NOT REQUIRED.
 - Stop condition reached: Current HOG/tracker quality is materially inadequate; Architect must separately decide whether to replan the detector. Camera recovery remains unproven.
 - Source: Architect directive `SENTRY-M1-LIVE-QUALIFICATION-001`, accepted camera-access evidence, and actual-host live runs.
+
+---
+
+## SENTRY-M1-DETECTOR-REPLAN-001 — Evaluate Open Model Zoo person-detection-0202 behind the existing detector contract
+- Issued: 2026-08-25
+- Status: BLOCKED — model provenance passed; pinned generic OpenCV DNN cannot load the OpenVINO IR
+- Project stage: M1 — Local Windows Perception
+- Objective: Replace only HOG with the first authorized modern local candidate and evaluate the unchanged SENTRY IoU tracker if the runtime is compatible.
+- Scope: Official FP32 artifact verification, local checksum verification, bounded OpenCV DNN smoke test, detector-contract implementation only if executable, and live Stage A/B/C only after compatibility.
+- Exclusions: No tracker replacement, OpenVINO Runtime, YOLOX, Ultralytics, identity, persistence, events, API, voice, Codex/Luna calls, M2, or camera-recovery detour.
+- Acceptance boundary reached: Open Model Zoo FP32 artifacts and Apache-2.0 provenance matched, but both OpenCV DNN IR loading entry points failed on `opencv-python-headless==4.12.0.88` because the `openvino` backend plugin is unavailable.
+- External discovery: REQUIRED; official Open Model Zoo manifest/readme/license and OpenCV DNN upstream API source inspected through `/browse`.
+- Stop condition reached: Generic OpenCV cannot execute the candidate. The production experiment was reverted and no alternate runtime was added.
+- Source: Architect directive `SENTRY-M1-DETECTOR-REPLAN-001`, SENTRY Notion, official Open Model Zoo metadata, OpenCV DNN upstream source, and host runtime evidence.

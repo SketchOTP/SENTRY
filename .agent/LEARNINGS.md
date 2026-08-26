@@ -129,3 +129,17 @@ M1 acceptance must prioritize human-correlated detection and track stability ove
 
 ### Recheck trigger
 Recheck only after an explicitly authorized detector/tracker change or a new bounded calibration/investigation directive.
+
+## LEARNING-SENTRY-009 — Open Model Zoo IR provenance does not establish generic OpenCV executability
+- Date: 2026-08-25
+- Evidence source: `SENTRY-M1-DETECTOR-REPLAN-001`; official Open Model Zoo manifest/license, verified FP32 artifacts, and host OpenCV 4.12.0 runtime checks
+- Confidence: VERIFIED HOST-RUNTIME COMPATIBILITY FAILURE
+
+### Learning
+The official `person-detection-0202` FP32 XML/BIN artifacts matched the manifest SHA-384 checksums and Apache-2.0 license provenance, but the pinned generic `opencv-python-headless==4.12.0.88` could not load the OpenVINO IR through either `cv2.dnn.readNetFromModelOptimizer` or `cv2.dnn.readNet`. Both reported that the `openvino` backend plugin was unavailable.
+
+### Why it matters
+Model provenance and API surface are separate gates from actual wheel capability. A compatible OpenCV build or OpenVINO Runtime may be required, but adding either is a strategic/runtime decision outside this directive.
+
+### Recheck trigger
+Recheck only after explicit Architect authorization for a compatible inference runtime or a different detector candidate.

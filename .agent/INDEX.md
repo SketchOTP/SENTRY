@@ -8,11 +8,11 @@
 
 ## Current pointers
 - Current stage: M1 — Local Windows Perception
-- Active directive: SENTRY-M1-LIVE-QUALIFICATION-001 — partial; detector bottleneck and camera recovery remain unresolved
+- Active directive: SENTRY-M1-DETECTOR-REPLAN-001 — blocked; approved candidate cannot load through the pinned generic OpenCV wheel
 - Active task packet: `.agent/tasks/active/SENTRY-M1-PERCEPTION-001/`
 - Last accepted outcome: M0 Codex/Luna reasoning and context optimization — Architect accepted
-- Latest recorded outcome: OUTCOME-SENTRY-M1-LIVE-QUALIFICATION-001 — live quality evidence returned to Architect; M1 not acceptable on current HOG/tracker evidence
-- Last state sync: 2026-08-25T21:46:40-04:00
+- Latest recorded outcome: OUTCOME-SENTRY-M1-DETECTOR-REPLAN-001 — person-detection-0202 provenance passed, generic OpenCV DNN compatibility failed
+- Last state sync: 2026-08-25T23:58:00-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

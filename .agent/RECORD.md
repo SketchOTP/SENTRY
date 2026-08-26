@@ -134,3 +134,22 @@ The 30-second run had 238/271 non-empty observation rows, up to 3 reported peopl
 
 ### Consequence
 M1 remains unaccepted. The Architect must separately authorize detector replanning or another bounded investigation. Camera recovery also requires a user/admin or physical-interruption path before it can be accepted. M2 remains unauthorized.
+
+---
+
+## RECORD-SENTRY-008 — First detector replan candidate blocked by runtime capability
+- Date: 2026-08-25
+- Type: MILESTONE / RUNTIME COMPATIBILITY BLOCKER
+- Related directive/outcome: `SENTRY-M1-DETECTOR-REPLAN-001` / `OUTCOME-SENTRY-M1-DETECTOR-REPLAN-001`
+
+### Context
+The Architect authorized a detector-only replan using Open Model Zoo `person-detection-0202` through the existing OpenCV dependency, with the SENTRY IoU tracker unchanged.
+
+### Decision / event
+The official FP32 XML/BIN artifacts were downloaded to ignored canonical local storage and matched the upstream manifest SHA-384 checksums. The pinned generic OpenCV wheel could not load either artifact pair because its OpenVINO backend plugin was unavailable. The production experiment was reverted rather than adding an unapproved runtime.
+
+### Evidence
+Both `cv2.dnn.readNetFromModelOptimizer(xml, bin)` and `cv2.dnn.readNet(bin, xml)` failed with the same OpenCV 4.12.0 plugin error. The restored HOG implementation passed the existing 5/5 tests. No live candidate inference or M1 requalification was performed.
+
+### Consequence
+`person-detection-0202` is provenance-verified but not executable in the current authorized environment. M1 remains unaccepted. The Architect must decide whether to authorize a compatible OpenCV build, OpenVINO Runtime, or another detector path. M2 remains unauthorized.

@@ -51,3 +51,15 @@ No external discovery was required for this governance-only bootstrap. The direc
 - Rationale: OpenCV 4.5+ is Apache-2.0 and its HOG people detector coefficients are bundled, avoiding a separate model-weight provenance step for this slice. YOLOX is Apache-2.0 and ByteTrack is MIT, but the usual stack adds separately sourced artifacts and a larger runtime before camera access is proven. Host GPUs were observed but not required by the selected CPU path.
 - Limitation: No live detector quality or performance claim is made because the actual webcam could not be opened.
 - Recheck trigger: Webcam access restored, a detector performance shortfall, a qualified model artifact becoming available, or authorization for a YOLOX/ONNX benchmark.
+
+---
+
+## EXTERNAL-SENTRY-005 — Open Model Zoo person-detection-0202 and OpenCV DNN compatibility
+- Date: 2026-08-25
+- Freshness: Official upstream pages retrieved through `/browse` on 2026-08-25; artifact checksums and host runtime behavior reproduced on the same date.
+- Sources: [person-detection-0202 manifest](https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/models/intel/person-detection-0202/model.yml), [person-detection-0202 documentation](https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/models/intel/person-detection-0202/README.md), [Open Model Zoo Apache-2.0 license](https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/LICENSE), and [OpenCV DNN upstream API](https://github.com/opencv/opencv/blob/4.x/modules/dnn/include/opencv2/dnn/dnn.hpp).
+- Overlap: Dedicated local person detection, explicit model provenance/license, OpenVINO IR loading, and preservation of SENTRY's detector contract.
+- Disposition: REFERENCE the model candidate and provenance; REJECT adoption through the current generic OpenCV wheel because the required backend plugin is unavailable.
+- Rationale: The FP32 XML/BIN artifacts matched the manifest SHA-384 checksums and the manifest linked the candidate to Apache-2.0. However, both OpenCV IR-loading entry points failed under `opencv-python-headless==4.12.0.88` with `Backend (plugin) is not available: 'openvino'`. No OpenVINO Runtime or alternate inference stack was added.
+- Limitation: No candidate single-frame or live quality evidence exists. The existing HOG plus IoU result remains the only live detector evidence and is not M1-acceptable.
+- Recheck trigger: Explicit Architect authorization for a compatible OpenCV build/OpenVINO Runtime or a new detector candidate.
