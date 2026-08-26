@@ -13,7 +13,7 @@ SENTRY-M1-OPENVINO-LIVE-001 — STOPPED AT QUALITY FAILURE; confirmed one-person
 
 ## Current verified state
 - Canonical path `\\atlas\\ATLAS\\100_ACTIVE\\Projects\\SENTRY` contains a valid Git checkout restored from GitHub after the damaged path was absent on repeated inventory reads.
-- The last committed `main` and `origin/main` state is `ec4a2f3af1f8ad245d3d0c0f8d41dc528d97d438`; the live evidence update is documentation/state-only and pending commit.
+- The last committed `main` and `origin/main` state is `f05da35`; the live evidence update is documentation/state-only and pushed to `origin/main`.
 - `git fsck --full` passed with exit code 0 and no reported errors.
 - Authority kernel, reusable skills, perception source, configuration, requirements, documentation, and tests are present.
 - Existing automated tests pass 9/9.
