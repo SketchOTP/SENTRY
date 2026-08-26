@@ -174,3 +174,17 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Stop condition reached: `STOP — 0303 DETECTOR QUALITY FAILURE`. Tracker, dropout, soak, and camera recovery were not run under this directive.
 - External discovery: REQUIRED and completed narrowly against the official Open Model Zoo manifest, README, license, and artifact sources.
 - Source: Architect directive `SENTRY-M1-DETECTOR-0303-001`, official Open Model Zoo records, current OpenVINO implementation, and operator-confirmed metadata-only live runs.
+
+---
+
+## SENTRY-M1-0303-DECODER-RECONCILE-001 — Reconcile person-detection-0303 decoding with the official class-agnostic adapter
+- Issued: 2026-08-26
+- Status: COMPLETE — decoder bug confirmed; corrected 0303 still fails quality; returned to Architect for detector decision
+- Project stage: M1 — Local Windows Perception
+- Objective: Determine whether the prior 0303 zero-candidate result was caused by SENTRY decoding, correct only the decoder if justified, and rerun the detector quality gate.
+- Scope: Metadata-only raw-output investigation, official adapter reconciliation, positive-confidence class-agnostic decoding, `[1/1280, 1/720]` coordinate reconstruction, clipping, NMS `0.6`, focused tests, and operator-confirmed empty/one-person calibration.
+- Exclusions: No model, runtime, device, precision, camera, tracker, threshold, identity, persistence, events, API, voice, M2, or Codex/Luna perception changes.
+- Acceptance boundary reached: Raw output contained 1,474 positive-confidence rows during 149 confirmed one-person observations while the old label gate produced zero candidates. After correction, empty-safe threshold `0.45` had 0/181 false-positive observations, but one-person recall was only 134/556 (24.10%); no tested threshold met empty FP <=1% and one-person recall >=95%.
+- Stop condition reached: `DECODER BUG CONFIRMED — 0303 STILL FAILS QUALITY`. Tracker, dropout, soak, and camera recovery were not run.
+- Evidence level: E5_OPERATIONALLY_OBSERVED for the operator-confirmed raw and corrected calibration segments; no raw frames were persisted.
+- Source: Architect directive `SENTRY-M1-0303-DECODER-RECONCILE-001`, official Open Model Zoo adapter/configuration, current SENTRY implementation, and metadata-only operator-confirmed live runs.

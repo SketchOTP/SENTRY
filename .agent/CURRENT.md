@@ -1,22 +1,22 @@
 # Current Project State
 
-Last updated: 2026-08-26T12:30:00-04:00
+Last updated: 2026-08-26T16:25:00-04:00
 
 ## Current stage
 M1 — Local Windows Perception
 
 ## Current objective
-Determine whether the authorized OpenVINO-backed `person-detection-0303` detector can meet M1 quality before unchanged-tracker qualification.
+Determine whether the authorized OpenVINO-backed `person-detection-0303` detector can meet M1 quality after reconciling its decoder with the official class-agnostic adapter semantics.
 
 ## Active directive
-SENTRY-M1-DETECTOR-0303-001 — STOPPED AT CONFIRMED ONE-PERSON QUALITY FAILURE; 0303 produced no candidate during the required live segment.
+SENTRY-M1-0303-DECODER-RECONCILE-001 — STOPPED AT DECODER BUG CONFIRMED / 0303 STILL FAILS QUALITY; Architect decision required.
 
 ## Current verified state
 - Canonical path `\\atlas\\ATLAS\\100_ACTIVE\\Projects\\SENTRY` contains a valid Git checkout restored from GitHub after the damaged path was absent on repeated inventory reads.
 - The last committed `main` and `origin/main` state is the calibration diagnostic/evidence commit recorded in the latest outcome; all authorized changes are pushed.
 - `git fsck --full` passed with exit code 0 and no reported errors.
 - Authority kernel, reusable skills, perception source, configuration, requirements, documentation, and tests are present.
-- Existing and calibration-focused automated tests pass 11/11.
+- Existing and decoder-focused automated tests pass 15/15.
 - No surviving SENTRY files or directories were present before restoration; no unique uncommitted SENTRY material was found or discarded, and no quarantine was required.
 - The parent Atlas project share was reachable and stable across repeated reads. Neighboring visible project directories were not treated as comparable Git checkout evidence.
 - Architect accepted the camera-access investigation as valid evidence, but M1 remains unaccepted because human detection quality, multi-person tracking, dropout continuity, and controlled camera recovery remain unproven.
@@ -29,7 +29,7 @@ SENTRY-M1-DETECTOR-0303-001 — STOPPED AT CONFIRMED ONE-PERSON QUALITY FAILURE;
 - Architect has now authorized exactly one additional runtime. Isolated `.venv` installation passed with `openvino==2026.3.1`, `opencv-python-headless==4.12.0.88`, `psutil==7.0.0`, and transitive `numpy==2.2.6` / `openvino-telemetry==2025.2.0`.
 - Host verification: Windows 11 x64, AMD Ryzen 7 5800XT, Python 3.12.10, OpenVINO devices `CPU`, `GPU.0`, and `GPU.1`.
 - OpenVINO loaded and compiled the checksummed FP32 model on CPU; bounded zero-array inference returned `(1, 1, 200, 7)`.
-- The production detector now uses OpenVINO behind the existing detector contract, with model paths configurable and explicit load/decode failures. The IoU tracker remains unchanged. Focused tests pass 11/11 after the calibration diagnostic additions.
+- The production detector now uses OpenVINO behind the existing detector contract, with model paths configurable and explicit load/decode failures. The IoU tracker remains unchanged. The 0303 decoder now follows the official class-agnostic path: positive box confidence, explicit `[1/1280, 1/720]` reconstruction, clipping, and local class-agnostic NMS at `0.6`; the companion labels tensor is diagnostic only.
 - Confirmed-empty Stage A run: 205 processed online observations over approximately 20.6 seconds, all zero-person, with no false-person detections; 8.095 processed FPS and 0 dropped frames.
 - Confirmed-one-person Stage B run: the operator confirmed one person remained continuously visible. The service processed 827 online observations over approximately 83.9 seconds at 9.154 FPS, with 480 zero-detection observations, 318 exactly-one observations, 29 multi-detection observations, and a maximum of 2 simultaneous detections. The unchanged tracker produced 19 unique track IDs, first ID 1, final visible ID 19, 32 visible-ID-set changes, and up to 3 active tracker records. This fails the required one-person quality target.
 - Stage C synchronized dropout and Stage E ten-minute soak were not run because the confirmed detector-quality failure reached the directive stop boundary. Multi-person live evidence remains blocked because no second person was available. Camera failure/recovery remains a separate unrun M1 gate.
@@ -40,9 +40,11 @@ SENTRY-M1-DETECTOR-0303-001 — STOPPED AT CONFIRMED ONE-PERSON QUALITY FAILURE;
 - Best-candidate bounding-box sanity was not accepted because the installed headless OpenCV build cannot provide `cv2.imshow`; no visual overlay or frame was persisted. This limitation does not weaken the decisive count-based calibration failure.
 - Architect authorized the bounded `person-detection-0303` replan. Official FP32 XML/BIN downloads match the manifest sizes and SHA-384 checksums, and the OpenVINO model loads with static input `[1,3,720,1280]` and runtime outputs `boxes (N,5)` plus `labels (N,)`.
 - 0303 pre-live CPU performance check: native 1280x720 DirectShow camera, 107 captured / 105 processed, 6.852 processed FPS, 79.056 ms median and 114.636 ms p95 processing latency, 1 dropped frame, online throughout, zero Codex/Luna calls.
-- 0303 Stage A confirmed-empty: runner marker `CONFIRMED_EMPTY` at `2026-08-26T19:13:21.697481+00:00`; 279 online observations over 30.863 seconds; zero candidates at every tested threshold from 0.10 through 0.90; no false-person detections.
-- 0303 Stage B confirmed-one-person: runner marker `CONFIRMED_ONE_PERSON` at `2026-08-26T19:15:44.376944+00:00`; 588 online observations over 60.91 seconds; operator confirmed one person continuously visible; zero candidates at every threshold from 0.10 through 0.90. This is a decisive detector-quality failure.
-- 0303 tracker stage, synchronized dropout, ten-minute soak, and live two-person behavior were not run because detector quality failed. Camera recovery remains a separate M1 gate. No production threshold or tracker setting changed.
+- Raw 0303 investigation: operator-confirmed one-person marker at `2026-08-26T19:42:57.764666+00:00`; 149 online observations over approximately 20.3 seconds. Raw output contained 1,474 positive-confidence rows, 339 rows at or above `0.10`, maximum confidence `0.458353`, and all companion labels were `0`; the pre-correction SENTRY decoder emitted zero candidates in all observations. **DECODER BUG CONFIRMED**.
+- Corrected 0303 Stage A: runner marker `CONFIRMED_EMPTY` at `2026-08-26T20:07:48.797739+00:00`; 181 online observations over 29.969 seconds. At threshold `0.45`, false positives were `0/181`; at `0.40`, false positives were `4/181` (2.21%); lower thresholds produced sustained duplicate false detections.
+- Corrected 0303 Stage B: runner marker `CONFIRMED_ONE_PERSON` at `2026-08-26T20:23:10.311140+00:00`; 556 online observations over 56.863 seconds with one person continuously visible. At threshold `0.45`, recall was `134/556` (24.10%); at `0.40`, recall was `270/556` (48.56%) while the matched empty false-positive rate was 2.21%; no tested threshold met both gates. **DECODER BUG CONFIRMED — 0303 STILL FAILS QUALITY**.
+- Corrected-decoder short performance: 101 captured / 95 processed, 6.173 processed FPS, 87.893 ms median and 132.416 ms p95 processing latency, 5 dropped frames, CPU path, RSS 162.6 MB to 268.4 MB, zero Codex/Luna calls. No ten-minute soak was reached because detector quality failed.
+- Tracker qualification, synchronized dropout, ten-minute soak, and live two-person behavior were not run because corrected detector quality failed. Camera recovery remains a separate M1 gate. No tracker, runtime, device, precision, camera, or production threshold change was made.
 
 ## Current hypotheses / unknowns
 - The original SENTRY disappearance is consistent with a transient Atlas share/filesystem visibility or consistency failure, but deletion versus transient visibility cannot be proven from the surviving evidence.
@@ -54,7 +56,7 @@ SENTRY-M1-DETECTOR-0303-001 — STOPPED AT CONFIRMED ONE-PERSON QUALITY FAILURE;
 - A human-confirmed one-person segment was completed; the current OpenVINO detector produced a confirmed quality failure and telemetry-only runs remain non-acceptance evidence.
 - Controlled camera failure/recovery remains blocked pending an authorized physical disconnect/reconnect or administrative device-interruption path.
 - The original Atlas incident has no proven low-level root cause; no broad storage repair or migration was attempted.
-- `person-detection-0202` cannot meet the required empty/one-person separation at any tested confidence threshold, and 0303 produced zero live candidates in the confirmed one-person segment. The detector candidate is not acceptable for this office scene; the Architect must decide the next detector direction. Do not change the tracker or begin M2.
+- `person-detection-0202` cannot meet the required empty/one-person separation at any tested confidence threshold. The 0303 rejection was confounded by a decoder bug, which is now confirmed and corrected; the corrected 0303 path still cannot meet the required empty/one-person separation. The Architect must decide the next detector direction. Do not change the tracker or begin M2.
 
 ## Latest recorded evidence
 - `OUTCOME-SENTRY-REPO-RECOVERY-001`: fresh clone at `73b43f3`, `git fsck` passed, Authority/source checks passed, automated tests 5/5 passed, canonical reread stable, and local/remote `main` matched.
@@ -64,6 +66,7 @@ SENTRY-M1-DETECTOR-0303-001 — STOPPED AT CONFIRMED ONE-PERSON QUALITY FAILURE;
 - `OUTCOME-SENTRY-M1-OPENVINO-LIVE-001`: confirmed-empty baseline passed, confirmed-one-person detector/tracker quality failed decisively, and later stages stopped at the authorized quality boundary.
 - `OUTCOME-SENTRY-M1-DETECTOR-CALIBRATION-001`: raw-confidence sweep across operator-confirmed empty and continuous-one-person segments found no acceptable operating threshold; model replan is required.
 - `OUTCOME-SENTRY-M1-DETECTOR-0303-001`: official 0303 artifacts/runtime/output semantics passed, short CPU performance stayed above 5 FPS, confirmed-empty passed, but confirmed-one-person produced zero candidates across 0.10-0.90; detector quality failed before tracker qualification.
+- `OUTCOME-SENTRY-M1-0303-DECODER-RECONCILE-001`: raw output proved the prior zero-candidate result was caused by the label gate; reference-semantics correction passed 15/15 tests, but corrected live calibration still failed all quality operating points.
 - `OUTCOME-SENTRY-M0-CODEX-FEASIBILITY-001` and `OUTCOME-SENTRY-M0-CODEX-CONTEXT-OPT-001`: accepted M0 Luna boundary and runtime isolation evidence remain historical and unchanged.
 
 ## Current risks
@@ -72,6 +75,6 @@ SENTRY-M1-DETECTOR-0303-001 — STOPPED AT CONFIRMED ONE-PERSON QUALITY FAILURE;
 - HOG/tracker telemetry must not be promoted to person-quality acceptance when one known person produces multiple simultaneous tracks and high ID churn.
 
 ## Next Architect decision point
-Architect must decide the next detector direction after the bounded 0303 failure. Preserve the OpenVINO/runtime and negative calibration evidence, do not change the tracker from this result, and do not begin M2.
+Architect must decide the next detector direction after corrected 0303 quality failure. Preserve the raw decoder evidence, corrected implementation, and negative calibration evidence; do not change the tracker from this result, and do not begin M2.
 
 This file is a mutable snapshot. Do not use it to erase historical outcomes or decisions.

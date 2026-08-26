@@ -203,3 +203,18 @@ The native 1280x720 candidate does not satisfy the M1 detector gate in the teste
 
 ### Recheck trigger
 Recheck only after a separately authorized detector decision. Preserve the 0202 calibration failure, the 0303 failure, and the unchanged tracker boundary.
+
+---
+
+## LEARNING-SENTRY-014 — 0303 raw boxes were discarded by an incorrect label gate, but corrected semantics still failed quality
+- Date: 2026-08-26
+- Evidence source: `OUTCOME-SENTRY-M1-0303-DECODER-RECONCILE-001`; official Open Model Zoo `accuracy-check.yml` and `ClassAgnosticDetectionAdapter`; operator-confirmed metadata-only live runs
+- Confidence: VERIFIED LIVE QUALITY RESULT
+
+### Learning
+Open Model Zoo `person-detection-0303` uses class-agnostic detection semantics: positive box confidence is authoritative, companion labels do not select the class, coordinates are scaled by `[1/1280, 1/720]`, retained rows are assigned person label `1`, and reference NMS overlap is `0.6`. The previous SENTRY label gate discarded all raw rows because the live model emitted label `0` for every positive row.
+
+After correcting that decoder, the model produced plausible candidates, but the confirmed-empty and confirmed-one-person calibration still had no acceptable operating point. At empty-safe threshold `0.45`, one-person recall was only 24.10%; at `0.40`, recall was 48.56% with empty false positives above the 1% gate.
+
+### Recheck trigger
+Return to Architect for a separately authorized detector decision. Preserve the corrected decoder, raw metadata, negative calibration evidence, and unchanged tracker boundary.

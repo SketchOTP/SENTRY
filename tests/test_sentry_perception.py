@@ -96,27 +96,62 @@ class PerceptionTests(unittest.TestCase):
             self.assertGreaterEqual(detection.confidence, 0.0)
             self.assertLessEqual(detection.confidence, 1.0)
 
-    def test_detector_decodes_person_boxes_and_filters_other_classes(self):
+    def test_detector_decodes_class_agnostic_box_even_with_zero_companion_label(self):
         import numpy as np
 
-        boxes = np.array([[32.0, 48.0, 192.0, 216.0, 0.8], [0.0, 0.0, 320.0, 240.0, 0.99], [0.0, 0.0, 320.0, 240.0, 0.2]], dtype=np.float32)
-        labels = np.array([1, 0, 1], dtype=np.int64)
-        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 320, 240, 0.5)
+        boxes = np.array([[320.0, 180.0, 960.0, 540.0, 0.8]], dtype=np.float32)
+        labels = np.array([0], dtype=np.int64)
+        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 1280, 720, 0.5)
         self.assertEqual(len(detections), 1)
-        for actual, expected in zip(detections[0].bbox, (32.0, 48.0, 192.0, 216.0)):
+        for actual, expected in zip(detections[0].bbox, (320.0, 180.0, 960.0, 540.0)):
             self.assertAlmostEqual(actual, expected, places=4)
         self.assertAlmostEqual(detections[0].confidence, 0.8, places=6)
 
-    def test_detector_decodes_raw_person_candidates_before_threshold(self):
+    def test_detector_rejects_non_positive_confidence(self):
         import numpy as np
 
-        boxes = np.array([[32.0, 48.0, 192.0, 216.0, 0.2], [0.0, 0.0, 320.0, 240.0, 0.99]], dtype=np.float32)
+        boxes = np.array([[0.0, 0.0, 100.0, 100.0, 0.0], [0.0, 0.0, 100.0, 100.0, -0.1]], dtype=np.float32)
         labels = np.array([1, 0], dtype=np.int64)
-        raw = OpenVINOPersonDetector._decode_detections(boxes, labels, 320, 240, None)
-        filtered = [detection for detection in raw if detection.confidence >= 0.5]
-        self.assertEqual(len(raw), 1)
-        self.assertEqual(len(filtered), 0)
-        self.assertAlmostEqual(raw[0].confidence, 0.2, places=6)
+        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 1280, 720, None)
+        self.assertEqual(detections, [])
+
+    def test_detector_reconstructs_scaled_coordinates_to_camera_size(self):
+        import numpy as np
+
+        boxes = np.array([[320.0, 180.0, 960.0, 540.0, 0.8]], dtype=np.float32)
+        labels = np.array([0], dtype=np.int64)
+        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 640, 360, None)
+        self.assertEqual(detections[0].bbox, (160.0, 90.0, 480.0, 270.0))
+
+    def test_detector_clips_boxes_after_coordinate_reconstruction(self):
+        import numpy as np
+
+        boxes = np.array([[-100.0, -50.0, 1400.0, 800.0, 0.8]], dtype=np.float32)
+        labels = np.array([0], dtype=np.int64)
+        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 1280, 720, None)
+        self.assertEqual(detections[0].bbox, (0.0, 0.0, 1280.0, 720.0))
+
+    def test_detector_applies_class_agnostic_nms(self):
+        import numpy as np
+
+        boxes = np.array([
+            [100.0, 100.0, 500.0, 600.0, 0.9],
+            [120.0, 120.0, 520.0, 620.0, 0.8],
+            [700.0, 100.0, 900.0, 400.0, 0.7],
+        ], dtype=np.float32)
+        labels = np.array([0, 0, 0], dtype=np.int64)
+        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 1280, 720, None)
+        self.assertEqual(len(detections), 2)
+        self.assertAlmostEqual(detections[0].confidence, 0.9, places=6)
+        self.assertAlmostEqual(detections[1].confidence, 0.7, places=6)
+
+    def test_detector_rejects_malformed_output(self):
+        import numpy as np
+
+        boxes = np.array([[0.0, 0.0, 100.0, 100.0, 0.8]], dtype=np.float32)
+        labels = np.array([0, 0], dtype=np.int64)
+        with self.assertRaisesRegex(RuntimeError, "unexpected detector output shapes"):
+            OpenVINOPersonDetector._decode_detections(boxes, labels, 1280, 720, None)
 
     def test_threshold_evaluation_uses_same_raw_records(self):
         records = [

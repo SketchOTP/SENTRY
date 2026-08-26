@@ -258,27 +258,56 @@ class OpenVINOPersonDetector:
         width: int,
         height: int,
         confidence_threshold: float | None,
+        nms_overlap: float = 0.6,
     ) -> list[Detection]:
-        detections: list[Detection] = []
-        for (x_min, y_min, x_max, y_max, confidence), label in zip(
-            boxes.reshape(-1, 5), labels.reshape(-1), strict=True
-        ):
-            if int(label) != 1:
+        if width <= 0 or height <= 0:
+            raise ValueError("detector output dimensions must be positive")
+        if not 0 <= nms_overlap <= 1:
+            raise ValueError("nms_overlap must be between 0 and 1")
+        raw_boxes = boxes.reshape(-1, 5)
+        raw_labels = labels.reshape(-1)
+        if raw_boxes.ndim != 2 or raw_boxes.shape[1] != 5 or len(raw_boxes) != len(raw_labels):
+            raise RuntimeError(f"unexpected detector output shapes: boxes={raw_boxes.shape}, labels={raw_labels.shape}")
+
+        # Open Model Zoo's class_agnostic_detection adapter uses the positive
+        # box confidence as the selection signal, ignores the companion labels
+        # output, scales [x1,y1,x2,y2] by [1/1280,1/720,1/1280,1/720], and
+        # assigns every retained row the person class. The following explicit
+        # reconstruction is equivalent to its scale plus resize_prediction_boxes
+        # path for a camera frame with dimensions ``width`` x ``height``.
+        candidates: list[Detection] = []
+        for x_min, y_min, x_max, y_max, confidence in raw_boxes:
+            score = float(confidence)
+            if score <= 0.0 or (confidence_threshold is not None and score < confidence_threshold):
                 continue
-            if confidence_threshold is not None and float(confidence) < confidence_threshold:
-                continue
-            # 0303 reports absolute pixel coordinates. Native 1280x720
-            # capture therefore needs no coordinate transform beyond clipping.
-            left = max(0.0, min(float(width), float(x_min)))
-            top = max(0.0, min(float(height), float(y_min)))
-            right = max(0.0, min(float(width), float(x_max)))
-            bottom = max(0.0, min(float(height), float(y_max)))
+            left = float(x_min) / 1280.0 * width
+            top = float(y_min) / 720.0 * height
+            right = float(x_max) / 1280.0 * width
+            bottom = float(y_max) / 720.0 * height
+            left = max(0.0, min(float(width), left))
+            top = max(0.0, min(float(height), top))
+            right = max(0.0, min(float(width), right))
+            bottom = max(0.0, min(float(height), bottom))
             if right <= left or bottom <= top:
                 continue
-            detections.append(Detection((left, top, right, bottom), float(confidence)))
-        return detections
+            candidates.append(Detection((left, top, right, bottom), score))
 
-    def _infer_raw(self, image: Any) -> tuple[list[Detection], float, float]:
+        # The reference configuration applies class-agnostic NMS at 0.6 after
+        # resizing predictions. Keep this local and deterministic so no new
+        # tracking or inference dependency is introduced.
+        kept: list[Detection] = []
+        for candidate in sorted(candidates, key=lambda detection: detection.confidence, reverse=True):
+            if all(_iou(candidate.bbox, existing.bbox) <= nms_overlap for existing in kept):
+                kept.append(candidate)
+        return kept
+
+    def infer_raw_outputs(self, image: Any) -> tuple[Any, Any, int, int]:
+        """Return model tensors for metadata-only detector diagnostics.
+
+        This exposes no camera frame data and does not apply SENTRY decoding.
+        Callers must keep the returned tensors in diagnostic code; production
+        detection continues through ``detect_raw`` and ``detect`` below.
+        """
         height, width = image.shape[:2]
         if len(image.shape) != 3 or image.shape[2] != 3:
             raise ValueError("detector expects a BGR image with three channels")
@@ -295,6 +324,10 @@ class OpenVINOPersonDetector:
             raise RuntimeError(f"unexpected detector outputs: {sorted(outputs)}") from exc
         if boxes.ndim != 2 or boxes.shape[1] != 5 or labels.ndim != 1 or boxes.shape[0] != labels.shape[0]:
             raise RuntimeError(f"unexpected detector output shapes: boxes={boxes.shape}, labels={labels.shape}")
+        return boxes, labels, width, height
+
+    def _infer_raw(self, image: Any) -> tuple[list[Detection], float, float]:
+        boxes, labels, width, height = self.infer_raw_outputs(image)
         return self._decode_detections(boxes, labels, width, height, None), width, height
 
     def detect_raw(self, image: Any) -> list[Detection]:

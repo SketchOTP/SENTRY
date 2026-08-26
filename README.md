@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Windows PC, one
 
 ## Current status
 
-**M0 is accepted. Current authorized milestone: M1 — local Windows webcam perception.** The current 0303 detector replan is blocked by a confirmed one-person live quality failure; camera recovery is also still unproven.
+**M0 is accepted. Current authorized milestone: M1 — local Windows webcam perception.** The 0303 decoder bug is confirmed and corrected, but the corrected detector still fails the confirmed one-person quality gate; camera recovery is also still unproven.
 
 ## Project links
 

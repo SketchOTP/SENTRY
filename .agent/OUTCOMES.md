@@ -520,3 +520,39 @@ All 17 tested thresholds (`0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50,
 
 ### Recommendation
 Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch runtime/device/precision, add another detector candidate, or begin M2 from this result.
+
+---
+
+## OUTCOME-SENTRY-M1-0303-DECODER-RECONCILE-001 — Decoder bug confirmed; corrected 0303 still fails quality
+- Date: 2026-08-26
+- Directive: `SENTRY-M1-0303-DECODER-RECONCILE-001`
+- Verdict: PARTIAL — **DECODER BUG CONFIRMED — 0303 STILL FAILS QUALITY**
+- Retrieval confidence: ADEQUATE for repository, upstream adapter semantics, runtime, model outputs, decoder, tests, performance, and operator-confirmed live metadata
+- Evidence level: E5_OPERATIONALLY_OBSERVED for the operator-confirmed raw and corrected calibration segments
+
+### Upstream discrepancy and raw investigation
+- Official `accuracy-check.yml` selects `class_agnostic_detection`, scale `[0.00078125, 0.0013888888]`, `resize_prediction_boxes`, NMS overlap `0.6`, and clipping.
+- The official `ClassAgnosticDetectionAdapter` retains rows where `pred[:, -1] > 0.0`, scales the first four values, assigns every retained row label `1`, and does not inspect the companion `labels` tensor.
+- Previous SENTRY decoding required `int(label) == 1` and treated the 0303 boxes as final camera pixels. That contradicted the reference selection semantics.
+- Operator-confirmed raw run marker: `CONFIRMED_ONE_PERSON` at `2026-08-26T19:42:57.764666+00:00`; 149 online observations over approximately 20.3 seconds. Raw output contained 1,474 positive-confidence rows, 339 rows with confidence >= `0.10`, maximum confidence `0.458353`, coordinate range `0.0` to `1205.41333`, and all companion labels were `0`. The old SENTRY decoder produced zero candidates in every observation.
+- Highest-confidence raw box: `[343.841705, 54.877533, 1034.042236, 716.717285, 0.458353]`, label `0`, with similarly shaped high-confidence rows around the confirmed subject. No raw frame or video was retained.
+
+### Correction
+- Added metadata-only `infer_raw_outputs()` for the investigation helper; it exposes tensors to diagnostic code without changing the detector contract or sending raw candidates to the tracker.
+- Reconciled 0303 decoding to positive box confidence, ignored companion labels for class selection, explicit model-domain normalization and resize reconstruction, clipping, and deterministic class-agnostic NMS at `0.6`.
+- Added focused tests for label-agnostic selection, non-positive confidence rejection, coordinate reconstruction, clipping, NMS, and malformed output. The existing tracker, camera, buffer, runtime, device, precision, and production threshold remain unchanged.
+
+### Corrected live calibration
+- Confirmed-empty runner marker: `CONFIRMED_EMPTY` at `2026-08-26T20:07:48.797739+00:00`; 181 online observations over a 29.969-second captured timestamp span. At threshold `0.45`, false positives were `0/181`; at `0.40`, false positives were `4/181` (2.21%); lower thresholds had sustained duplicate false detections, including 12 simultaneous boxes at `0.10`.
+- Confirmed-one-person runner marker: `CONFIRMED_ONE_PERSON` at `2026-08-26T20:23:10.311140+00:00`; operator later supplied `CONFIRMED_ONE_PERSON — END — CONTINUOUS`; 556 online observations over a 56.863-second captured timestamp span.
+- At threshold `0.45`, one-person detection recall was `134/556` (24.10%), with no duplicate observations. At `0.40`, recall was `270/556` (48.56%), with `2/556` multi-detection observations (0.36%), while the matched empty false-positive rate was 2.21%. At `0.35`, recall was 79.32% and duplicate rate 3.96%; the empty segment remained materially false-positive. No threshold met empty FP <=1%, one-person recall >=95%, and duplicate control.
+- The corrected result is therefore not a tracker finding. Tracker qualification, synchronized dropout, ten-minute soak, live two-person behavior, and camera recovery were not run.
+
+### Performance and boundaries
+- Corrected-decoder short regression: 101 captured / 95 processed, 6.173 processed FPS, 87.893 ms median and 132.416 ms p95 processing latency, 5 dropped frames, CPU path, RSS 162.6 MB to 268.4 MB, camera online, zero Codex/Luna calls. The >=5 FPS floor passed; no ten-minute soak was justified after the quality stop.
+- Automated tests: **15/15 PASSED**. Model artifacts remained checksummed and outside Git. Raw-frame persistence: NONE. Live two-person behavior: BLOCKED because no second person was available. Camera recovery: NOT RUN and remains a separate M1 gate.
+
+### Acceptance boundary and recommendation
+- Previous 0303 failure was confounded by the decoder label gate, so it is superseded as a final model-quality conclusion.
+- The corrected decoder is justified and target-tested, but 0303 still fails the required live empty/person separation in the tested office scene.
+- Recommendation: **DETECTOR REPLAN**. Do not modify the tracker, runtime/device/precision, camera path, or begin M2 without a new Architect decision.

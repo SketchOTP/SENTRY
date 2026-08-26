@@ -220,3 +220,19 @@ The Architect authorized a bounded replacement of failed `person-detection-0202`
 
 ### Consequence
 0303 is not adequate for the tested office scene. Tracker qualification, dropout, soak, and camera recovery were stopped at the detector-quality boundary. The Architect must decide the next detector direction; do not change the tracker, runtime/device, or begin M2 from this evidence.
+
+---
+
+## RECORD-SENTRY-013 — 0303 rejection reclassified after decoder reconciliation
+- Date: 2026-08-26
+- Type: MILESTONE / DECODER BUG CONFIRMED / DETECTOR QUALITY FAILURE / ARCHITECT DECISION REQUIRED
+- Related directive/outcome: `SENTRY-M1-0303-DECODER-RECONCILE-001` / `OUTCOME-SENTRY-M1-0303-DECODER-RECONCILE-001`
+
+### Decision / event
+The prior 0303 zero-candidate live result was not sufficient to reject the model because SENTRY required companion `labels == 1`, while the official class-agnostic adapter uses positive box confidence and assigns the person label itself. The decoder was corrected without changing the model, runtime, tracker, camera, or threshold.
+
+### Evidence
+The raw confirmed-one-person run contained 1,474 positive-confidence rows, including 339 at or above `0.10`, with all companion labels equal to `0`; the old decoder emitted zero candidates. After correction and NMS `0.6`, empty threshold `0.45` was false-positive clean in 181 observations, but one-person recall was only 134/556. No tested threshold met the required empty/person quality gates.
+
+### Consequence
+The decoder bug is confirmed, but 0303 remains unsuitable for the tested office scene. Tracker qualification, dropout, soak, and camera recovery remain gated. The next detector decision must come from the Architect.

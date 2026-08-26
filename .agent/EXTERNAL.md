@@ -87,3 +87,15 @@ No external discovery was required for this governance-only bootstrap. The direc
 - Rationale: The candidate met artifact/runtime/performance prerequisites, but emitted zero person candidates during 588 observations of continuously confirmed one-person visibility, including at threshold 0.10. No tracker change or alternate runtime was introduced.
 - Limitation: Bounding-box visual sanity and tracker qualification were not reached because no one-person candidate was produced. Camera recovery remains untested.
 - Recheck trigger: A separately authorized detector decision; do not switch model, runtime/device, precision, or tracker under this completed directive.
+
+---
+
+## EXTERNAL-SENTRY-008 — Open Model Zoo class-agnostic 0303 adapter semantics
+- Date: 2026-08-26
+- Freshness: Official Open Model Zoo `accuracy-check.yml` and adapter source retrieved through the required browse workflow on 2026-08-26; local raw-output and decoder behavior reproduced on the same date.
+- Sources: [person-detection-0303 accuracy configuration](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-0303/accuracy-check.yml) and [ClassAgnosticDetectionAdapter source](https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/tools/accuracy_checker/accuracy_checker/adapters/detection.py).
+- Overlap: 0303 OpenVINO output decoding, class-agnostic confidence selection, coordinate scaling, and reference postprocessing.
+- Disposition: REFERENCE and EXTEND the upstream semantics in the existing SENTRY detector wrapper; do not adopt the full Accuracy Checker runtime.
+- Rationale: The official adapter selects positive-confidence box rows, multiplies coordinates by `[1/1280, 1/720]` in its configured representation, assigns person label `1`, and the model config applies resize, NMS overlap `0.6`, and clipping. SENTRY's old `labels == 1` gate was therefore a material decoder discrepancy. Correcting it exposed candidates but did not make 0303 meet the live empty/person quality gate.
+- Limitation: This discovery changes the interpretation of the prior 0303 zero-candidate result, not the final live quality outcome. The corrected detector still fails the tested office scene; no alternate model or tracker was authorized.
+- Recheck trigger: Any future 0303 model artifact/output change or separately authorized detector decision.
