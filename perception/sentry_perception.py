@@ -213,52 +213,67 @@ class Detector(Protocol):
     def detect(self, image: Any) -> list[Detection]: ...
 
 
-class OpenCVHogDetector:
-    """Local person-only detector using OpenCV's bundled HOG SVM."""
+class OpenVINOPersonDetector:
+    """Local person detector backed by the Open Model Zoo IR model."""
 
     def __init__(self, config: dict[str, Any]) -> None:
         try:
-            import cv2
+            import numpy as np
+            from openvino import Core
         except ImportError as exc:  # pragma: no cover - depends on runtime install
-            raise RuntimeError("opencv-python-headless is required for the HOG detector") from exc
-        self._cv2 = cv2
-        self.frame_scale = float(config.get("frame_scale", 0.5))
+            raise RuntimeError("openvino is required for the person-detection-0202 detector") from exc
+        self._np = np
         self.confidence_threshold = float(config.get("confidence_threshold", 0.50))
-        self.win_stride = tuple(int(value) for value in config.get("win_stride", [8, 8]))
-        self.padding = tuple(int(value) for value in config.get("padding", [8, 8]))
-        self.scale = float(config.get("scale", 1.05))
-        self.group_threshold = int(config.get("group_threshold", 2))
-        if not 0 < self.frame_scale <= 1:
-            raise ValueError("detector.frame_scale must be greater than 0 and no greater than 1")
-        self._hog = cv2.HOGDescriptor()
-        self._hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+        self.model_xml = Path(config.get("model_xml", ""))
+        self.model_bin = Path(config.get("model_bin", ""))
+        self.device = str(config.get("device", "CPU"))
+        if not self.model_xml.is_file():
+            raise RuntimeError(f"model XML file not found: {self.model_xml}")
+        if not self.model_bin.is_file():
+            raise RuntimeError(f"model BIN file not found: {self.model_bin}")
+        try:
+            core = Core()
+            model = core.read_model(str(self.model_xml), str(self.model_bin))
+            outputs = list(model.outputs)
+            if len(outputs) != 1 or list(outputs[0].shape) != [1, 1, 200, 7]:
+                raise ValueError(f"expected one output shaped [1, 1, N, 7], got {[list(output.shape) for output in outputs]}")
+            input_shape = list(model.inputs[0].shape)
+            if input_shape != [1, 3, 512, 512]:
+                raise ValueError(f"expected input shape [1, 3, 512, 512], got {input_shape}")
+            self._compiled_model = core.compile_model(model, self.device)
+            self._input_name = model.inputs[0].any_name
+            self._request = self._compiled_model.create_infer_request()
+        except Exception as exc:
+            raise RuntimeError(f"unable to load or compile OpenVINO model: {exc}") from exc
 
     @staticmethod
-    def _confidence(weight: float) -> float:
-        return 1.0 / (1.0 + math.exp(-float(weight)))
+    def _decode_detections(output: Any, width: int, height: int, confidence_threshold: float) -> list[Detection]:
+        detections: list[Detection] = []
+        for image_id, label, confidence, x_min, y_min, x_max, y_max in output[0, 0]:
+            if image_id < 0 or int(label) != 0 or float(confidence) < confidence_threshold:
+                continue
+            left = max(0.0, min(float(width), float(x_min) * width))
+            top = max(0.0, min(float(height), float(y_min) * height))
+            right = max(0.0, min(float(width), float(x_max) * width))
+            bottom = max(0.0, min(float(height), float(y_max) * height))
+            if right <= left or bottom <= top:
+                continue
+            detections.append(Detection((left, top, right, bottom), float(confidence)))
+        return detections
 
     def detect(self, image: Any) -> list[Detection]:
         height, width = image.shape[:2]
-        if self.frame_scale != 1:
-            resized = self._cv2.resize(image, (int(width * self.frame_scale), int(height * self.frame_scale)))
-        else:
-            resized = image
-        boxes, weights = self._hog.detectMultiScale(
-            resized,
-            hitThreshold=0.0,
-            winStride=self.win_stride,
-            padding=self.padding,
-            scale=self.scale,
-            groupThreshold=self.group_threshold,
-        )
-        detections: list[Detection] = []
-        for box, weight in zip(boxes, weights):
-            confidence = self._confidence(float(weight))
-            if confidence < self.confidence_threshold:
-                continue
-            x, y, box_width, box_height = (float(value) / self.frame_scale for value in box)
-            detections.append(Detection((x, y, x + box_width, y + box_height), confidence))
-        return detections
+        if len(image.shape) != 3 or image.shape[2] != 3:
+            raise ValueError("detector expects a BGR image with three channels")
+        import cv2
+
+        resized = cv2.resize(image, (512, 512))
+        tensor = self._np.asarray(resized, dtype=self._np.float32).transpose(2, 0, 1)[self._np.newaxis, ...]
+        result = self._request.infer({self._input_name: tensor})
+        output = next(iter(result.values()))
+        if tuple(output.shape) != (1, 1, 200, 7):
+            raise RuntimeError(f"unexpected detector output shape: {tuple(output.shape)}")
+        return self._decode_detections(output, width, height, self.confidence_threshold)
 
 
 @dataclass
@@ -326,10 +341,14 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ValueError(f"camera.{key} must be positive")
     if int(camera.get("buffer_size", 1)) != 1:
         raise ValueError("camera.buffer_size must remain 1 to enforce latest-frame behavior")
-    if detector.get("name") != "opencv_hog":
-        raise ValueError("only the explicitly selected opencv_hog detector is implemented")
+    if detector.get("name") != "openvino_person_detection_0202":
+        raise ValueError("only the explicitly selected openvino_person_detection_0202 detector is implemented")
     if not 0 <= float(detector.get("confidence_threshold", 0.5)) <= 1:
         raise ValueError("detector.confidence_threshold must be between 0 and 1")
+    if not detector.get("model_xml") or not detector.get("model_bin"):
+        raise ValueError("detector.model_xml and detector.model_bin are required")
+    if not detector.get("device", "CPU"):
+        raise ValueError("detector.device must be non-empty")
     if int(tracker.get("max_missing_frames", 0)) < 0:
         raise ValueError("tracker.max_missing_frames must be non-negative")
 
@@ -430,7 +449,7 @@ class PerceptionService:
         self.config = config
         self.buffer = LatestFrameBuffer()
         self.engine = PerceptionEngine(
-            OpenCVHogDetector(config["detector"]),
+            OpenVINOPersonDetector(config["detector"]),
             IoUTracker(**{
                 "match_iou_threshold": config["tracker"]["match_iou_threshold"],
                 "high_confidence_threshold": config["tracker"]["high_confidence_threshold"],

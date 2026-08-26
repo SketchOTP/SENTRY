@@ -118,3 +118,17 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - External discovery: REQUIRED; official Open Model Zoo manifest/readme/license and OpenCV DNN upstream API source inspected through `/browse`.
 - Stop condition reached: Generic OpenCV cannot execute the candidate. The production experiment was reverted and no alternate runtime was added.
 - Source: Architect directive `SENTRY-M1-DETECTOR-REPLAN-001`, SENTRY Notion, official Open Model Zoo metadata, OpenCV DNN upstream source, and host runtime evidence.
+
+---
+
+## SENTRY-M1-DETECTOR-RUNTIME-001 — Prove person-detection-0202 through OpenVINO and evaluate the unchanged tracker
+- Issued: 2026-08-26
+- Status: IN PROGRESS — OpenVINO installation, model loading, smoke inference, integration, and automated tests passed; human-confirmed live qualification pending
+- Project stage: M1 — Local Windows Perception
+- Objective: Use the official OpenVINO Python Runtime with the already-qualified FP32 `person-detection-0202` model, preserve the existing capture/buffer and IoU tracker, and run the authorized live stages if runtime checks pass.
+- Scope: Host/runtime verification, exact package pin, checksum recheck, direct model load/compile/inference, detector-contract integration, focused failure/decoding tests, and human-confirmed live Stage A/B/C plus performance if prerequisites pass.
+- Exclusions: No OpenCV rebuild, alternate inference runtime, detector-family change, tracker change, identity, persistence, events, API, voice, Codex/Luna calls, M2, or camera-recovery detour.
+- External discovery: REQUIRED; official OpenVINO installation/API/repository/license pages reviewed through `/browse`.
+- Current result: OpenVINO `2026.3.1` installed in ignored `.venv`; CPU/GPU devices enumerated; the checksummed model loaded, compiled, and produced `(1, 1, 200, 7)` on bounded zero-array inference. Production integration and 9/9 tests pass. Two telemetry-only camera runs are not acceptance evidence because operator confirmation was not recorded.
+- Stop/pending boundary: Obtain an operator-confirmed one-person office segment before accepting or rejecting Stage A. Do not infer human presence from model output alone.
+- Source: Architect directive `SENTRY-M1-DETECTOR-RUNTIME-001`, SENTRY Notion, prior detector-replan evidence, official OpenVINO documentation, and host runtime evidence.

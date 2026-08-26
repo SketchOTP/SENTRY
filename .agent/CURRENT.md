@@ -1,19 +1,19 @@
 # Current Project State
 
-Last updated: 2026-08-25T23:58:00-04:00
+Last updated: 2026-08-26T05:59:11-04:00
 
 ## Current stage
 M1 — Local Windows Perception
 
 ## Current objective
-Resolve the detector-replan compatibility blocker before attempting another M1 live qualification.
+Qualify the authorized OpenVINO-backed person detector and unchanged IoU tracker on the actual office camera.
 
 ## Active directive
-SENTRY-M1-DETECTOR-REPLAN-001 — BLOCKED; `person-detection-0202` is provenance-verified but cannot load through the pinned generic OpenCV wheel.
+SENTRY-M1-DETECTOR-RUNTIME-001 — IN PROGRESS; OpenVINO runtime and model smoke path pass, live human-confirmed qualification remains pending.
 
 ## Current verified state
 - Canonical path `\\atlas\\ATLAS\\100_ACTIVE\\Projects\\SENTRY` contains a valid Git checkout restored from GitHub after the damaged path was absent on repeated inventory reads.
-- `main` and `origin/main` are both `bad1b54ed1e52d37ce3fe6420df2507e1b7c86ba`; the final working tree is clean.
+- The last committed `main` and `origin/main` state is `12722a08a062225c8832d9ddbb31b63c12b51aee`; runtime integration edits are currently uncommitted pending live qualification.
 - `git fsck --full` passed with exit code 0 and no reported errors.
 - Authority kernel, reusable skills, perception source, configuration, requirements, documentation, and tests are present.
 - Existing automated tests pass 5/5.
@@ -26,6 +26,11 @@ SENTRY-M1-DETECTOR-REPLAN-001 — BLOCKED; `person-detection-0202` is provenance
 - M0 remains complete; M2, identity, persistence, events, and broader embodiment remain unauthorized.
 - Architect-authorized FP32 `person-detection-0202` XML/BIN artifacts were downloaded under ignored canonical `perception-data/models/person-detection-0202/FP32/`; both match the Open Model Zoo manifest SHA-384 checksums.
 - The pinned generic `opencv-python-headless==4.12.0.88` failed both `cv2.dnn.readNet` and `cv2.dnn.readNetFromModelOptimizer` with `Backend (plugin) is not available: 'openvino'`. The detector experiment was reverted; no alternate runtime was introduced.
+- Architect has now authorized exactly one additional runtime. Isolated `.venv` installation passed with `openvino==2026.3.1`, `opencv-python-headless==4.12.0.88`, `psutil==7.0.0`, and transitive `numpy==2.2.6` / `openvino-telemetry==2025.2.0`.
+- Host verification: Windows 11 x64, AMD Ryzen 7 5800XT, Python 3.12.10, OpenVINO devices `CPU`, `GPU.0`, and `GPU.1`.
+- OpenVINO loaded and compiled the checksummed FP32 model on CPU; bounded zero-array inference returned `(1, 1, 200, 7)`.
+- The production detector now uses OpenVINO behind the existing detector contract, with model paths configurable and explicit load/decode failures. The IoU tracker remains unchanged. Focused tests pass 9/9.
+- Two 30-second camera runs stayed online at 1280x720/15 FPS and approximately 8.2/8.4 processed FPS. They are not human-confirmed acceptance evidence: one run showed 206/254 visible rows and 9 visible IDs; the later run showed 65/259 visible rows and 5 visible IDs. A confirmed one-person segment is still required.
 
 ## Current hypotheses / unknowns
 - The original SENTRY disappearance is consistent with a transient Atlas share/filesystem visibility or consistency failure, but deletion versus transient visibility cannot be proven from the surviving evidence.
@@ -34,7 +39,7 @@ SENTRY-M1-DETECTOR-REPLAN-001 — BLOCKED; `person-detection-0202` is provenance
 ## Current blockers
 - M1 live acceptance is still open pending human-confirmed detection/tracking/dropout/recovery evidence.
 - Current HOG plus IoU tracking evidence is materially inadequate for the observed office scene.
-- The first authorized replacement candidate cannot execute with the existing dependency. Any OpenVINO Runtime, different OpenCV build, or other inference stack requires a new Architect decision.
+- A human-confirmed one-person Stage A segment is still required before judging detector adequacy; telemetry-only runs cannot establish subject presence or false-positive ground truth.
 - Controlled camera failure/recovery remains blocked pending an authorized physical disconnect/reconnect or administrative device-interruption path.
 - The original Atlas incident has no proven low-level root cause; no broad storage repair or migration was attempted.
 

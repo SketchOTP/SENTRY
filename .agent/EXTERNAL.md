@@ -63,3 +63,15 @@ No external discovery was required for this governance-only bootstrap. The direc
 - Rationale: The FP32 XML/BIN artifacts matched the manifest SHA-384 checksums and the manifest linked the candidate to Apache-2.0. However, both OpenCV IR-loading entry points failed under `opencv-python-headless==4.12.0.88` with `Backend (plugin) is not available: 'openvino'`. No OpenVINO Runtime or alternate inference stack was added.
 - Limitation: No candidate single-frame or live quality evidence exists. The existing HOG plus IoU result remains the only live detector evidence and is not M1-acceptable.
 - Recheck trigger: Explicit Architect authorization for a compatible OpenCV build/OpenVINO Runtime or a new detector candidate.
+
+---
+
+## EXTERNAL-SENTRY-006 — Official OpenVINO Python Runtime installation and IR execution
+- Date: 2026-08-26
+- Freshness: Official OpenVINO installation/repository pages retrieved through `/browse` on 2026-08-26; package installation and model execution reproduced on the host the same day.
+- Sources: [OpenVINO Python installation](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-pip.html), [OpenVINO repository](https://github.com/openvinotoolkit/openvino), and [Open Model Zoo person-detection-0202 README](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-0202/README.md).
+- Overlap: Supported Windows Python runtime, OpenVINO IR loading/compilation, CPU device execution, and the already-qualified person detector.
+- Disposition: ADOPT the official `openvino` Python runtime at the tested pin `2026.3.1`; WRAP it behind SENTRY's existing detector interface.
+- Rationale: The official package installed cleanly in the isolated Python 3.12 environment, exposed `CPU`, `GPU.0`, and `GPU.1`, and directly loaded/compiled the existing FP32 XML/BIN model. Bounded inference produced the documented `1x1x200x7` output. No OpenCV replacement or second inference framework was needed.
+- Limitations: Runtime compatibility is reproduced, but live detector adequacy remains unproven pending operator-confirmed ground truth. The 2025 documentation page was used for the installation workflow because it was the reachable official page; the current official repository README also documents `pip install -U openvino` and version verification.
+- Recheck trigger: OpenVINO package/model format changes, Python or Windows support changes, or a future Architect-authorized runtime replacement.

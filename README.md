@@ -53,7 +53,7 @@ SENTRY must be able to:
 
 ## M1 implementation
 
-The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](docs/M1_PERCEPTION.md). It uses a bounded latest-frame buffer, OpenCV's local HOG person detector, and a replaceable two-stage IoU tracker. It produces observation data only and makes zero Codex/Luna calls. Identity, persistence, semantic entry/exit events, and assistant integration remain later milestones.
+The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](docs/M1_PERCEPTION.md). It uses a bounded latest-frame buffer, the local Open Model Zoo `person-detection-0202` detector through OpenVINO, and a replaceable two-stage IoU tracker. It produces observation data only and makes zero Codex/Luna calls. Identity, persistence, semantic entry/exit events, and assistant integration remain later milestones.
 
 ## Explicitly out of V0.1
 

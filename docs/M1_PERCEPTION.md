@@ -10,15 +10,17 @@ It makes zero SENTRY Codex/Luna calls. It does not perform identity recognition,
 
 ## Selected stack
 
-The first implementation uses OpenCV's built-in HOG people detector and a small SENTRY-owned two-stage IoU tracker.
+The current implementation uses Intel Open Model Zoo `person-detection-0202` through the official OpenVINO Python Runtime and a small SENTRY-owned two-stage IoU tracker. The tracker is unchanged from the HOG qualification.
 
-- `opencv-python-headless==4.12.0.88`, OpenCV 4.5+ Apache-2.0. The HOG detector's classifier coefficients are bundled with OpenCV, so M1 does not download or commit a separate model-weight file.
+- `openvino==2026.3.1`, Apache-2.0, used for local CPU inference of the externally downloaded IR model.
+- `opencv-python-headless==4.12.0.88`, used for camera and image handling.
 - `psutil==7.0.0`, BSD-3-Clause, used only for process metrics.
+- `person-detection-0202` is the official Open Model Zoo FP32 XML/BIN artifact. Its manifest-provided SHA-384 checksums are recorded in Authority and the files remain outside Git under `perception-data/models/person-detection-0202/FP32/`.
 - The tracker is original SENTRY code. It keeps a bounded track table, associates high-confidence detections before lower-confidence detections, and retains unmatched tracks for a configured short dropout window.
 
 YOLOX plus ByteTrack was evaluated first because YOLOX is Apache-2.0 and ByteTrack is MIT, and both are viable future options. It was not adopted for this first live attempt because the host had no Python/CV runtime, the YOLOX deployment path requires a separately sourced model artifact, and adding a PyTorch/ONNX stack before proving camera access would increase the installation and provenance surface. The detector interface is replaceable so a later benchmark can compare YOLOX-Nano or another permissive model on the same observation contract.
 
-The selected runtime is CPU. The host has NVIDIA GPUs, but the chosen HOG implementation is CPU-only; this avoids an unverified CUDA/TensorRT dependency while retaining an explicit future detector swap point.
+The selected runtime device is CPU. The host exposes other devices, but CPU keeps this first qualification deterministic and does not add a GPU-specific runtime.
 
 ## Configuration and operation
 
@@ -41,5 +43,6 @@ Automated tracker/configuration/contract tests can establish deterministic behav
 - [YOLOX repository and Apache-2.0 license](https://github.com/Megvii-BaseDetection/YOLOX)
 - [ByteTrack repository and MIT license](https://github.com/FoundationVision/ByteTrack)
 - [ONNX Runtime execution providers](https://onnxruntime.ai/docs/execution-providers/)
-- [OpenCV license](https://opencv.org/license/)
-- [OpenCV HOGDescriptor API](https://docs.opencv.org/4.x/d5/d33/structcv_1_1HOGDescriptor.html)
+- [OpenVINO Python installation](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-pip.html)
+- [OpenVINO repository and Apache-2.0 license](https://github.com/openvinotoolkit/openvino)
+- [Open Model Zoo person-detection-0202 README](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/intel/person-detection-0202/README.md)

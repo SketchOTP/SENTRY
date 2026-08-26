@@ -337,3 +337,44 @@ Do not accept M1. Do not begin M2. The current HOG plus SENTRY IoU tracker is no
 - Model files remain outside Git under ignored canonical `perception-data/models/person-detection-0202/FP32/`.
 - Runtime Codex/Luna calls: 0. Raw frames: none.
 - Do not claim detector improvement or M1 acceptance. Return to Architect for a runtime decision; do not add a new inference runtime implicitly.
+
+---
+
+## OUTCOME-SENTRY-M1-DETECTOR-RUNTIME-001 — OpenVINO runtime path reproduced; live quality gate pending human confirmation
+- Date: 2026-08-26
+- Directive: `SENTRY-M1-DETECTOR-RUNTIME-001`
+- Verdict: PARTIAL — runtime/model integration and automated checks passed; live Stage A/B/C acceptance is not yet established
+- Retrieval confidence: ADEQUATE for repository, host, package, model, and integration state; UNCERTAIN for human presence during telemetry-only camera runs
+- Evidence level: E4_REGRESSION_PROTECTED for the implementation; live quality remains NOT ACCEPTED
+
+### Host, package, and model
+- Host: Windows 11 x64, AMD Ryzen 7 5800XT, Python 3.12.10.
+- Isolated environment: `.venv` with `openvino==2026.3.1`, `opencv-python-headless==4.12.0.88`, `psutil==7.0.0`, transitive `numpy==2.2.6`, and `openvino-telemetry==2025.2.0`.
+- OpenVINO `Core().available_devices`: `CPU`, `GPU.0`, `GPU.1`; CPU selected for deterministic first qualification.
+- The existing FP32 XML/BIN artifacts remain outside Git and matched the recorded Open Model Zoo SHA-384 checksums.
+
+### Smoke and implementation
+- `Core.read_model` and CPU `compile_model` passed for `person-detection-0202`.
+- Bounded zero-array inference passed and returned `float32` output shape `(1, 1, 200, 7)`.
+- `OpenVINOPersonDetector` now implements the existing `Detector` contract, performs BGR-to-NCHW preprocessing, filters label `0` and configured confidence, converts normalized boxes to image pixels, and fails explicitly for missing, corrupt, incompatible, or unavailable runtime/model paths.
+- The existing SENTRY IoU tracker, latest-frame buffer, camera health semantics, and no-Codex/Luna perception boundary were not changed.
+
+### Automated validation
+- Focused and existing suite: PASSED — 9/9.
+- Python compilation and `git diff --check`: PASSED.
+- Artifact checksum recheck: PASSED.
+- Raw-frame persistence: NONE.
+- Runtime Codex/Luna calls: 0.
+
+### Live telemetry, not acceptance evidence
+- First 30-second camera run: online, 1280x720 at 15 FPS, 250 captured / 249 processed, 8.22 processed FPS, 8.558 ms median, 12.201 ms p95, 0 dropped frames. Telemetry showed 206/254 rows with a visible track, 9 visible track IDs, and 9 rows with two visible tracks.
+- Second 30-second camera run: online, 1280x720 at 15 FPS, 257 captured / 255 processed, 8.414 processed FPS, 9.275 ms median, 15.493 ms p95, 1 dropped frame. Telemetry showed 65/259 rows with a visible track, 5 visible track IDs, and 1 row with two visible tracks.
+- These runs were not operator-confirmed one-person segments. Their conflicting presence statistics cannot establish Stage A detection quality, false positives, or false negatives.
+- Stage A human-confirmed detection: BLOCKED pending operator-confirmed subject presence.
+- Stage B unchanged-tracker qualification: NOT RUN.
+- Stage C synchronized dropout: NOT RUN.
+- Ten-minute soak: NOT RUN because live quality stages have not passed.
+- Camera failure/recovery: NOT RUN under this directive, as explicitly outside the primary objective.
+
+### Decision boundary
+The authorized runtime path is technically usable and the detector replacement is ready for proper live qualification. Do not accept M1 or claim detector adequacy until a human-confirmed one-person segment is completed. Do not change the tracker or add another runtime.

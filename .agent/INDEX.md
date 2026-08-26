@@ -8,11 +8,11 @@
 
 ## Current pointers
 - Current stage: M1 — Local Windows Perception
-- Active directive: SENTRY-M1-DETECTOR-REPLAN-001 — blocked; approved candidate cannot load through the pinned generic OpenCV wheel
+- Active directive: SENTRY-M1-DETECTOR-RUNTIME-001 — in progress; OpenVINO runtime integrated, live human-confirmed qualification pending
 - Active task packet: `.agent/tasks/active/SENTRY-M1-PERCEPTION-001/`
 - Last accepted outcome: M0 Codex/Luna reasoning and context optimization — Architect accepted
-- Latest recorded outcome: OUTCOME-SENTRY-M1-DETECTOR-REPLAN-001 — person-detection-0202 provenance passed, generic OpenCV DNN compatibility failed
-- Last state sync: 2026-08-25T23:58:00-04:00
+- Latest recorded outcome: OUTCOME-SENTRY-M1-DETECTOR-RUNTIME-001 — runtime and model smoke path passed; live acceptance evidence pending
+- Last state sync: 2026-08-26T05:59:11-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

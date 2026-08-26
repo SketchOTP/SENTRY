@@ -9,13 +9,11 @@
     "read_failure_limit": 5
   },
   "detector": {
-    "name": "opencv_hog",
-    "frame_scale": 0.5,
-    "confidence_threshold": 0.5,
-    "win_stride": [8, 8],
-    "padding": [8, 8],
-    "scale": 1.05,
-    "group_threshold": 2
+    "name": "openvino_person_detection_0202",
+    "model_xml": "perception-data/models/person-detection-0202/FP32/person-detection-0202.xml",
+    "model_bin": "perception-data/models/person-detection-0202/FP32/person-detection-0202.bin",
+    "device": "CPU",
+    "confidence_threshold": 0.5
   },
   "tracker": {
     "match_iou_threshold": 0.3,

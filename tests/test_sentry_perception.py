@@ -1,12 +1,16 @@
+import builtins
+import tempfile
 import unittest
 from datetime import datetime, timezone
+from pathlib import Path
+from unittest.mock import patch
 
 from perception.sentry_perception import (
     CameraState,
     Detection,
     IoUTracker,
     LatestFrameBuffer,
-    OpenCVHogDetector,
+    OpenVINOPersonDetector,
     PerceptionEngine,
     load_config,
     validate_config,
@@ -75,13 +79,11 @@ class PerceptionTests(unittest.TestCase):
         self.assertEqual(result["people"][0]["bbox"], [1, 2, 20, 40])
 
     def test_detector_output_contract(self):
-        detector = OpenCVHogDetector({
-            "frame_scale": 0.5,
+        detector = OpenVINOPersonDetector({
+            "model_xml": "perception-data/models/person-detection-0202/FP32/person-detection-0202.xml",
+            "model_bin": "perception-data/models/person-detection-0202/FP32/person-detection-0202.bin",
+            "device": "CPU",
             "confidence_threshold": 0.5,
-            "win_stride": [8, 8],
-            "padding": [8, 8],
-            "scale": 1.05,
-            "group_threshold": 2,
         })
         import numpy as np
 
@@ -91,6 +93,49 @@ class PerceptionTests(unittest.TestCase):
             self.assertIsInstance(detection, Detection)
             self.assertGreaterEqual(detection.confidence, 0.0)
             self.assertLessEqual(detection.confidence, 1.0)
+
+    def test_detector_decodes_person_boxes_and_filters_other_classes(self):
+        import numpy as np
+
+        output = np.full((1, 1, 200, 7), -1.0, dtype=np.float32)
+        output[0, 0, 0] = [0, 0, 0.8, 0.1, 0.2, 0.6, 0.9]
+        output[0, 0, 1] = [0, 1, 0.99, 0.0, 0.0, 1.0, 1.0]
+        output[0, 0, 2] = [0, 0, 0.2, 0.0, 0.0, 1.0, 1.0]
+        detections = OpenVINOPersonDetector._decode_detections(output, 320, 240, 0.5)
+        self.assertEqual(len(detections), 1)
+        for actual, expected in zip(detections[0].bbox, (32.0, 48.0, 192.0, 216.0)):
+            self.assertAlmostEqual(actual, expected, places=4)
+        self.assertAlmostEqual(detections[0].confidence, 0.8, places=6)
+
+    def test_missing_model_fails_explicitly(self):
+        with self.assertRaisesRegex(RuntimeError, "model XML file not found"):
+            OpenVINOPersonDetector({
+                "model_xml": str(Path("perception-data/models/person-detection-0202/FP32/missing.xml")),
+                "model_bin": "perception-data/models/person-detection-0202/FP32/person-detection-0202.bin",
+            })
+
+    def test_corrupt_model_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            corrupt_bin = Path(directory) / "person-detection-0202.bin"
+            corrupt_bin.write_bytes(b"corrupt model")
+            with self.assertRaisesRegex(RuntimeError, "unable to load or compile OpenVINO model"):
+                OpenVINOPersonDetector({
+                    "model_xml": "perception-data/models/person-detection-0202/FP32/person-detection-0202.xml",
+                    "model_bin": str(corrupt_bin),
+                    "device": "CPU",
+                })
+
+    def test_openvino_unavailable_fails_explicitly(self):
+        real_import = builtins.__import__
+
+        def import_without_openvino(name, *args, **kwargs):
+            if name == "openvino":
+                raise ImportError("simulated missing OpenVINO")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=import_without_openvino):
+            with self.assertRaisesRegex(RuntimeError, "openvino is required"):
+                OpenVINOPersonDetector({})
 
 
 if __name__ == "__main__":

@@ -143,3 +143,17 @@ Model provenance and API surface are separate gates from actual wheel capability
 
 ### Recheck trigger
 Recheck only after explicit Architect authorization for a compatible inference runtime or a different detector candidate.
+
+## LEARNING-SENTRY-010 — Runtime readiness does not establish live detector quality
+- Date: 2026-08-26
+- Evidence source: `SENTRY-M1-DETECTOR-RUNTIME-001`; OpenVINO host checks, model smoke inference, automated tests, and two unconfirmed camera runs
+- Confidence: VERIFIED RUNTIME; LIVE QUALITY UNCONFIRMED
+
+### Learning
+The official OpenVINO runtime can load and compile the checksummed `person-detection-0202` FP32 model on the Ryzen host, and the detector runs above the 5 FPS floor. However, model telemetry without an operator-confirmed subject segment cannot establish person detection quality or distinguish missed subjects from an empty scene.
+
+### Why it matters
+The live gate must preserve the distinction between executable software, observed camera output, and human-confirmed ground truth. Conflicting telemetry-only runs must remain unresolved rather than being promoted to Stage A evidence.
+
+### Recheck trigger
+Recheck with an explicitly operator-confirmed one-person office segment, then evaluate the unchanged tracker before considering any tracker change.

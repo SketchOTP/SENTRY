@@ -153,3 +153,19 @@ Both `cv2.dnn.readNetFromModelOptimizer(xml, bin)` and `cv2.dnn.readNet(bin, xml
 
 ### Consequence
 `person-detection-0202` is provenance-verified but not executable in the current authorized environment. M1 remains unaccepted. The Architect must decide whether to authorize a compatible OpenCV build, OpenVINO Runtime, or another detector path. M2 remains unauthorized.
+
+---
+
+## RECORD-SENTRY-009 — OpenVINO runtime authorized and integrated behind existing detector contract
+- Date: 2026-08-26
+- Type: MILESTONE / RUNTIME INTEGRATION / LIVE GATE PENDING
+- Related directive/outcome: `SENTRY-M1-DETECTOR-RUNTIME-001` / `OUTCOME-SENTRY-M1-DETECTOR-RUNTIME-001`
+
+### Decision / event
+The Architect authorized exactly one new inference runtime, the official OpenVINO Python Runtime. Version `2026.3.1` installed in an isolated ignored environment, the existing FP32 model loaded and compiled on CPU, and bounded inference returned the documented `(1, 1, 200, 7)` output. The detector now sits behind the existing SENTRY interface while the IoU tracker remains unchanged.
+
+### Evidence
+Host devices were `CPU`, `GPU.0`, and `GPU.1`; CPU was selected. The model XML/BIN checksums remained valid. Nine automated tests passed, including decoding and explicit missing/corrupt/unavailable runtime failure paths. Two camera runs exceeded 5 processed FPS but lacked operator-confirmed subject presence and therefore do not establish Stage A.
+
+### Consequence
+The runtime blocker is resolved, but M1 remains unaccepted. A human-confirmed one-person segment is required before deciding whether the detector is adequate and whether the unchanged tracker is the next bottleneck. No alternate runtime, tracker change, or M2 work is authorized.
