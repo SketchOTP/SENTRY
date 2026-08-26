@@ -396,6 +396,7 @@ The authorized runtime path is technically usable and the detector replacement i
 - Stage A marker: `CONFIRMED_EMPTY — START`, recorded at `2026-08-26T15:07:31.1859602Z`; an extended confirmed-empty run provided approximately 20.6 seconds of online telemetry.
 - Stage B marker: `CONFIRMED_ONE_PERSON — START`, recorded at `2026-08-26T15:09:55.9480344Z`.
 - Operator end confirmation: `CONFIRMED_ONE_PERSON — END — CONTINUOUS`; the operator confirmed the subject remained continuously visible for the recorded segment.
+- The runner captured exact start-marker timestamps; the end confirmation arrived as a chat marker after process completion, and its transport timestamp was not exposed in the telemetry file. The continuous operator confirmation is explicit.
 - No raw frames or video were persisted.
 
 ### Stage A — confirmed empty
