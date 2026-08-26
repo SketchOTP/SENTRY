@@ -185,3 +185,22 @@ The empty baseline passed with 205/205 zero-person observations. The continuous-
 
 ### Consequence
 The current detector is materially inadequate for M1 office presence sensing. Dropout and soak stages were stopped at the authorized quality boundary. The Architect must decide whether to authorize another detector/calibration path; do not change the tracker or begin M2 from this evidence.
+
+---
+
+## RECORD-SENTRY-011 — Confidence calibration failed for person-detection-0202
+- Date: 2026-08-26
+- Type: MILESTONE / DETECTOR CALIBRATION FAILURE / ARCHITECT DECISION REQUIRED
+- Related directive/outcome: `SENTRY-M1-DETECTOR-CALIBRATION-001` / `OUTCOME-SENTRY-M1-DETECTOR-CALIBRATION-001`
+
+### Context
+The Architect authorized a narrow calibration experiment before changing detector families. The goal was to determine whether the current OpenVINO model's poor `0.50` live recall was caused by over-filtering rather than model quality.
+
+### Decision / event
+Raw candidates were captured from the unchanged OpenVINO inference path during operator-confirmed empty and continuously confirmed one-person segments. The same raw files were swept offline at thresholds `0.10` through `0.50`.
+
+### Evidence
+The empty segment had 303 observations over 30.639 seconds. The one-person segment had 599 observations over 60.559 seconds. At `0.40`, recall was 96.661% but duplicates occurred in 10.684% of observations. At `0.45`, duplicate rate was 0.334% but recall fell to 89.149%. No threshold met both gates. The raw confidence distributions were empty p95 `0.107720` / max `0.233231` and one-person p95 `0.489522` / max `0.943762`.
+
+### Consequence
+Calibration failed with `DETECTOR CALIBRATION FAILED — REPLAN MODEL`. No production threshold, tracker, model, runtime, camera, or preprocessing change was made. Tracker evaluation, dropout, soak, and camera recovery were not run. The next Architect candidate is `person-detection-0303`; it is not implemented by this record.

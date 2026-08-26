@@ -14,10 +14,10 @@
 
 ## Technical profile
 - Language: Python 3.12 runtime for the local M1 slice.
-- Frameworks: no application framework; OpenCV provides local capture/HOG detection.
+- Frameworks: no application framework; OpenCV provides local capture/frame handling and OpenVINO provides the local `person-detection-0202` inference runtime.
 - Major dependencies: `opencv-python-headless==4.12.0.88`, `psutil==7.0.0`.
 - Test command: `python -m unittest discover -s tests -v`.
-- Runtime environment: existing Windows/x86 office PC. The local service is implemented; actual webcam capture is not yet live-qualified.
+- Runtime environment: existing Windows/x86 office PC. The local service and actual NexiGo N60 capture path are operationally observed, but detector quality remains unqualified for M1.
 
 ## Important integrations
 - DAWN, https://github.com/The-OASIS-Project/dawn, is the preferred conversational/persistent assistant foundation under evaluation. Integration is not implemented.

@@ -420,3 +420,57 @@ The authorized runtime path is technically usable and the detector replacement i
 - Live two-person behavior: BLOCKED — no second person available; automated tests were not substituted.
 - Camera offline/recovery: NOT RUN under this directive; remains a separate final M1 gate and no privileged device manipulation was attempted.
 - Recommendation: **DETECTOR REPLAN**. Do not accept M1, do not modify the tracker in this result, and do not begin M2.
+
+---
+
+## OUTCOME-SENTRY-M1-DETECTOR-CALIBRATION-001 — No acceptable confidence operating point
+- Date: 2026-08-26
+- Directive: `SENTRY-M1-DETECTOR-CALIBRATION-001`
+- Verdict: PARTIAL — **DETECTOR CALIBRATION FAILED — REPLAN MODEL**
+- Retrieval confidence: ADEQUATE for repository, runtime, implementation, model artifacts, operator markers, and live metadata; bounding-box visual sanity is NOT ACCEPTED because the installed OpenCV wheel is headless
+- Evidence level: E5_OPERATIONALLY_OBSERVED
+
+### Implementation and pre-live gates
+- The existing OpenVINO `person-detection-0202` model, `openvino==2026.3.1`, CPU device, preprocessing, camera path, size-one buffer, existing IoU tracker, and production confidence threshold remained unchanged.
+- Added only `OpenVINOPersonDetector.detect_raw()` plus metadata-only calibration capture/evaluation. Raw candidates were decoded through the existing inference/box path, stored only as timestamps, frame sequence, candidate confidences/boxes, and inference timing, and never entered the production tracker. No raw image or video was persisted.
+- Existing and focused tests passed 11/11. FP32 XML/BIN checksums remained valid. Working tree was clean and local `main` matched `origin/main` before live capture.
+
+### Operator-confirmed markers and segment coverage
+- Stage A user marker: `CONFIRMED_EMPTY — START`; runner marker: `CONFIRMED_EMPTY` at `2026-08-26T16:18:50.151051+00:00`; runner end: `CONFIRMED_EMPTY_END` at `2026-08-26T16:19:25.924405+00:00`.
+- Stage A: 303 online observations; captured timestamp span 30.639 seconds. Operator confirmed nobody was visible.
+- Stage B user marker: `CONFIRMED_ONE_PERSON — START`; runner marker: `CONFIRMED_ONE_PERSON` at `2026-08-26T16:21:28.148642+00:00`; runner end: `CONFIRMED_ONE_PERSON_END` at `2026-08-26T16:22:33.820060+00:00`; operator then confirmed `CONFIRMED_ONE_PERSON — END — CONTINUOUS`.
+- Stage B: 599 online observations; captured timestamp span 60.559 seconds. The operator confirmed exactly one person remained continuously visible for the full segment.
+
+### Complete offline threshold sweep
+All rows below were computed from the same raw candidate files; no camera rerun was performed for individual thresholds.
+
+| Threshold | Empty any detection | Empty max | Empty longest false-positive run | One-person any detection | Zero | Exactly one | Multi | Duplicate rate | One-person max | Longest miss | Longest duplicate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.10 | 100.000% | 6 | 303 / 30.749 s | 100.000% | 0 | 0 | 599 | 100.000% | 7 | 0.000 s | 60.670 s |
+| 0.15 | 26.733% | 2 | 14 / 1.438 s | 100.000% | 0 | 0 | 599 | 100.000% | 5 | 0.000 s | 60.670 s |
+| 0.20 | 0.660% | 1 | 1 / 0.111 s | 100.000% | 0 | 11 | 588 | 98.164% | 3 | 0.000 s | 42.798 s |
+| 0.25 | 0.000% | 0 | 0 / 0.000 s | 100.000% | 0 | 108 | 491 | 81.970% | 3 | 0.000 s | 37.951 s |
+| 0.30 | 0.000% | 0 | 0 / 0.000 s | 99.332% | 4 | 212 | 383 | 63.940% | 2 | 0.320 s | 20.750 s |
+| 0.35 | 0.000% | 0 | 0 / 0.000 s | 98.331% | 10 | 346 | 243 | 40.568% | 2 | 0.399 s | 2.960 s |
+| 0.40 | 0.000% | 0 | 0 / 0.000 s | 96.661% | 20 | 515 | 64 | 10.684% | 2 | 1.199 s | 0.911 s |
+| 0.45 | 0.000% | 0 | 0 / 0.000 s | 89.149% | 65 | 532 | 2 | 0.334% | 2 | 2.239 s | 0.111 s |
+| 0.50 | 0.000% | 0 | 0 / 0.000 s | 73.289% | 160 | 439 | 0 | 0.000% | 1 | 6.863 s | 0.000 s |
+
+### Confidence distributions and decision
+- Empty raw candidates: p50 `0.031729`, p75 `0.040432`, p90 `0.070170`, p95 `0.107720`, max `0.233231`.
+- One-person raw candidates: p50 `0.058726`, p75 `0.112728`, p90 `0.323212`, p95 `0.489522`, max `0.943762`.
+- Threshold `0.20` meets the empty false-positive rate criterion but creates persistent duplicate/multi-box evidence in the one-person segment. Threshold `0.40` is the highest-recall candidate near the person gate at 96.661%, but 10.684% of observations are duplicates and the longest duplicate run is 0.911 seconds. Threshold `0.45` reduces duplicates to 0.334% but fails person recall at 89.149%. No tested threshold passes the required separation.
+- The transient overlay check was attempted at `0.40` but failed because `opencv-python-headless` does not implement `cv2.imshow`. Bounding-box sanity is therefore NOT ACCEPTED; no image was retained. The count-based failure remains decisive.
+
+### Acceptance boundary
+- Detector calibration: FAILED.
+- Production threshold adoption: NOT AUTHORIZED and not performed.
+- Unchanged tracker diagnostic: NOT RUN because calibration failed.
+- Synchronized dropout: NOT RUN.
+- Ten-minute soak: NOT RUN.
+- Live two-person behavior: BLOCKED — no second person available.
+- Camera recovery: NOT RUN under this directive; remains a separate M1 gate.
+- Runtime Codex/Luna calls: 0.
+
+### Recommendation
+Return to Architect with **REPLAN MODEL**. Preserve `person-detection-0202` and this negative calibration evidence. Do not change the tracker or implement `person-detection-0303` until separately authorized.

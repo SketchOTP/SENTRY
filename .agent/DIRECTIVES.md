@@ -146,3 +146,17 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Stop condition reached: Current detector quality is materially inadequate; Stage C synchronized dropout and Stage E soak were not run. Multi-person live evidence is blocked without a second person. Camera recovery remains a separate M1 gate.
 - External discovery: NOT REQUIRED.
 - Source: Architect directive `SENTRY-M1-OPENVINO-LIVE-001`, operator-confirmed ground-truth markers, metadata-only live telemetry, and current committed runtime.
+
+---
+
+## SENTRY-M1-DETECTOR-CALIBRATION-001 — Calibrate person-detection-0202 confidence from raw live candidates
+- Issued: 2026-08-26
+- Status: COMPLETE — calibration failed; returned to Architect for bounded model-replan decision
+- Project stage: M1 — Local Windows Perception
+- Objective: Determine whether the committed OpenVINO `person-detection-0202` detector can satisfy M1 through confidence calibration without changing model, runtime, tracker, capture, or production threshold.
+- Scope: Metadata-only raw candidate diagnostics, operator-confirmed empty and one-person segments, offline threshold sweep at `0.10` through `0.50`, and no tracker evaluation unless detector calibration passed.
+- Exclusions: No model/runtime/tracker/capture/preprocessing changes, no production threshold change, no new model, no tracker tuning, no identity, persistence, events, API, voice, M2, or Codex/Luna perception calls.
+- Acceptance boundary reached: 303 empty observations over 30.639 seconds and 599 continuously confirmed one-person observations over 60.559 seconds were captured from the same raw inference path. No tested threshold met both empty false-positive rate <=1% and one-person >=95% recall with rare duplicate detections.
+- Stop condition reached: `DETECTOR CALIBRATION FAILED — REPLAN MODEL`. Tracker diagnostics, dropout, soak, and camera recovery were not run because detector calibration failed.
+- Evidence level: E5_OPERATIONALLY_OBSERVED for the operator-confirmed segments; bounding-box visual sanity was NOT ACCEPTED because headless OpenCV lacks GUI support.
+- Source: Architect directive `SENTRY-M1-DETECTOR-CALIBRATION-001`, current OpenVINO implementation, metadata-only live captures, and offline threshold evaluation.

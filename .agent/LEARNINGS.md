@@ -173,3 +173,17 @@ The model/runtime integration is technically valid but not adequate for this off
 
 ### Recheck trigger
 Recheck only after an explicitly authorized detector replan or calibration directive; preserve this negative live result.
+
+## LEARNING-SENTRY-012 — Confidence calibration cannot rescue person-detection-0202 in the tested office scene
+- Date: 2026-08-26
+- Evidence source: `OUTCOME-SENTRY-M1-DETECTOR-CALIBRATION-001`; operator-confirmed 30-second empty and 60-second continuous-one-person segments using shared raw OpenVINO inference
+- Confidence: VERIFIED LIVE CALIBRATION FAILURE
+
+### Learning
+The raw confidence distributions of `person-detection-0202` did not provide a usable operating point in the tested office scene. Threshold `0.20` kept empty false positives at 0.660% but generated duplicate detections in 98.164% of one-person observations. Threshold `0.40` reached 96.661% any-detection recall but still generated duplicate detections in 10.684% of observations. Threshold `0.45` reduced duplicates to 0.334% but lowered recall to 89.149%.
+
+### Why it matters
+The model cannot be accepted by threshold calibration alone. A model replan is justified while the tracker remains unchanged and M2 remains gated.
+
+### Recheck trigger
+Recheck only after a separately authorized model candidate is integrated and its artifacts/runtime are independently verified.
