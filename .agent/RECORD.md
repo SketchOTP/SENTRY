@@ -96,3 +96,22 @@ Five deterministic tests passed. The unavailable-camera run returned `degraded` 
 
 ### Consequence
 M1 remains unaccepted and M2 remains unauthorized. Restore camera access or authorize a replacement device before live validation resumes.
+
+---
+
+## RECORD-SENTRY-006 — Canonical checkout recovered after Atlas visibility incident
+- Date: 2026-08-25
+- Type: GOVERNANCE / REPOSITORY RECOVERY
+- Related directive/outcome: `SENTRY-REPO-RECOVERY-001` / `OUTCOME-SENTRY-REPO-RECOVERY-001`
+
+### Context
+The Atlas SENTRY directory had previously lost visible Git metadata and committed files while GitHub `main` remained independently intact at `73b43f3`. The Architect authorized safe recovery and prohibited destructive storage repair, legacy pool paths, mergerfs, and unrelated project changes.
+
+### Decision / event
+After repeated read-only inventory confirmed the parent share was reachable and the SENTRY path had no visible remnants, a fresh GitHub clone was verified in isolation and the canonical SENTRY path was restored. The restored checkout passed Git, Authority, test, status, and stability checks.
+
+### Evidence
+Remote HEAD and canonical HEAD are `73b43f3398c0dc0738d23d389c2a79b48c5af29d`; `git fsck --full` exited 0; all five existing tests passed; Authority/source files are present; three canonical rereads retained `.git` metadata and perception source; local `main` matches `origin/main`; final status is clean.
+
+### Consequence
+Repository integrity is restored and M1 live qualification may safely resume from the canonical checkout. M1 remains unaccepted until its remaining human/tracking/recovery gates are evidenced. No storage migration, architecture change, dependency change, or M2 work was performed.

@@ -209,6 +209,32 @@ YES. Accept or reject the isolated runtime hardening result. M1 webcam/perceptio
 
 ---
 
+## OUTCOME-SENTRY-REPO-RECOVERY-001 — Canonical checkout restored and verified
+- Date: 2026-08-25
+- Directive: `SENTRY-REPO-RECOVERY-001`
+- Verdict: COMPLETE — repository integrity restored; M1 remains open
+- Retrieval confidence: ADEQUATE for canonical repository and Authority state; original low-level share failure remains uncertain
+- Evidence level: E3_TARGET_TESTED
+
+### Technical state discovered
+The Atlas parent share was reachable and stable across three repeated reads. The canonical `SENTRY` directory was absent during the initial inventory, with no visible SENTRY remnants or alternate `SENTRY*` entries to quarantine. Neighboring visible project directories were evidence-only directories rather than comparable Git checkouts, so no neighboring checkout corruption was inferred. The original disappearance mechanism remains unproven; no storage repair, migration, legacy pool path, or mergerfs operation was performed.
+
+### Recovery and validation
+- GitHub `refs/heads/main`: reconfirmed as `73b43f3398c0dc0738d23d389c2a79b48c5af29d`.
+- Fresh isolated recovery clone: passed at `C:\Users\sketc\AppData\Local\Temp\sentry-recovery-20260824`.
+- Canonical Atlas clone: restored at `\\atlas\\ATLAS\\100_ACTIVE\\Projects\\SENTRY`.
+- Branch/origin: `main`; origin identifies `SketchOTP/SENTRY`; local `main` and `origin/main` match exactly.
+- Authority kernel and project source/tests/docs: present.
+- `git fsck --full`: passed, exit code 0, no reported errors.
+- Existing automated suite: passed, 5/5 tests.
+- Canonical reread/reopen check: passed across three reads with Git metadata and perception source present.
+- Final working tree: clean.
+
+### Acceptance boundary
+Repository recovery is complete. M1 is not accepted: human-confirmed detection quality, multi-person tracking, dropout continuity, and controlled camera recovery remain outside this directive and must remain separately evidenced. M2 remains unauthorized.
+
+---
+
 ## OUTCOME-SENTRY-M1-PERCEPTION-001 — Local perception implementation target-tested; live gate blocked
 - Date: 2026-08-24
 - Directive: `SENTRY-M1-PERCEPTION-001`

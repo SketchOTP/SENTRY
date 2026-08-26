@@ -8,11 +8,11 @@
 
 ## Current pointers
 - Current stage: M1 — Local Windows Perception
-- Active directive: SENTRY-M1-PERCEPTION-001
+- Active directive: SENTRY-REPO-RECOVERY-001 — complete; canonical checkout restored
 - Active task packet: `.agent/tasks/active/SENTRY-M1-PERCEPTION-001/`
 - Last accepted outcome: M0 Codex/Luna reasoning and context optimization — Architect accepted
-- Latest recorded outcome: OUTCOME-SENTRY-M1-PERCEPTION-001 — implementation target-tested; live camera gate blocked
-- Last state sync: 2026-08-24T13:35:00-04:00
+- Latest recorded outcome: OUTCOME-SENTRY-REPO-RECOVERY-001 — canonical checkout restored and verified; M1 remains open
+- Last state sync: 2026-08-25T00:00:00-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

@@ -97,3 +97,19 @@ SENTRY must qualify actual capture before claiming detection, tracking, FPS, or 
 
 ### Recheck trigger
 Recheck after Windows camera privacy/driver/device changes or when a replacement webcam is connected.
+
+---
+
+## LEARNING-SENTRY-007 — Apparent checkout loss requires share-stability verification
+- Date: 2026-08-25
+- Evidence source: `SENTRY-REPO-RECOVERY-001`; repeated Atlas inventories and verified GitHub recovery clone
+- Confidence: VERIFIED RECOVERY OBSERVATION; low-level cause uncertain
+
+### Learning
+When a canonical checkout appears to lose `.git` metadata and committed files, first repeat the parent/share and directory inventory, preserve any visible remnants, and verify an isolated clone before restoring the canonical path. In this incident the SENTRY path was absent on repeated reads, no surviving SENTRY material was found, and a fresh clone at the exact verified GitHub HEAD restored a clean checkout without history rewrite.
+
+### Why it matters
+A transient visibility or consistency failure can look like deletion. Recovery must not overwrite unknown local work or convert a partial read into proof of data loss. The original low-level cause remains unknown unless independent storage/share evidence becomes available.
+
+### Recheck trigger
+Recheck on any future Atlas path disappearance, Git metadata inconsistency, or share instability before replacing a canonical project directory.
