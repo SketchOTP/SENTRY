@@ -247,10 +247,17 @@ class OpenVINOPersonDetector:
             raise RuntimeError(f"unable to load or compile OpenVINO model: {exc}") from exc
 
     @staticmethod
-    def _decode_detections(output: Any, width: int, height: int, confidence_threshold: float) -> list[Detection]:
+    def _decode_detections(
+        output: Any,
+        width: int,
+        height: int,
+        confidence_threshold: float | None,
+    ) -> list[Detection]:
         detections: list[Detection] = []
         for image_id, label, confidence, x_min, y_min, x_max, y_max in output[0, 0]:
-            if image_id < 0 or int(label) != 0 or float(confidence) < confidence_threshold:
+            if image_id < 0 or int(label) != 0:
+                continue
+            if confidence_threshold is not None and float(confidence) < confidence_threshold:
                 continue
             left = max(0.0, min(float(width), float(x_min) * width))
             top = max(0.0, min(float(height), float(y_min) * height))
@@ -261,7 +268,7 @@ class OpenVINOPersonDetector:
             detections.append(Detection((left, top, right, bottom), float(confidence)))
         return detections
 
-    def detect(self, image: Any) -> list[Detection]:
+    def _infer_raw(self, image: Any) -> tuple[list[Detection], float, float]:
         height, width = image.shape[:2]
         if len(image.shape) != 3 or image.shape[2] != 3:
             raise ValueError("detector expects a BGR image with three channels")
@@ -273,7 +280,22 @@ class OpenVINOPersonDetector:
         output = next(iter(result.values()))
         if tuple(output.shape) != (1, 1, 200, 7):
             raise RuntimeError(f"unexpected detector output shape: {tuple(output.shape)}")
-        return self._decode_detections(output, width, height, self.confidence_threshold)
+        return self._decode_detections(output, width, height, None), width, height
+
+    def detect_raw(self, image: Any) -> list[Detection]:
+        """Return valid person candidates before the configured threshold.
+
+        This diagnostic surface shares the production inference and decoding
+        path. It is intentionally separate from ``detect`` so raw candidates
+        cannot enter the production tracker accidentally.
+        """
+
+        candidates, _, _ = self._infer_raw(image)
+        return candidates
+
+    def detect(self, image: Any) -> list[Detection]:
+        candidates = self.detect_raw(image)
+        return [candidate for candidate in candidates if candidate.confidence >= self.confidence_threshold]
 
 
 @dataclass

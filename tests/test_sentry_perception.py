@@ -15,6 +15,7 @@ from perception.sentry_perception import (
     load_config,
     validate_config,
 )
+from perception.calibration import evaluate_thresholds
 
 
 class FakeDetector:
@@ -106,6 +107,31 @@ class PerceptionTests(unittest.TestCase):
         for actual, expected in zip(detections[0].bbox, (32.0, 48.0, 192.0, 216.0)):
             self.assertAlmostEqual(actual, expected, places=4)
         self.assertAlmostEqual(detections[0].confidence, 0.8, places=6)
+
+    def test_detector_decodes_raw_person_candidates_before_threshold(self):
+        import numpy as np
+
+        output = np.full((1, 1, 200, 7), -1.0, dtype=np.float32)
+        output[0, 0, 0] = [0, 0, 0.2, 0.1, 0.2, 0.6, 0.9]
+        output[0, 0, 1] = [0, 1, 0.99, 0.0, 0.0, 1.0, 1.0]
+        raw = OpenVINOPersonDetector._decode_detections(output, 320, 240, None)
+        filtered = [detection for detection in raw if detection.confidence >= 0.5]
+        self.assertEqual(len(raw), 1)
+        self.assertEqual(len(filtered), 0)
+        self.assertAlmostEqual(raw[0].confidence, 0.2, places=6)
+
+    def test_threshold_evaluation_uses_same_raw_records(self):
+        records = [
+            {"segment": "empty", "captured_at": "2026-08-26T15:00:00+00:00", "candidates": []},
+            {"segment": "empty", "captured_at": "2026-08-26T15:00:01+00:00", "candidates": [{"confidence": 0.2}]},
+            {"segment": "one_person", "captured_at": "2026-08-26T15:00:00+00:00", "candidates": [{"confidence": 0.2}]},
+            {"segment": "one_person", "captured_at": "2026-08-26T15:00:01+00:00", "candidates": [{"confidence": 0.8}]},
+        ]
+        results = evaluate_thresholds(records, (0.1, 0.5))
+        self.assertEqual(results["empty"]["0.10"]["zero_detections"], 1)
+        self.assertEqual(results["empty"]["0.50"]["zero_detections"], 2)
+        self.assertEqual(results["one_person"]["0.10"]["any_detection_rate"], 1.0)
+        self.assertEqual(results["one_person"]["0.50"]["any_detection_rate"], 0.5)
 
     def test_missing_model_fails_explicitly(self):
         with self.assertRaisesRegex(RuntimeError, "model XML file not found"):
