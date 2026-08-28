@@ -69,7 +69,7 @@ SENTRY-UBUNTU-PLATFORM-MIGRATION-001 — Ubuntu pre-live baseline completed; fre
 
 ## Current blockers
 - Stage A of `SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001` failed decisively: during the fresh operator-confirmed-empty run, the RT-DETR path produced 8 positive candidate observations and the authoritative state transitioned `empty->occupied` for approximately 15.8 seconds. Stop at the false-human-evidence boundary; do not request Stage B-D markers or commit RT-DETR as accepted production capability.
-- Operator-confirmed Stage A-D room-state qualification is pending. Do not reuse earlier detector-specific markers or per-frame calibration results as this directive's state evidence.
+- Fresh Ubuntu room-state qualification has Stage A passed and Stage B stopped after the one authorized retry. The retry produced brief evidence and an occupied transition, then falsely returned to `empty` while the operator remained in frame; classify as `STATE FAILURE — UBUNTU OCCUPIED EVIDENCE INSUFFICIENT`, not an operator-protocol failure. Do not reuse earlier detector-specific markers or per-frame calibration results as this directive's state evidence.
 - Low-light health thresholds are unresolved until labeled dim/insufficient-light evidence is collected; the implementation supports explicit degraded quality but does not invent a luminance cutoff.
 - M1 live acceptance is still open: the current OpenVINO detector/tracker combination has a confirmed one-person quality failure, and camera recovery remains unproven.
 - The current detector quality is inadequate for ordinary confirmed office presence sensing; the unchanged tracker cannot be evaluated as a separate bottleneck from this failed detector input.
@@ -98,6 +98,6 @@ SENTRY-UBUNTU-PLATFORM-MIGRATION-001 — Ubuntu pre-live baseline completed; fre
 - HOG/tracker telemetry must not be promoted to person-quality acceptance when one known person produces multiple simultaneous tracks and high ID churn.
 
 ## Next Architect decision point
-The next action is a fresh `CONFIRMED_ENTRY — START` marker after the operator begins outside the camera view. Stop immediately on a decisive state failure; do not reuse earlier 0202 calibration markers, accept the detector without room-state evidence, change the tracker, or begin M2.
+The Ubuntu qualification stopped at Stage B after the one authorized retry because the authoritative state falsely returned to `empty` while the operator remained visible. Architect decision is required before any further live marker; do not change the detector/tracker or begin M2.
 
 This file is a mutable snapshot. Do not use it to erase historical outcomes or decisions.

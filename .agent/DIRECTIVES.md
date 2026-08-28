@@ -243,3 +243,14 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Codex/Luna parity: `codex-cli 0.150.0-alpha.8`, ChatGPT OAuth authenticated, bounded synthetic event proof passed with immutable `gpt-5.6-luna` and low effort. Audio stack inventory completed only.
 - Scope boundary: no fresh empty/entry/occupied/exit markers, threshold tuning, detector research, tracker changes, identity, persistence, sessions, API, voice implementation, deployment, or M2 work.
 - Next gate: fresh Ubuntu operator-labeled M1 room-state qualification from `CONFIRMED_EMPTY — START`; do not reuse Windows markers.
+
+## SENTRY-UBUNTU-M1-PRESENCE-QUALIFICATION-001 — Fresh Ubuntu room-state qualification
+- Issued: 2026-08-28
+- Status: **STOPPED AT STAGE B — OCCUPIED EVIDENCE INSUFFICIENT; returned to Architect**
+- Platform: Ubuntu 24.04.4 LTS, V4L2, stable NexiGo by-id path, OpenVINO CPU, 0202 threshold `0.40`, timestamp state timing unchanged.
+- Stage A passed: 441/441 usable online observations were authoritative `empty`; zero detector positives, zero false occupied transitions, zero drops; 14.667 FPS, 15.576 ms median, 17.989 ms p95.
+- Initial Stage B attempt was invalid because marker-to-occupied timing included camera startup and clear visibility was not separately timestamped.
+- The one authorized retry established detector evidence and an `empty->occupied` transition, then lost detector evidence while the operator remained in frame. The service falsely transitioned `occupied->empty` at `16:07:39.546311+00:00` after the configured 15-second grace. Entry from first credible evidence to `occupied` was approximately 0.996 seconds, but sustained occupied state failed.
+- Primary disposition: **STATE FAILURE — UBUNTU OCCUPIED EVIDENCE INSUFFICIENT**. This is not an operator-protocol failure and does not authorize Stage C-F, detector changes, tracker changes, or M2.
+- Raw frames: none persisted. Perception Codex/Luna calls: `0`. Tracker/model/runtime/camera configuration unchanged.
+- Source: Architect directive `SENTRY-UBUNTU-M1-PRESENCE-QUALIFICATION-001`, fresh operator markers, operator correction confirming continued visibility, and metadata-only canonical runtime records.

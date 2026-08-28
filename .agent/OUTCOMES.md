@@ -693,3 +693,31 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 ### Boundary and next step
 - The Ubuntu platform baseline is qualified. This does not accept M1 presence behavior and does not reuse Windows Stage B. The next directive may restart M1 from fresh Ubuntu `CONFIRMED_EMPTY — START`; do not begin M2 in this record.
 - Commit/push: `e9977aa` (`chore: rebaseline SENTRY on Ubuntu`) pushed to `origin/main`; final checkout clean and local `main` matches `origin/main`.
+
+## OUTCOME-SENTRY-UBUNTU-M1-PRESENCE-QUALIFICATION-001 — Stage A pass; occupied-state evidence insufficient
+- Date: 2026-08-28
+- Directive: `SENTRY-UBUNTU-M1-PRESENCE-QUALIFICATION-001`
+- Verdict: **STATE FAILURE — UBUNTU OCCUPIED EVIDENCE INSUFFICIENT**
+- Retrieval confidence: ADEQUATE for the fresh Ubuntu Stage A interval and the two marker-aligned entry attempts; the operator's correction establishes that the retry person remained in frame.
+- Evidence level: E5_OPERATIONALLY_OBSERVED for Stage A and the retry telemetry; Stage B entry latency was observable, but the retry also exposed a false-empty transition during continued presence.
+
+### Stage A — confirmed empty
+- Fresh marker: `CONFIRMED_EMPTY — START` at `2026-08-28T15:56:25.549453+00:00`; end marker at `2026-08-28T15:56:57.427416+00:00`.
+- 442 observations were recorded; 441 online observations were usable and 1 startup observation was `degraded`.
+- Authoritative state: `empty` 441/441 usable observations (100%); `occupied` 0; no false occupied transition and no phantom occupancy.
+- Detector evidence: 0 positive observations; maximum people 0; 0 dropped frames.
+- Performance: 442 captured / 441 processed, 14.667 FPS, 15.576 ms median, 17.989 ms p95, V4L2/MJPEG/1280x720/15 FPS, camera online at completion.
+- The startup transition `empty->degraded->empty` recovered without producing false occupancy.
+
+### Stage B — initial attempt and one authorized retry
+- Initial attempt marker: `2026-08-28T16:03:41.649451+00:00`; first detector evidence `16:03:44.523761+00:00`; first `occupied` `16:03:45.548744+00:00`; marker-to-occupied 3.899 seconds. Clear-visibility timing was not independently marked, so this attempt was invalid for acceptance.
+- Retry marker: `2026-08-28T16:07:18.447065+00:00`; first processed observation `16:07:19.899586+00:00`; first detector evidence `16:07:21.877867+00:00`; first person record `16:07:21.941791+00:00`; first `occupied` `16:07:22.937745+00:00`.
+- Retry performance: 293 captured / 292 processed, 14.559 FPS, 15.526 ms median, 17.720 ms p95, 0 dropped frames, camera online at completion.
+- Retry detector totals: 16 detector-evidence observations, 34 one-person observations, 0 multi-person observations, maximum 1 person, diagnostic track IDs 1-3. Detector evidence then ceased despite the operator confirming that the person remained in frame.
+- State totals: `degraded` 1, `empty` 43, `occupied` 249. The service transitioned `occupied->empty` at `16:07:39.546311+00:00`, approximately 16.609 seconds after entering `occupied`, while the operator remained visible. This is a false-empty occupied-state failure after the configured 15-second absence grace.
+- Entry timing from first credible person evidence to authoritative `occupied` was approximately 0.996 seconds; however, the run cannot pass the overall state gate because continued occupied state was not maintained.
+
+### Boundary and safety
+- Stages C-F were not run. Low-light and physical camera recovery remain unqualified.
+- Raw frames: none persisted. Perception Codex/Luna calls: 0. Tracker was unchanged. No detector, threshold, runtime, camera, or M2 changes were made.
+- Primary disposition: **STATE FAILURE — UBUNTU OCCUPIED EVIDENCE INSUFFICIENT**. Architect decision required before another marker or further qualification attempt.
