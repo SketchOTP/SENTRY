@@ -556,3 +556,139 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Previous 0303 failure was confounded by the decoder label gate, so it is superseded as a final model-quality conclusion.
 - The corrected decoder is justified and target-tested, but 0303 still fails the required live empty/person separation in the tested office scene.
 - Recommendation: **DETECTOR REPLAN**. Do not modify the tracker, runtime/device/precision, camera path, or begin M2 without a new Architect decision.
+
+---
+
+## OUTCOME-SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001-PRELIVE — Temporal room-state layer ready for labeled qualification
+- Date: 2026-08-27
+- Directive: `SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001`
+- Verdict: PRE-LIVE GATE PASSED; room-state qualification not yet run
+- Retrieval confidence: ADEQUATE for current repository, formal scope, retained RT-DETR integration, and state-layer implementation
+- Evidence level: E4_REGRESSION_PROTECTED for deterministic state behavior; no E5 live state evidence yet
+
+### Audit-driven correction
+- The Architect superseded the planned RT-DETR per-frame detector benchmark. RT-DETRv2 R18 remains an uncommitted `IMPLEMENTED_UNVERIFIED` candidate input to the actual binary room-state metric.
+- Current direct OAuth-authenticated Codex/Luna reasoning wording is authoritative; DAWN feasibility material remains historical/reference only.
+
+### Implementation
+- Added `perception/presence_state.py` with only `empty`, `occupied`, `degraded`, and `offline` state, timestamp-based hysteresis, binary human evidence, source-failure precedence, and metadata-only luminance/contrast measurement.
+- Configured initial policy: one second entry confirmation, one second entry evidence-gap tolerance, and 15 second absence grace. Duplicate detections do not create multiple authoritative occupants.
+- Structured observations now include room state, transition, detector-evidence flag, and optional image-quality metrics. Added metadata-only `tools/m1_presence_state_qualification.py` for sequential operator-labeled live segments.
+- No detector, model, runtime, precision, device, camera, tracker, dependency, threshold, persistence, event, identity, API, voice, or M2 behavior was changed.
+
+### Pre-live validation
+- RT-DETR checkpoint SHA-256 remains `d18309d0d7ea57048138885c4c6ecfcb1e24506fc6153b94ad484f8ab62c7115`; ignored OpenVINO IR files remain present and are not tracked.
+- Existing RT-DETR/OpenVINO equivalence evidence remains preserved in prior Authority history.
+- Automated suite: **33/33 PASSED**. Git diff check: PASSED. Raw-frame persistence: NONE. Runtime Codex/Luna perception calls: `0`.
+- Live room-state stages A-F: NOT RUN. No operator-labeled marker has been reused from an earlier detector-specific directive.
+
+### Next boundary
+- Request a fresh `CONFIRMED_EMPTY — START` marker for Stage A. Stop at the first decisive state-level failure and do not model-shop automatically.
+
+---
+
+## OUTCOME-SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001-STAGE-A — Confirmed-empty room-state failure
+- Date: 2026-08-27
+- Directive: `SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001`
+- Verdict: **STATE FAILURE — FALSE HUMAN EVIDENCE**
+- Retrieval confidence: ADEQUATE for the current RT-DETR/state implementation and this fresh metadata-only run
+- Evidence level: E5_OPERATIONALLY_OBSERVED for the operator-confirmed-empty segment; later live stages not run
+
+### Operator-confirmed segment
+- Ground-truth marker: `CONFIRMED_EMPTY — START`; the qualification runner recorded `2026-08-27T15:35:50.088767+00:00`. Runner end marker: `2026-08-27T15:36:50.236329+00:00`.
+- The operator-confirmed room was empty for the labeled interval. No raw image or video was retained.
+- Camera startup was degraded for 5 observations, then online for 118 observations. The online interval began at `2026-08-27T15:36:25.362821+00:00`, making the usable online interval approximately 24.9 seconds.
+
+### Room-state evidence
+- State observations: `empty` 40/118 online; `occupied` 78/118 online; startup `degraded` 5/123 total. Correct empty state was approximately 33.9% of online observations, far below the 95% requirement.
+- Transitions: `empty->degraded` at `15:36:19.433188Z`; `degraded->empty` at `15:36:25.362821Z`; false `empty->occupied` at `15:36:27.653707Z`; `occupied->empty` at `15:36:43.447774Z`.
+- The false occupied interval lasted approximately 15.8 seconds, consistent with the configured 15-second absence grace after candidate evidence stopped.
+
+### Detector metadata
+- Eight online observations contained positive candidate evidence. Candidate count was one on six observations and two on two observations; the two-person output is duplicate/phantom evidence in a confirmed-empty room.
+- Reported candidate confidences ranged from `0.5315` to `0.8581`. This was not isolated low-confidence noise: the positives were sufficient to create an authoritative false occupied state.
+- Performance summary: 239 captured, 118 processed online (plus 5 startup observations), 120 dropped, 3.869 processed FPS, 175.113 ms median and 302.089 ms p95 processing latency. The 5 FPS runtime floor was not met in this run, but the decisive failure was false human evidence.
+- Post-run automated regression: **34/34 PASSED**. The additional test coverage is retained; the pre-live record's earlier 33/33 count reflects the suite at that earlier checkpoint.
+- Runtime Codex/Luna calls: `0`. Raw-frame persistence: `NONE`.
+
+### Acceptance boundary
+- Stage A failed the `>=95%` empty-state correctness requirement and the no-persistent-phantom-occupancy requirement.
+- Stages B-F were not run. No threshold sweep, detector change, tracker change, camera manipulation, or commit/push was authorized from this result.
+- Recommendation to Architect: preserve the implemented-unverified RT-DETR/state work and decide the next bounded action. Do not accept or commit RT-DETR as the V0.1 presence backend.
+
+---
+
+## OUTCOME-SENTRY-CONVERGENCE-0202-PRESENCE-STATE-001-PRE-LIVE — Restore 0202 and pass pre-live gate
+- Date: 2026-08-27
+- Directive: `SENTRY-CONVERGENCE-0202-PRESENCE-STATE-001`
+- Verdict: **PRE-LIVE GATE PASSED — awaiting fresh Stage A marker**
+- Retrieval confidence: ADEQUATE for the historical 0202 implementation, current generic state layer, artifacts, and host runtime
+- Evidence level: E4_REGRESSION_PROTECTED for source/config restoration and automated checks; operator-labeled room-state evidence is NOT RUN
+
+### Working-tree recovery
+- The complete pre-existing tracked diff was preserved as `perception-data/runtime/recovery-20260827/working-tree.patch`; status and diff-stat records plus copies of all untracked state files are in the same ignored canonical recovery directory.
+- RT-DETR-specific active production source/config/tests/tooling were removed by restoring the detector/test surfaces from historical commit `ec4a2f3`. The generic `presence_state.py`, `test_presence_state.py`, and room-state runner were retained. Ignored RT-DETR model artifacts remain outside Git and were not deleted.
+
+### Restored 0202 and checks
+- `OpenVINOPersonDetector` and its contract were restored from `ec4a2f3`; config now selects `openvino_person_detection_0202` with threshold `0.40`, CPU execution, and the existing FP32 paths.
+- The 0202 XML SHA-384 is `fc218405d14ca82811a239f841a90eb9f6e1a8d2e8269956471e79bfaba34f3f5ac7070e1d33aa5d2101460854b72a6a`; the BIN SHA-384 is `e807fab165c5327cf726eea6f5d70832dd4bbaec865d929b1ead67061759cf809debf0e43d53b23d612b4c3320eab578`; both match the recorded Authority values.
+- Generic timestamp-based `empty`/`occupied`/`degraded`/`offline` state logic and metadata-only luminance/contrast diagnostics remain active. No persistence, sessions, semantic events, API, identity, enhancement, or M2 behavior was added.
+
+### Automated and performance gates
+- Full `.venv` suite: **24/24 PASSED**. `git diff --check`: **PASSED**. Config validation: **PASSED**.
+- Short local camera gate: **PASSED** — DirectShow, 1280x720/15 FPS, 126 captured / 121 processed, 5.962 processed FPS, 24.776 ms median, 29.117 ms p95, 4 dropped frames, online throughout. Runtime Codex/Luna calls: `0`; raw frames: `NONE`.
+- Fresh operator-labeled live room-state evidence: **NOT RUN**. Request only `CONFIRMED_EMPTY — START` next; earlier detector-specific markers are not reusable.
+
+---
+
+## OUTCOME-SENTRY-CONVERGENCE-0202-PRESENCE-STATE-001-STAGE-A — Confirmed-empty room-state pass
+- Date: 2026-08-27
+- Directive: `SENTRY-CONVERGENCE-0202-PRESENCE-STATE-001`
+- Verdict: **PASSED — confirmed-empty room-state gate**
+- Retrieval confidence: ADEQUATE for the restored 0202 path, state layer, and fresh labeled segment
+- Evidence level: E5_OPERATIONALLY_OBSERVED for the fresh operator-confirmed-empty interval
+
+### Evidence
+- Fresh marker: `CONFIRMED_EMPTY — START` at `2026-08-27T16:40:26.042108+00:00`; runner end marker at `2026-08-27T16:41:12.519343+00:00`.
+- Total observations: 237. Camera startup produced 7 `degraded` observations; 230 online observations were usable for the labeled empty interval.
+- Authoritative room state: `empty` 230/230 usable observations (`100%`); `occupied` 0; no false `empty->occupied` transition; no persistent phantom occupancy.
+- Detector evidence: 0 positive observations; 0 multi-candidate observations; maximum candidate count 0.
+- Performance: 233 captured / 230 processed online, 7.592 processed FPS, 28.307 ms median and 48.788 ms p95 processing latency, 2 dropped frames, DirectShow 1280x720/15 FPS, camera online at completion.
+- Raw frames: none. Runtime Codex/Luna calls: `0`.
+
+### Boundary
+- Stage A meets the required >=95% correct-empty criterion and no-phantom criterion. Stages B-F remain NOT RUN. Request a new operator marker `CONFIRMED_ENTRY — START` after the operator begins outside the camera view.
+
+---
+
+## OUTCOME-SENTRY-UBUNTU-PLATFORM-MIGRATION-001 — Ubuntu pre-live baseline
+- Date: 2026-08-28
+- Directive: `SENTRY-UBUNTU-PLATFORM-MIGRATION-001`
+- Verdict: **UBUNTU PLATFORM BASELINE QUALIFIED**
+- Retrieval confidence: ADEQUATE for the Atlas checkout, Ubuntu host, V4L2 device, 0202/OpenVINO runtime, state implementation, and Codex/Luna bridge.
+- Evidence level: E4_REGRESSION_PROTECTED for source/config/tests/runtime reproduction; E5_OPERATIONALLY_OBSERVED for the bounded Linux camera/inference smoke and OAuth bridge proof. This is not Ubuntu M1 occupancy acceptance.
+
+### Repository and preservation
+- The canonical checkout is `/srv/ATLAS/100_ACTIVE/Projects/SENTRY` on the Atlas share, reached from Ubuntu through the authenticated user SFTP mount. Branch `main`, local HEAD, and `origin/main` are all `f5ca399dab2b53d90792de1039b519d129bf89dd`.
+- The pre-existing dirty tree was not reset or overwritten. Complete diff/status/untracked state was preserved before edits under ignored canonical `perception-data/runtime/recovery-ubuntu-20260828/`. No unknown material was deleted.
+
+### Ubuntu host/runtime
+- Ubuntu 24.04.4 LTS, Linux 7.0.0-30-generic, x86_64, hostname `atlas-desktop`, AMD Ryzen 7 5800XT, 62 GiB RAM. NVIDIA GPUs are inventoried but not used; OpenVINO CPU remains active.
+- Python 3.12.3; `opencv-python-headless==4.12.0.88`; `openvino==2026.3.1`; `psutil==7.0.0`; OpenCV reports Linux V4L/V4L2 support; OpenVINO devices are `CPU`, `GPU.0`, `GPU.1`.
+- The standard Ubuntu `python3.12-venv` support package was installed because it was absent; no project dependency version was changed.
+
+### Camera and model
+- The NexiGo N60 is identified at stable `/dev/v4l/by-id/usb-webcamvendor_NexiGo_N60_FHD_Webcam_Jan_29_2024-10:32:28-N60-video-index0`; the device is `uvcvideo`, user ACL access passed, and V4L2 capability evidence shows MJPEG 1280x720 at 15 FPS.
+- The minimal camera adaptation adds explicit `v4l2`, optional stable `device_path`, optional measured `fourcc`, Linux auto-backend selection, read-back of actual FOURCC, and retains numeric-index fallback. The tracker/state/model path is unchanged.
+- 0202 FP32 XML/BIN SHA-384 checksums remain `fc218405d14ca82811a239f841a90eb9f6e1a8d2e8269956471e79bfaba34f3f5ac7070e1d33aa5d2101460854b72a6a` and `e807fab165c5327cf726eea6f5d70832dd4bbaec865d929b1ead67061759cf809debf0e43d53b23d612b4c3320eab578`; OpenVINO CPU load/compile and zero-array inference returned the expected detector contract.
+
+### Validation
+- Full Linux automated suite: **26/26 PASSED**. Model checksums: **PASSED**. OpenCV V4L2 capability: **PASSED**. Camera open/read/property smoke: **PASSED**.
+- 45-second metadata-only camera/inference smoke: **PASSED** — 666 captured / 665 processed, 14.760 FPS, 16.189 ms median, 17.912 ms p95, 0 drops, online, V4L2/MJPEG/1280x720/15 FPS. A separate 20-second sample measured mean process CPU 92.52%, peak 106.00%, 13.426 FPS, 15.758 ms median, 17.169 ms p95, and 0 drops.
+- The smoke runner emitted a marker-shaped label only as a runner segment name; no operator ground-truth claim was made or accepted, and the apparent detector positives/state were not used for occupancy qualification.
+- Linux Codex parity: **PASSED** — `codex-cli 0.150.0-alpha.8`, ChatGPT OAuth authenticated, one bounded synthetic `person.entered` event returned schema-valid output from `gpt-5.6-luna` at low effort. Perception Codex/Luna calls: `0`.
+- Audio inventory: **PASSED** — PipeWire/PulseAudio active, NexiGo microphone enumerated, default source/output available. No STT/TTS implementation or test was run.
+- Raw-frame persistence: **NONE**. Physical disconnect/reconnect: **NOT RUN** by directive; deterministic failure-to-degraded/offline behavior remains covered by state tests. Fresh Ubuntu M1 markers: **NOT RUN**.
+
+### Boundary and next step
+- The Ubuntu platform baseline is qualified. This does not accept M1 presence behavior and does not reuse Windows Stage B. The next directive may restart M1 from fresh Ubuntu `CONFIRMED_EMPTY — START`; do not begin M2 in this record.

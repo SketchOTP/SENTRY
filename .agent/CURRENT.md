@@ -1,17 +1,33 @@
 # Current Project State
 
-Last updated: 2026-08-26T16:25:00-04:00
+Last updated: 2026-08-28T10:00:00-04:00
 
 ## Current stage
-M1 — Local Windows Perception
+Ubuntu platform re-baseline before fresh M1 live qualification
 
 ## Current objective
-Determine whether the authorized OpenVINO-backed `person-detection-0303` detector can meet M1 quality after reconciling its decoder with the official class-agnostic adapter semantics.
+Reproduce the accepted SENTRY foundation on Ubuntu Linux with V4L2 camera acquisition, OpenVINO CPU inference, canonical Atlas storage, and Linux Codex/Luna parity before restarting M1 live ground truth.
 
 ## Active directive
-SENTRY-M1-0303-DECODER-RECONCILE-001 — STOPPED AT DECODER BUG CONFIRMED / 0303 STILL FAILS QUALITY; Architect decision required.
+SENTRY-UBUNTU-PLATFORM-MIGRATION-001 — Ubuntu pre-live baseline completed; fresh Linux M1 qualification is next.
+
+## Platform migration status
+- Ubuntu 24.04.4 LTS / Linux 7.0.0-30-generic / x86_64 is now authoritative for future V0.1 work. The canonical project remains `/srv/ATLAS/100_ACTIVE/Projects/SENTRY` on the Atlas share; the Ubuntu desktop currently reaches that exact checkout through its authenticated user SFTP mount.
+- Windows DirectShow, PnP, numeric-index, and Windows runtime results remain historical evidence. The unfinished Windows Stage B entry run is `INVALID/UNRESOLVED` for acceptance because operator visibility after the marker was not confirmed before migration.
+- The exact NexiGo N60 V4L2 device is `/dev/v4l/by-id/usb-webcamvendor_NexiGo_N60_FHD_Webcam_Jan_29_2024-10:32:28-N60-video-index0`; the device ACL permits the SENTRY user. Measured target mode is MJPEG 1280x720 at 15 FPS.
+- The pinned Linux environment is Python 3.12.3, `opencv-python-headless==4.12.0.88`, `openvino==2026.3.1`, `psutil==7.0.0`, with OpenVINO devices `CPU`, `GPU.0`, and `GPU.1`. CPU remains the active inference device.
+- 0202 FP32 XML/BIN checksums remain `fc218405...72a6a` and `e807fab...ab578`; model load/compile and zero-array output contract pass on Ubuntu. Full Linux tests pass 26/26.
+- Linux V4L2 camera/inference smoke passed: 666 captured / 665 processed, 14.760 processed FPS, 16.189 ms median and 17.912 ms p95, 0 dropped frames. A separate 20-second sample measured 13.426 processed FPS, 15.758 ms median, 17.169 ms p95, mean process CPU 92.52%, peak 106.00%, and 0 dropped frames. Smoke telemetry is not occupancy ground truth.
+- The bounded OAuth bridge passed a synthetic `person.entered` proof on Linux using `gpt-5.6-luna` at low effort; perception makes zero Codex/Luna calls. PipeWire/PulseAudio and NexiGo microphone/output inventory completed; voice implementation remains out of scope.
+- No raw frames were persisted. Runtime/model evidence remains under ignored canonical `perception-data/` paths. RT-DETR artifacts remain historical/ignored and are not the active backend; 0202 remains the active candidate.
 
 ## Current verified state
+- The Architect rejected RT-DETR for V0.1 after confirmed-empty false-human evidence and sub-floor throughput, then authorized this final reuse test of the already-investigated 0202 signal through the room-state layer. RT-DETR-specific working-tree code was removed from active production source after complete diff preservation.
+- The restored 0202 implementation comes from historical commit `ec4a2f3`, uses the existing OpenVINO CPU runtime, and is explicitly `IMPLEMENTED_UNVERIFIED` pending fresh room-state evidence.
+- The temporal state layer is implemented behind structured observations. It maintains only `empty`, `occupied`, `degraded`, and `offline`; it uses timestamp-based entry confirmation of 1.0 seconds, a 1.0-second entry evidence-gap tolerance, and a 15.0-second absence grace period. Duplicate detections are binary human evidence and do not count occupants.
+- Structured observations now include room state, state transitions, binary detector evidence, and metadata-only luminance/contrast measurements. No image enhancement, persistence, sessions, semantic events, API, identity, or M2 behavior was added.
+- State-machine deterministic tests and the restored 0202 perception suite pass 24/24 using the repository `.venv`. The 0202 FP32 XML/BIN remain ignored and match the recorded Open Model Zoo SHA-384 checksums.
+- Pre-live scope review passed: no runtime/tracker/camera/dependency changes, no raw frames persisted, and no Codex/Luna perception calls. Stage A now provides the first fresh operator-labeled room-state evidence for this directive.
 - Canonical path `\\atlas\\ATLAS\\100_ACTIVE\\Projects\\SENTRY` contains a valid Git checkout restored from GitHub after the damaged path was absent on repeated inventory reads.
 - The last committed `main` and `origin/main` state is the calibration diagnostic/evidence commit recorded in the latest outcome; all authorized changes are pushed.
 - `git fsck --full` passed with exit code 0 and no reported errors.
@@ -51,14 +67,20 @@ SENTRY-M1-0303-DECODER-RECONCILE-001 — STOPPED AT DECODER BUG CONFIRMED / 0303
 - The restored checkout is trustworthy for continued project work; the earlier camera result remains preserved in Notion and prior append-only evidence.
 
 ## Current blockers
+- Stage A of `SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001` failed decisively: during the fresh operator-confirmed-empty run, the RT-DETR path produced 8 positive candidate observations and the authoritative state transitioned `empty->occupied` for approximately 15.8 seconds. Stop at the false-human-evidence boundary; do not request Stage B-D markers or commit RT-DETR as accepted production capability.
+- Operator-confirmed Stage A-D room-state qualification is pending. Do not reuse earlier detector-specific markers or per-frame calibration results as this directive's state evidence.
+- Low-light health thresholds are unresolved until labeled dim/insufficient-light evidence is collected; the implementation supports explicit degraded quality but does not invent a luminance cutoff.
 - M1 live acceptance is still open: the current OpenVINO detector/tracker combination has a confirmed one-person quality failure, and camera recovery remains unproven.
 - The current detector quality is inadequate for ordinary confirmed office presence sensing; the unchanged tracker cannot be evaluated as a separate bottleneck from this failed detector input.
 - A human-confirmed one-person segment was completed; the current OpenVINO detector produced a confirmed quality failure and telemetry-only runs remain non-acceptance evidence.
 - Controlled camera failure/recovery remains blocked pending an authorized physical disconnect/reconnect or administrative device-interruption path.
 - The original Atlas incident has no proven low-level root cause; no broad storage repair or migration was attempted.
-- `person-detection-0202` cannot meet the required empty/one-person separation at any tested confidence threshold. The 0303 rejection was confounded by a decoder bug, which is now confirmed and corrected; the corrected 0303 path still cannot meet the required empty/one-person separation. The Architect must decide the next detector direction. Do not change the tracker or begin M2.
+- RT-DETR remains rejected for this host. The prior 0202 per-frame calibration failure is preserved as historical evidence, but this directive evaluates binary room-state correctness with threshold `0.40`; Stage A passed and Stage B is next. Do not repeat detector calibration or change the tracker. M2 remains unauthorized.
 
 ## Latest recorded evidence
+- `OUTCOME-SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001-STAGE-A`: retained as negative evidence; RT-DETR produced false occupied state and missed the FPS floor.
+- `OUTCOME-SENTRY-CONVERGENCE-0202-PRESENCE-STATE-001-PRE-LIVE`: restored historical 0202 detector, retained generic state/luminance work, 24/24 tests passed, checksums passed, and short performance gate passed at 5.962 FPS. Awaiting fresh Stage A.
+- `OUTCOME-SENTRY-CONVERGENCE-0202-PRESENCE-STATE-001-STAGE-A`: fresh confirmed-empty run passed with 230/230 usable online observations authoritative `empty`, zero detector positives, zero false occupancy, and no persistent phantom evidence. Awaiting fresh Stage B entry marker.
 - `OUTCOME-SENTRY-REPO-RECOVERY-001`: fresh clone at `73b43f3`, `git fsck` passed, Authority/source checks passed, automated tests 5/5 passed, canonical reread stable, and local/remote `main` matched.
 - `OUTCOME-SENTRY-M1-LIVE-QUALIFICATION-001`: human-visible single-person scene observed; detector/tracker produced severe track churn and false-positive indicators; performance remained above target; controlled camera recovery was blocked by device-operation access failure.
 - `OUTCOME-SENTRY-M1-DETECTOR-REPLAN-001`: official model/license/checksum evidence passed, but generic OpenCV DNN IR loading failed; no production detector change was retained and live Stage A/B/C did not run.
@@ -75,6 +97,6 @@ SENTRY-M1-0303-DECODER-RECONCILE-001 — STOPPED AT DECODER BUG CONFIRMED / 0303
 - HOG/tracker telemetry must not be promoted to person-quality acceptance when one known person produces multiple simultaneous tracks and high ID churn.
 
 ## Next Architect decision point
-Architect must decide the next detector direction after corrected 0303 quality failure. Preserve the raw decoder evidence, corrected implementation, and negative calibration evidence; do not change the tracker from this result, and do not begin M2.
+The next action is a fresh `CONFIRMED_ENTRY — START` marker after the operator begins outside the camera view. Stop immediately on a decisive state failure; do not reuse earlier 0202 calibration markers, accept the detector without room-state evidence, change the tracker, or begin M2.
 
 This file is a mutable snapshot. Do not use it to erase historical outcomes or decisions.

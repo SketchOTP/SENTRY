@@ -15,10 +15,10 @@ Build SENTRY into an embodied household intelligence that maintains a grounded, 
 - V0.1 does not require ESP32s, Home Assistant, Frigate, mmWave, BLE room positioning, Wi-Fi CSI, multiple rooms/cameras, a TV avatar, autonomous smart-home control, or full routine learning.
 
 ## Hard constraints
-- The first scope is one office using the existing Windows PC, one webcam, microphone, speakers, local storage, and available CPU/GPU resources.
+- The first scope is one office using the current Ubuntu Linux host, one V4L2 webcam, microphone, speakers, canonical Atlas storage, and available CPU/GPU resources.
 - Raw webcam frames and biometric enrollment data remain local by default and out of source control.
 - SENTRY owns grounded physical events and sessions locally; an LLM is not the continuous vision processor or physical-event database.
-- DAWN is the preferred assistant foundation under evaluation. Xiaomi Miloco is an architectural reference only.
+- Direct OAuth-authenticated Codex/Luna invocation through the bounded SENTRY bridge is the accepted V0.1 reasoning layer. DAWN feasibility work is historical evidence/reference only; integration is not implemented. Xiaomi Miloco is an architectural reference only.
 - New dependencies, upstream derivation/forking, cloud video, infrastructure expansion, and scope changes require documented evidence and Architect authorization.
 
 ## Goal-change rule

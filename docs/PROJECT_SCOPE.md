@@ -4,7 +4,7 @@
 
 SENTRY is intended to become an embodied household intelligence rather than a conventional voice assistant or security camera. Its long-term purpose is to maintain an evolving understanding of a physical environment: who is present, where they are, what normally happens, what has changed, what people prefer, and when it is useful to speak or act without being explicitly prompted.
 
-The project will **not** begin at whole-home scale. Version 0.1 is a single-room proof of concept located in the office. It runs on the main Windows PC and uses only the existing webcam, microphone, speakers, local storage, and available GPU/CPU resources. No ESP32s, Home Assistant, Frigate, mmWave, BLE room tracking, Wi-Fi CSI, dedicated Raspberry Pi, TV avatar, or additional cameras are required for the first acceptance gate.
+The project will **not** begin at whole-home scale. Version 0.1 is a single-room proof of concept located in the office. It runs on the current Ubuntu Linux host and uses only the existing V4L2 webcam, microphone, speakers, canonical Atlas storage, and available GPU/CPU resources. No ESP32s, Home Assistant, Frigate, mmWave, BLE room tracking, Wi-Fi CSI, dedicated Raspberry Pi, TV avatar, or additional cameras are required for the first acceptance gate. Historical Windows/DirectShow evidence remains immutable historical evidence; all future live qualification is Linux/V4L2.
 
 The critical hypothesis to prove is:
 
@@ -48,7 +48,7 @@ This example is a **future behavioral target**, not a V0.1 requirement.
 
 Use only hardware already connected to the main PC:
 
-- Windows desktop PC.
+- Ubuntu Linux x86_64 desktop host.
 - One webcam covering the office well enough to see entries and the main occupied area.
 - Existing microphone.
 - Existing speakers/headphones as appropriate for testing.
@@ -60,7 +60,7 @@ Use only hardware already connected to the main PC:
 SENTRY V0.1 must:
 
 1. Run persistently for long periods without operator babysitting.
-2. Acquire the office webcam directly on Windows.
+2. Acquire the office webcam directly through Linux V4L2, preferring a stable `/dev/v4l/by-id/` path.
 3. Detect one or more humans in the camera view.
 4. Track detections across frames sufficiently to prevent every frame from becoming a new person.
 5. Maintain a stable room state: `empty`, `occupied`, `degraded`, or `offline`.

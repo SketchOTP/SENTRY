@@ -2,11 +2,11 @@
 
 SENTRY is a persistent, room-aware AI presence. The long-term goal is an embodied household intelligence that understands who is present, learns routines and preferences, maintains memory of physical events, and can decide when useful information should be spoken proactively.
 
-The project intentionally begins much smaller: **one office, one Windows PC, one webcam, microphone, and speakers**. The office prototype must prove that persistent perception and proactive behavior are reliable before any whole-home expansion.
+The project intentionally begins much smaller: **one office, one Ubuntu Linux host, one V4L2 webcam, microphone, and speakers**. The office prototype must prove that persistent perception and proactive behavior are reliable before any whole-home expansion.
 
 ## Current status
 
-**M0 is accepted. Current authorized milestone: M1 — local Windows webcam perception.** The 0303 decoder bug is confirmed and corrected, but the corrected detector still fails the confirmed one-person quality gate; camera recovery is also still unproven.
+**M0 is accepted. Current authorized milestone: Ubuntu platform re-baseline before fresh M1 live qualification.** Windows/DirectShow results remain historical; the previously verified 0202 detector and temporal room-state layer are being reproduced on Ubuntu through V4L2.
 
 ## Project links
 
@@ -38,7 +38,7 @@ The LLM is **not** the continuous vision processor. Computer vision converts web
 
 SENTRY must be able to:
 
-- run persistently on the Windows PC;
+- run persistently on the Ubuntu host;
 - detect whether the office is empty or occupied;
 - track one or more visible people;
 - recognize the enrolled primary user when evidence is sufficient;
@@ -53,7 +53,7 @@ SENTRY must be able to:
 
 ## M1 implementation
 
-The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](docs/M1_PERCEPTION.md). It uses a bounded latest-frame buffer, the local Open Model Zoo `person-detection-0303` detector through OpenVINO, and a replaceable two-stage IoU tracker. It produces observation data only and makes zero Codex/Luna calls. Identity, persistence, semantic entry/exit events, and assistant integration remain later milestones.
+The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](docs/M1_PERCEPTION.md). It uses a bounded latest-frame buffer, the verified Open Model Zoo `person-detection-0202` detector through OpenVINO, a replaceable two-stage IoU tracker, and a timestamp-based `empty`/`occupied`/`degraded`/`offline` state aggregator. It produces metadata-only observations and makes zero Codex/Luna calls. Identity, persistence, semantic entry/exit events, and assistant integration remain later milestones.
 
 ## Explicitly out of V0.1
 
@@ -74,7 +74,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 ## Milestones
 
 1. **M0 — Bootstrap + DAWN feasibility**: reproduce assistant environment; prove a synthetic `person.entered` event can reach the assistant and optionally produce speech.
-2. **M1 — Camera + human presence**: stable Windows webcam capture, person detection, tracking, diagnostics.
+2. **M1 — Camera + human presence**: stable Ubuntu V4L2 capture, person detection, tracking, diagnostics.
 3. **M2 — Presence sessions + persistence**: temporal hysteresis, entry/exit events, SQLite history/API.
 4. **M3 — Primary-user identity**: local enrollment, conservative recognition, unknown fallback.
 5. **M4 — Conversational grounding**: assistant queries current and historical office state.

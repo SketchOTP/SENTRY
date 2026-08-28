@@ -188,3 +188,58 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Stop condition reached: `DECODER BUG CONFIRMED — 0303 STILL FAILS QUALITY`. Tracker, dropout, soak, and camera recovery were not run.
 - Evidence level: E5_OPERATIONALLY_OBSERVED for the operator-confirmed raw and corrected calibration segments; no raw frames were persisted.
 - Source: Architect directive `SENTRY-M1-0303-DECODER-RECONCILE-001`, official Open Model Zoo adapter/configuration, current SENTRY implementation, and metadata-only operator-confirmed live runs.
+
+---
+
+## SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001 — Qualify temporal authoritative room state using the retained RT-DETR candidate
+- Issued: 2026-08-27
+- Status: STOPPED AT STAGE A FALSE-HUMAN-EVIDENCE FAILURE — returned to Architect; RT-DETR remains implemented-unverified and uncommitted
+- Project stage: M1 — Local Windows Perception
+- Objective: Measure `empty`, `occupied`, `degraded`, and `offline` room-state correctness over time using the existing RT-DETRv2 R18 path, without restarting isolated per-frame detector qualification.
+- Scope: Retained uncommitted RT-DETR integration, existing OpenVINO CPU/camera/buffer/tracker path, minimum timestamp-based state machine, metadata-only image-quality metrics, deterministic tests, and sequential operator-labeled room-state stages.
+- Exclusions: No detector/model/runtime/precision/device/tracker/camera changes, threshold optimization, identity, persistence, sessions, semantic events, API, voice, proactive behavior, M2, image enhancement, or raw-frame persistence.
+- Initial configuration: entry confirmation `1.0s`; entry evidence-gap tolerance `1.0s`; absence grace `15.0s`. Source/detector/visual-quality failure maps to `degraded` or `offline`, never inferred `empty`.
+- Pre-live gate: PASSED. RT-DETR checkpoint hash and ignored IR artifacts remain present; prior equivalence evidence is preserved; full automated suite passes 33/33; diff scope reviewed; no runtime Codex/Luna calls or raw frames.
+- Stage A result: fresh `CONFIRMED_EMPTY — START` run completed from `2026-08-27T15:35:50.088767+00:00` to `2026-08-27T15:36:50.236329+00:00`. After startup, 118 online observations were recorded; room state was `empty` for 40, `occupied` for 78, and 5 observations were degraded during startup. Eight positive candidate observations (confidence range `0.5315-0.8581`) caused `empty->occupied` at `2026-08-27T15:36:27.653707+00:00`; the false occupied interval ended at `2026-08-27T15:36:43.447774+00:00`. **STATE FAILURE — FALSE HUMAN EVIDENCE**.
+- Stop boundary: Stages B-F were not run. Do not reuse this failed run as evidence for later stages, and do not commit RT-DETR as accepted production capability.
+- Source: Architect directive `SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001`, current formal project scope, Authority state, retained RT-DETR working tree, and existing local runtime evidence.
+
+---
+
+## SENTRY-CONVERGENCE-0202-PRESENCE-STATE-001 — Qualify temporal authoritative room state using the restored 0202 signal
+- Issued: 2026-08-27
+- Status: PRE-LIVE GATE PASSED — waiting for fresh operator-labeled Stage A marker
+- Project stage: M1 — Local Windows Perception
+- Objective: Determine whether the previously verified Open Model Zoo `person-detection-0202` signal at confidence `0.40` can satisfy the room-state requirement through the existing timestamp-based state machine.
+- Scope: Restore 0202 from historical commit `ec4a2f3`, preserve generic state/luminance work, retain OpenVINO CPU/camera/buffer/tracker, and run sequential operator-confirmed room-state stages.
+- Exclusions: No new detector, RT-DETR requalification, 0303, threshold sweep before a narrow failure, tracker change, runtime/device/precision/camera change, image enhancement, identity, persistence, sessions, semantic events, API, voice, M2, or Codex/Luna perception calls.
+- Working-tree recovery: Complete pre-existing diff and untracked state files preserved under ignored canonical `perception-data/runtime/recovery-20260827/`. RT-DETR-specific active production source/config/tests/tooling were removed; ignored RT-DETR artifacts remain local and outside Git.
+- Current implementation: 0202 FP32 XML/BIN from the previously verified Open Model Zoo path; `openvino==2026.3.1`, CPU; threshold `0.40`; presence entry confirmation `1.0s`, evidence-gap tolerance `1.0s`, absence grace `15.0s`.
+- Automated pre-live validation: **PASSED — 24/24 tests**. 0202 XML/BIN SHA-384 checksums match Authority records; config loads; `git diff --check` passed.
+- Short performance gate: **PASSED** — DirectShow 1280x720/15 FPS, 126 captured / 121 processed, 5.962 processed FPS, 24.776 ms median, 29.117 ms p95, 4 dropped frames, online throughout, zero Codex/Luna calls.
+- Live status: Stage A passed with fresh operator-labeled evidence. Next gate is `CONFIRMED_ENTRY — START` after the operator begins outside the camera view; do not reuse prior detector-specific markers.
+- Source: Architect disposition `SENTRY-CONVERGENCE-0202-PRESENCE-STATE-001`, historical 0202 implementation, current generic state layer, local artifacts, and pre-live checks.
+
+### Stage A result — 2026-08-27
+- Status: **PASSED — confirmed-empty room-state gate**.
+- Fresh marker: `CONFIRMED_EMPTY — START` at `2026-08-27T16:40:26.042108+00:00`; runner ended at `2026-08-27T16:41:12.519343+00:00`.
+- Usable interval: 230 online observations; 7 startup observations were degraded. Authoritative state was `empty` for 230/230 usable observations (`100%`).
+- Detector evidence: 0 positive observations, 0 multi-candidate observations, maximum candidate count 0. No false `occupied` transition, sustained phantom occupancy, or false re-entry occurred.
+- Performance: 233 captured / 230 processed online, 7.592 processed FPS, 28.307 ms median, 48.788 ms p95, 2 dropped frames, DirectShow 1280x720/15 FPS, camera online at completion.
+- Safety: raw frames `NONE`; runtime Codex/Luna calls `0`.
+- Next gate: request fresh `CONFIRMED_ENTRY — START` only after the operator begins outside the camera view. Do not reuse prior detector-specific markers.
+
+---
+
+## SENTRY-UBUNTU-PLATFORM-MIGRATION-001 — Re-baseline SENTRY on Ubuntu/Linux
+- Issued: 2026-08-28
+- Status: **BASELINE QUALIFIED — fresh Ubuntu M1 ground truth not run**
+- Current platform: Ubuntu 24.04.4 LTS, V4L2, canonical Atlas `/srv/ATLAS`, OpenVINO CPU, direct OAuth Codex/Luna bridge.
+- Historical boundary: Windows/DirectShow evidence is preserved as historical. The unfinished Windows Stage B entry result is `INVALID/UNRESOLVED` and is not reused.
+- Repository boundary: exact Atlas checkout retained at `f5ca399dab2b53d90792de1039b519d129bf89dd`; pre-existing dirty tracked/untracked work was preserved in ignored `perception-data/runtime/recovery-ubuntu-20260828/` before edits.
+- Camera evidence: stable NexiGo N60 `/dev/v4l/by-id/usb-webcamvendor_NexiGo_N60_FHD_Webcam_Jan_29_2024-10:32:28-N60-video-index0`, V4L2, MJPEG, 1280x720, 15 FPS; user ACL permits access.
+- Runtime evidence: Python 3.12.3, OpenCV 4.12.0.88 with V4L2 support, OpenVINO 2026.3.1, psutil 7.0.0; 0202 checksums/load/CPU compile/synthetic inference passed; Linux tests 26/26 passed.
+- Smoke evidence: 666 captured / 665 processed, 14.760 processed FPS, 16.189 ms median, 17.912 ms p95, 0 drops, online throughout; no raw frames persisted and perception Codex/Luna calls `0`.
+- Codex/Luna parity: `codex-cli 0.150.0-alpha.8`, ChatGPT OAuth authenticated, bounded synthetic event proof passed with immutable `gpt-5.6-luna` and low effort. Audio stack inventory completed only.
+- Scope boundary: no fresh empty/entry/occupied/exit markers, threshold tuning, detector research, tracker changes, identity, persistence, sessions, API, voice implementation, deployment, or M2 work.
+- Next gate: fresh Ubuntu operator-labeled M1 room-state qualification from `CONFIRMED_EMPTY — START`; do not reuse Windows markers.

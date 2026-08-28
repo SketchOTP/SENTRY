@@ -15,7 +15,7 @@ from perception.sentry_perception import (
     load_config,
     validate_config,
 )
-from perception.calibration import evaluate_thresholds
+from perception.presence_state import PresenceStateConfig, PresenceStateMachine
 
 
 class FakeDetector:
@@ -32,6 +32,19 @@ class PerceptionTests(unittest.TestCase):
         self.assertEqual(config["camera"]["buffer_size"], 1)
         config["camera"]["buffer_size"] = 2
         with self.assertRaises(ValueError):
+            validate_config(config)
+
+    def test_config_accepts_linux_v4l2_device_path_without_numeric_index(self):
+        config = load_config(Path("perception/config.example.json"))
+        config["camera"]["backend"] = "v4l2"
+        config["camera"]["device_path"] = "/dev/v4l/by-id/example-video-index0"
+        config["camera"].pop("index")
+        validate_config(config)
+
+    def test_config_rejects_invalid_fourcc(self):
+        config = load_config(Path("perception/config.example.json"))
+        config["camera"]["fourcc"] = "MJ"
+        with self.assertRaisesRegex(ValueError, "camera.fourcc"):
             validate_config(config)
 
     def test_latest_frame_buffer_drops_stale_frame(self):
@@ -79,110 +92,78 @@ class PerceptionTests(unittest.TestCase):
         self.assertEqual(result["people"][0]["track_id"], 1)
         self.assertEqual(result["people"][0]["bbox"], [1, 2, 20, 40])
 
+    def test_engine_exposes_binary_room_state_and_quality_metadata(self):
+        import numpy as np
+
+        detector = FakeDetector([
+            [Detection((1, 2, 20, 40), 0.8)],
+            [Detection((1, 2, 20, 40), 0.8)],
+        ])
+        engine = PerceptionEngine(
+            detector,
+            IoUTracker(new_track_confidence_threshold=0.1),
+            PresenceStateMachine(PresenceStateConfig(entry_confirmation_seconds=1.0)),
+        )
+        image = np.zeros((10, 10, 3), dtype=np.uint8)
+        first = engine.process(
+            image,
+            frame_sequence=1,
+            captured_at=datetime(2026, 8, 27, tzinfo=timezone.utc),
+        )
+        second = engine.process(
+            image,
+            frame_sequence=2,
+            captured_at=datetime(2026, 8, 27, 0, 0, 1, 100000, tzinfo=timezone.utc),
+        )
+        self.assertEqual(first.as_dict()["room_state"], "empty")
+        self.assertEqual(second.as_dict()["room_state"], "occupied")
+        self.assertEqual(second.as_dict()["room_state_transition"], "empty->occupied")
+        self.assertTrue(second.as_dict()["detector_evidence"])
+        self.assertIn("mean_luminance", second.as_dict()["image_quality"])
+
     def test_detector_output_contract(self):
         detector = OpenVINOPersonDetector({
-            "name": "openvino_person_detection_0303",
-            "model_xml": "perception-data/models/person-detection-0303/FP32/person-detection-0303.xml",
-            "model_bin": "perception-data/models/person-detection-0303/FP32/person-detection-0303.bin",
+            "model_xml": "perception-data/models/person-detection-0202/FP32/person-detection-0202.xml",
+            "model_bin": "perception-data/models/person-detection-0202/FP32/person-detection-0202.bin",
             "device": "CPU",
             "confidence_threshold": 0.5,
         })
         import numpy as np
 
-        detections = detector.detect(np.zeros((720, 1280, 3), dtype=np.uint8))
+        detections = detector.detect(np.zeros((240, 320, 3), dtype=np.uint8))
         self.assertIsInstance(detections, list)
         for detection in detections:
             self.assertIsInstance(detection, Detection)
             self.assertGreaterEqual(detection.confidence, 0.0)
             self.assertLessEqual(detection.confidence, 1.0)
 
-    def test_detector_decodes_class_agnostic_box_even_with_zero_companion_label(self):
+    def test_detector_decodes_person_boxes_and_filters_other_classes(self):
         import numpy as np
 
-        boxes = np.array([[320.0, 180.0, 960.0, 540.0, 0.8]], dtype=np.float32)
-        labels = np.array([0], dtype=np.int64)
-        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 1280, 720, 0.5)
+        output = np.full((1, 1, 200, 7), -1.0, dtype=np.float32)
+        output[0, 0, 0] = [0, 0, 0.8, 0.1, 0.2, 0.6, 0.9]
+        output[0, 0, 1] = [0, 1, 0.99, 0.0, 0.0, 1.0, 1.0]
+        output[0, 0, 2] = [0, 0, 0.2, 0.0, 0.0, 1.0, 1.0]
+        detections = OpenVINOPersonDetector._decode_detections(output, 320, 240, 0.5)
         self.assertEqual(len(detections), 1)
-        for actual, expected in zip(detections[0].bbox, (320.0, 180.0, 960.0, 540.0)):
+        for actual, expected in zip(detections[0].bbox, (32.0, 48.0, 192.0, 216.0)):
             self.assertAlmostEqual(actual, expected, places=4)
         self.assertAlmostEqual(detections[0].confidence, 0.8, places=6)
-
-    def test_detector_rejects_non_positive_confidence(self):
-        import numpy as np
-
-        boxes = np.array([[0.0, 0.0, 100.0, 100.0, 0.0], [0.0, 0.0, 100.0, 100.0, -0.1]], dtype=np.float32)
-        labels = np.array([1, 0], dtype=np.int64)
-        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 1280, 720, None)
-        self.assertEqual(detections, [])
-
-    def test_detector_reconstructs_scaled_coordinates_to_camera_size(self):
-        import numpy as np
-
-        boxes = np.array([[320.0, 180.0, 960.0, 540.0, 0.8]], dtype=np.float32)
-        labels = np.array([0], dtype=np.int64)
-        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 640, 360, None)
-        self.assertEqual(detections[0].bbox, (160.0, 90.0, 480.0, 270.0))
-
-    def test_detector_clips_boxes_after_coordinate_reconstruction(self):
-        import numpy as np
-
-        boxes = np.array([[-100.0, -50.0, 1400.0, 800.0, 0.8]], dtype=np.float32)
-        labels = np.array([0], dtype=np.int64)
-        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 1280, 720, None)
-        self.assertEqual(detections[0].bbox, (0.0, 0.0, 1280.0, 720.0))
-
-    def test_detector_applies_class_agnostic_nms(self):
-        import numpy as np
-
-        boxes = np.array([
-            [100.0, 100.0, 500.0, 600.0, 0.9],
-            [120.0, 120.0, 520.0, 620.0, 0.8],
-            [700.0, 100.0, 900.0, 400.0, 0.7],
-        ], dtype=np.float32)
-        labels = np.array([0, 0, 0], dtype=np.int64)
-        detections = OpenVINOPersonDetector._decode_detections(boxes, labels, 1280, 720, None)
-        self.assertEqual(len(detections), 2)
-        self.assertAlmostEqual(detections[0].confidence, 0.9, places=6)
-        self.assertAlmostEqual(detections[1].confidence, 0.7, places=6)
-
-    def test_detector_rejects_malformed_output(self):
-        import numpy as np
-
-        boxes = np.array([[0.0, 0.0, 100.0, 100.0, 0.8]], dtype=np.float32)
-        labels = np.array([0, 0], dtype=np.int64)
-        with self.assertRaisesRegex(RuntimeError, "unexpected detector output shapes"):
-            OpenVINOPersonDetector._decode_detections(boxes, labels, 1280, 720, None)
-
-    def test_threshold_evaluation_uses_same_raw_records(self):
-        records = [
-            {"segment": "empty", "captured_at": "2026-08-26T15:00:00+00:00", "candidates": []},
-            {"segment": "empty", "captured_at": "2026-08-26T15:00:01+00:00", "candidates": [{"confidence": 0.2}]},
-            {"segment": "one_person", "captured_at": "2026-08-26T15:00:00+00:00", "candidates": [{"confidence": 0.2}]},
-            {"segment": "one_person", "captured_at": "2026-08-26T15:00:01+00:00", "candidates": [{"confidence": 0.8}]},
-        ]
-        results = evaluate_thresholds(records, (0.1, 0.5))
-        self.assertEqual(results["empty"]["0.10"]["zero_detections"], 1)
-        self.assertEqual(results["empty"]["0.50"]["zero_detections"], 2)
-        self.assertEqual(results["one_person"]["0.10"]["any_detection_rate"], 1.0)
-        self.assertEqual(results["one_person"]["0.50"]["any_detection_rate"], 0.5)
-        self.assertEqual(results["one_person"]["0.10"]["duplicate_detection_rate"], 0.0)
 
     def test_missing_model_fails_explicitly(self):
         with self.assertRaisesRegex(RuntimeError, "model XML file not found"):
             OpenVINOPersonDetector({
-                "name": "openvino_person_detection_0303",
-                "model_xml": str(Path("perception-data/models/person-detection-0303/FP32/missing.xml")),
-                "model_bin": "perception-data/models/person-detection-0303/FP32/person-detection-0303.bin",
+                "model_xml": str(Path("perception-data/models/person-detection-0202/FP32/missing.xml")),
+                "model_bin": "perception-data/models/person-detection-0202/FP32/person-detection-0202.bin",
             })
 
     def test_corrupt_model_fails_explicitly(self):
         with tempfile.TemporaryDirectory() as directory:
-            corrupt_bin = Path(directory) / "person-detection-0303.bin"
+            corrupt_bin = Path(directory) / "person-detection-0202.bin"
             corrupt_bin.write_bytes(b"corrupt model")
             with self.assertRaisesRegex(RuntimeError, "unable to load or compile OpenVINO model"):
                 OpenVINOPersonDetector({
-                    "name": "openvino_person_detection_0303",
-                    "model_xml": "perception-data/models/person-detection-0303/FP32/person-detection-0303.xml",
+                    "model_xml": "perception-data/models/person-detection-0202/FP32/person-detection-0202.xml",
                     "model_bin": str(corrupt_bin),
                     "device": "CPU",
                 })

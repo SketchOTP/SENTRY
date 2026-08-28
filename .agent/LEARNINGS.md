@@ -218,3 +218,51 @@ After correcting that decoder, the model produced plausible candidates, but the 
 
 ### Recheck trigger
 Return to Architect for a separately authorized detector decision. Preserve the corrected decoder, raw metadata, negative calibration evidence, and unchanged tracker boundary.
+
+---
+
+## LEARNING-SENTRY-015 — Room-state qualification must aggregate imperfect detector evidence
+- Date: 2026-08-27
+- Evidence source: `SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001` pre-live implementation and deterministic tests
+- Confidence: VERIFIED IMPLEMENTATION; LIVE RESULT PENDING
+
+### Learning
+The project acceptance metric is temporal authoritative room state, not per-frame detector recall. A binary detector-positive observation can refresh human evidence, while duplicate boxes remain one occupancy signal. Timestamp-based hysteresis can hold `occupied` through short detector dropouts and expire to `empty` only after a configured usable-camera grace period.
+
+### Safety boundary
+Camera, detector, or explicitly unusable visual-quality input maps to `degraded`/`offline`; it must never be converted to inferred `empty`. No low-light cutoff is assumed until operator-labeled evidence establishes one.
+
+### Recheck trigger
+Run the sequential operator-labeled room-state stages. If state acceptance fails, classify evidence insufficiency, false human evidence, or state-logic failure before any further detector decision.
+
+---
+
+## LEARNING-SENTRY-016 — Temporal hysteresis cannot rescue sustained false human evidence
+- Date: 2026-08-27
+- Evidence source: fresh operator-confirmed-empty Stage A run for `SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001`
+- Confidence: VERIFIED LIVE QUALITY RESULT
+
+### Learning
+The RT-DETR/state path produced eight positive candidate observations in a confirmed-empty office scene, including duplicate two-person output and confidences up to `0.8581`. The timestamp-based state machine consequently reported `occupied` for approximately 15.8 seconds. The 15-second absence grace correctly held the state after evidence disappeared, but it cannot distinguish a sustained phantom candidate from a real occupant.
+
+### Safety boundary
+Stage A is a decisive **STATE FAILURE — FALSE HUMAN EVIDENCE**. Do not continue to entry, occupied, exit, low-light, or camera-recovery stages, and do not promote or commit RT-DETR as accepted production capability from this run.
+
+### Recheck trigger
+Architect must choose the next bounded action. Preserve the metadata-only capture, current state implementation, and prior negative evidence; do not start a detector carousel or alter the tracker without explicit authorization.
+
+---
+
+## LEARNING-SENTRY-017 — OS migration invalidates platform-specific live evidence, not architecture
+- Date: 2026-08-28
+- Evidence source: `SENTRY-UBUNTU-PLATFORM-MIGRATION-001`
+- Confidence: VERIFIED PLATFORM BASELINE
+
+### Learning
+When the host changes from Windows to Ubuntu, DirectShow, PnP, numeric device-index, Windows runtime, and unfinished Windows operator-marker evidence must be reclassified as historical or invalid/unresolved. The accepted detector/state architecture, local OpenVINO boundary, privacy rule, Atlas storage, and OAuth Codex/Luna boundary remain valid and must be reproduced rather than reset.
+
+### Verified Linux boundary
+The NexiGo N60 is stable through `/dev/v4l/by-id/`, OpenCV 4.12.0.88 exposes V4L2, OpenVINO 2026.3.1 loads the checksummed 0202 model on CPU, and the metadata-only camera/inference smoke remains above the 5 FPS floor. Stable device identity is preferable to `/dev/videoX` because Linux node numbers are not a durable camera identity.
+
+### Safety boundary
+Telemetry-only smoke is not occupancy ground truth. Fresh Ubuntu operator markers are required before M1 acceptance; no Windows marker may be reused. Camera failure/recovery remains a later physical test, and no raw frames, identity, persistence, sessions, API, voice implementation, or M2 behavior were introduced.

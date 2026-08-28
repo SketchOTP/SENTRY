@@ -2,7 +2,7 @@
 
 ## Repository
 - Name: SENTRY
-- Root: `\\atlas\ATLAS\100_ACTIVE\Projects\SENTRY`
+- Root: `/srv/ATLAS/100_ACTIVE/Projects/SENTRY` on the canonical Atlas share
 - GitHub: https://github.com/SketchOTP/SENTRY
 - Default branch: `main`
 - Baseline commit at bootstrap: `63376fe` (`docs: add AI coder operating contract`)
@@ -14,10 +14,10 @@
 
 ## Technical profile
 - Language: Python 3.12 runtime for the local M1 slice.
-- Frameworks: no application framework; OpenCV provides local capture/frame handling and OpenVINO provides the local `person-detection-0303` inference runtime.
-- Major dependencies: `opencv-python-headless==4.12.0.88`, `psutil==7.0.0`.
+- Frameworks: no application framework; OpenCV provides local V4L2 capture/frame handling and OpenVINO provides local 0202 inference.
+- Major dependencies: `opencv-python-headless==4.12.0.88`, `openvino==2026.3.1`, `psutil==7.0.0`.
 - Test command: `python -m unittest discover -s tests -v`.
-- Runtime environment: existing Windows/x86 office PC. The local service and actual NexiGo N60 capture path are operationally observed, but detector quality remains unqualified for M1.
+- Runtime environment: Ubuntu Linux x86_64 host on the canonical Atlas share. The Linux NexiGo N60 V4L2 path and pinned local runtime are being established; fresh Ubuntu M1 ground truth is not yet run.
 
 ## Important integrations
 - Direct OAuth-authenticated Codex/Luna invocation through the bounded SENTRY bridge is the accepted V0.1 reasoning layer. DAWN feasibility work is historical evidence/reference only; integration is not implemented.
@@ -31,7 +31,7 @@
 - Do not treat the suggested repository shape in the project scope as permission to create unneeded empty runtime modules.
 
 ## Safety / operational constraints
-- M1 observation-only runtime implementation is authorized. Identity, persistence, sessions, semantic events, API, voice, and assistant integration remain gated by later directives.
+- M1 observation-only runtime implementation is authorized. Identity, persistence, sessions, semantic events, API, voice, and assistant integration remain gated by later directives. The authoritative current host is Ubuntu Linux with V4L2; Windows/DirectShow evidence is historical.
 - Preserve private recordings, enrollment images, biometric profiles, secrets, generated databases, caches, and large model weights outside Git.
 - Do not expose local state beyond localhost without deliberate authorization and appropriate authentication.
 - Do not silently derive from or fork DAWN, upload continuous video, add hardware, or expand to whole-home scope.

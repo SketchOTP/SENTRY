@@ -22,6 +22,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
+from .presence_state import (
+    PresenceStateConfig,
+    PresenceStateMachine,
+    PresenceStateSnapshot,
+    RoomState,
+    measure_image_quality,
+)
+
 
 class CameraState(str, Enum):
     ONLINE = "online"
@@ -214,17 +222,15 @@ class Detector(Protocol):
 
 
 class OpenVINOPersonDetector:
-    """Local person detector backed by Open Model Zoo person-detection-0303."""
+    """Local person detector backed by the Open Model Zoo IR model."""
 
     def __init__(self, config: dict[str, Any]) -> None:
         try:
             import numpy as np
             from openvino import Core
         except ImportError as exc:  # pragma: no cover - depends on runtime install
-            raise RuntimeError("openvino is required for the person-detection-0303 detector") from exc
+            raise RuntimeError("openvino is required for the person-detection-0202 detector") from exc
         self._np = np
-        if config.get("name") != "openvino_person_detection_0303":
-            raise ValueError("only the explicitly selected openvino_person_detection_0303 detector is implemented")
         self.confidence_threshold = float(config.get("confidence_threshold", 0.50))
         self.model_xml = Path(config.get("model_xml", ""))
         self.model_bin = Path(config.get("model_bin", ""))
@@ -236,15 +242,12 @@ class OpenVINOPersonDetector:
         try:
             core = Core()
             model = core.read_model(str(self.model_xml), str(self.model_bin))
-            input_shape = list(model.inputs[0].shape)
-            if input_shape != [1, 3, 720, 1280]:
-                raise ValueError(f"expected input shape [1, 3, 720, 1280], got {input_shape}")
             outputs = list(model.outputs)
-            output_names = {name for output in outputs for name in output.get_names()}
-            if len(outputs) != 2 or "boxes" not in output_names or "labels" not in output_names:
-                raise ValueError(f"expected boxes and labels outputs, got {sorted(output_names)}")
-            self._boxes_output_name = next(output.any_name for output in outputs if "boxes" in output.get_names())
-            self._labels_output_name = next(output.any_name for output in outputs if "labels" in output.get_names())
+            if len(outputs) != 1 or list(outputs[0].shape) != [1, 1, 200, 7]:
+                raise ValueError(f"expected one output shaped [1, 1, N, 7], got {[list(output.shape) for output in outputs]}")
+            input_shape = list(model.inputs[0].shape)
+            if input_shape != [1, 3, 512, 512]:
+                raise ValueError(f"expected input shape [1, 3, 512, 512], got {input_shape}")
             self._compiled_model = core.compile_model(model, self.device)
             self._input_name = model.inputs[0].any_name
             self._request = self._compiled_model.create_infer_request()
@@ -252,98 +255,33 @@ class OpenVINOPersonDetector:
             raise RuntimeError(f"unable to load or compile OpenVINO model: {exc}") from exc
 
     @staticmethod
-    def _decode_detections(
-        boxes: Any,
-        labels: Any,
-        width: int,
-        height: int,
-        confidence_threshold: float | None,
-        nms_overlap: float = 0.6,
-    ) -> list[Detection]:
-        if width <= 0 or height <= 0:
-            raise ValueError("detector output dimensions must be positive")
-        if not 0 <= nms_overlap <= 1:
-            raise ValueError("nms_overlap must be between 0 and 1")
-        raw_boxes = boxes.reshape(-1, 5)
-        raw_labels = labels.reshape(-1)
-        if raw_boxes.ndim != 2 or raw_boxes.shape[1] != 5 or len(raw_boxes) != len(raw_labels):
-            raise RuntimeError(f"unexpected detector output shapes: boxes={raw_boxes.shape}, labels={raw_labels.shape}")
-
-        # Open Model Zoo's class_agnostic_detection adapter uses the positive
-        # box confidence as the selection signal, ignores the companion labels
-        # output, scales [x1,y1,x2,y2] by [1/1280,1/720,1/1280,1/720], and
-        # assigns every retained row the person class. The following explicit
-        # reconstruction is equivalent to its scale plus resize_prediction_boxes
-        # path for a camera frame with dimensions ``width`` x ``height``.
-        candidates: list[Detection] = []
-        for x_min, y_min, x_max, y_max, confidence in raw_boxes:
-            score = float(confidence)
-            if score <= 0.0 or (confidence_threshold is not None and score < confidence_threshold):
+    def _decode_detections(output: Any, width: int, height: int, confidence_threshold: float) -> list[Detection]:
+        detections: list[Detection] = []
+        for image_id, label, confidence, x_min, y_min, x_max, y_max in output[0, 0]:
+            if image_id < 0 or int(label) != 0 or float(confidence) < confidence_threshold:
                 continue
-            left = float(x_min) / 1280.0 * width
-            top = float(y_min) / 720.0 * height
-            right = float(x_max) / 1280.0 * width
-            bottom = float(y_max) / 720.0 * height
-            left = max(0.0, min(float(width), left))
-            top = max(0.0, min(float(height), top))
-            right = max(0.0, min(float(width), right))
-            bottom = max(0.0, min(float(height), bottom))
+            left = max(0.0, min(float(width), float(x_min) * width))
+            top = max(0.0, min(float(height), float(y_min) * height))
+            right = max(0.0, min(float(width), float(x_max) * width))
+            bottom = max(0.0, min(float(height), float(y_max) * height))
             if right <= left or bottom <= top:
                 continue
-            candidates.append(Detection((left, top, right, bottom), score))
+            detections.append(Detection((left, top, right, bottom), float(confidence)))
+        return detections
 
-        # The reference configuration applies class-agnostic NMS at 0.6 after
-        # resizing predictions. Keep this local and deterministic so no new
-        # tracking or inference dependency is introduced.
-        kept: list[Detection] = []
-        for candidate in sorted(candidates, key=lambda detection: detection.confidence, reverse=True):
-            if all(_iou(candidate.bbox, existing.bbox) <= nms_overlap for existing in kept):
-                kept.append(candidate)
-        return kept
-
-    def infer_raw_outputs(self, image: Any) -> tuple[Any, Any, int, int]:
-        """Return model tensors for metadata-only detector diagnostics.
-
-        This exposes no camera frame data and does not apply SENTRY decoding.
-        Callers must keep the returned tensors in diagnostic code; production
-        detection continues through ``detect_raw`` and ``detect`` below.
-        """
+    def detect(self, image: Any) -> list[Detection]:
         height, width = image.shape[:2]
         if len(image.shape) != 3 or image.shape[2] != 3:
             raise ValueError("detector expects a BGR image with three channels")
         import cv2
 
-        input_image = image if (width, height) == (1280, 720) else cv2.resize(image, (1280, 720))
-        tensor = self._np.asarray(input_image, dtype=self._np.float32).transpose(2, 0, 1)[self._np.newaxis, ...]
+        resized = cv2.resize(image, (512, 512))
+        tensor = self._np.asarray(resized, dtype=self._np.float32).transpose(2, 0, 1)[self._np.newaxis, ...]
         result = self._request.infer({self._input_name: tensor})
-        outputs = {output.any_name: value for output, value in result.items()}
-        try:
-            boxes = outputs[self._boxes_output_name]
-            labels = outputs[self._labels_output_name]
-        except KeyError as exc:
-            raise RuntimeError(f"unexpected detector outputs: {sorted(outputs)}") from exc
-        if boxes.ndim != 2 or boxes.shape[1] != 5 or labels.ndim != 1 or boxes.shape[0] != labels.shape[0]:
-            raise RuntimeError(f"unexpected detector output shapes: boxes={boxes.shape}, labels={labels.shape}")
-        return boxes, labels, width, height
-
-    def _infer_raw(self, image: Any) -> tuple[list[Detection], float, float]:
-        boxes, labels, width, height = self.infer_raw_outputs(image)
-        return self._decode_detections(boxes, labels, width, height, None), width, height
-
-    def detect_raw(self, image: Any) -> list[Detection]:
-        """Return valid person candidates before the configured threshold.
-
-        This diagnostic surface shares the production inference and decoding
-        path. It is intentionally separate from ``detect`` so raw candidates
-        cannot enter the production tracker accidentally.
-        """
-
-        candidates, _, _ = self._infer_raw(image)
-        return candidates
-
-    def detect(self, image: Any) -> list[Detection]:
-        candidates = self.detect_raw(image)
-        return [candidate for candidate in candidates if candidate.confidence >= self.confidence_threshold]
+        output = next(iter(result.values()))
+        if tuple(output.shape) != (1, 1, 200, 7):
+            raise RuntimeError(f"unexpected detector output shape: {tuple(output.shape)}")
+        return self._decode_detections(output, width, height, self.confidence_threshold)
 
 
 @dataclass
@@ -355,6 +293,10 @@ class Observation:
     processing_ms: float
     health_reason: str | None = None
     dropped_frames: int = 0
+    room_state: RoomState = RoomState.EMPTY
+    image_quality: dict[str, float] | None = None
+    room_state_transition: str | None = None
+    detector_evidence: bool = False
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -365,15 +307,42 @@ class Observation:
             "processing_ms": round(self.processing_ms, 3),
             "health_reason": self.health_reason,
             "dropped_frames": self.dropped_frames,
+            "room_state": self.room_state.value,
+            "image_quality": self.image_quality,
+            "room_state_transition": self.room_state_transition,
+            "detector_evidence": self.detector_evidence,
         }
 
 
 class PerceptionEngine:
     """Converts one local frame into one structured observation."""
 
-    def __init__(self, detector: Detector, tracker: IoUTracker) -> None:
+    def __init__(
+        self,
+        detector: Detector,
+        tracker: IoUTracker,
+        presence_state: PresenceStateMachine | None = None,
+    ) -> None:
         self.detector = detector
         self.tracker = tracker
+        self.presence_state = presence_state or PresenceStateMachine()
+
+    def update_room_state(
+        self,
+        evaluated_at: datetime,
+        *,
+        camera_state: CameraState,
+        human_evidence: bool = False,
+        detector_usable: bool = True,
+        visual_quality_usable: bool = True,
+    ) -> PresenceStateSnapshot:
+        return self.presence_state.update(
+            evaluated_at,
+            camera_state=camera_state,
+            human_evidence=human_evidence,
+            detector_usable=detector_usable,
+            visual_quality_usable=visual_quality_usable,
+        )
 
     def process(
         self,
@@ -384,8 +353,17 @@ class PerceptionEngine:
         dropped_frames: int = 0,
     ) -> Observation:
         started = time.perf_counter()
+        image_quality = None
+        shape = getattr(image, "shape", None)
+        if shape is not None and len(shape) in {2, 3}:
+            image_quality = measure_image_quality(image).as_dict()
         detections = self.detector.detect(image)
         people = self.tracker.update(detections)
+        room_state = self.update_room_state(
+            captured_at,
+            camera_state=CameraState.ONLINE,
+            human_evidence=bool(detections),
+        )
         return Observation(
             camera_state=CameraState.ONLINE,
             captured_at=captured_at.astimezone(timezone.utc).isoformat(),
@@ -393,6 +371,10 @@ class PerceptionEngine:
             people=people,
             processing_ms=(time.perf_counter() - started) * 1000,
             dropped_frames=dropped_frames,
+            room_state=room_state.state,
+            image_quality=image_quality,
+            room_state_transition=room_state.transition,
+            detector_evidence=bool(detections),
         )
 
 
@@ -402,17 +384,20 @@ def validate_config(config: dict[str, Any]) -> None:
     tracker = config.get("tracker")
     if not isinstance(camera, dict) or not isinstance(detector, dict) or not isinstance(tracker, dict):
         raise ValueError("config must contain camera, detector, and tracker objects")
-    if int(camera.get("index", -1)) < 0:
-        raise ValueError("camera.index must be non-negative")
-    if camera.get("backend", "auto") not in {"auto", "dshow", "msmf", "any"}:
-        raise ValueError("camera.backend must be auto, dshow, msmf, or any")
+    if not camera.get("device_path") and int(camera.get("index", -1)) < 0:
+        raise ValueError("camera.device_path or non-negative camera.index is required")
+    if camera.get("backend", "auto") not in {"auto", "v4l2", "dshow", "msmf", "any"}:
+        raise ValueError("camera.backend must be auto, v4l2, dshow, msmf, or any")
+    fourcc = camera.get("fourcc")
+    if fourcc is not None and (not isinstance(fourcc, str) or len(fourcc) != 4):
+        raise ValueError("camera.fourcc must be exactly four characters when provided")
     for key in ("width", "height", "fps", "buffer_size"):
         if float(camera.get(key, 0)) <= 0:
             raise ValueError(f"camera.{key} must be positive")
     if int(camera.get("buffer_size", 1)) != 1:
         raise ValueError("camera.buffer_size must remain 1 to enforce latest-frame behavior")
-    if detector.get("name") != "openvino_person_detection_0303":
-        raise ValueError("only the explicitly selected openvino_person_detection_0303 detector is implemented")
+    if detector.get("name") != "openvino_person_detection_0202":
+        raise ValueError("only the explicitly selected openvino_person_detection_0202 detector is implemented")
     if not 0 <= float(detector.get("confidence_threshold", 0.5)) <= 1:
         raise ValueError("detector.confidence_threshold must be between 0 and 1")
     if not detector.get("model_xml") or not detector.get("model_bin"):
@@ -421,6 +406,10 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("detector.device must be non-empty")
     if int(tracker.get("max_missing_frames", 0)) < 0:
         raise ValueError("tracker.max_missing_frames must be non-negative")
+    presence = config.get("presence", {})
+    if not isinstance(presence, dict):
+        raise ValueError("presence must be an object")
+    PresenceStateConfig.from_mapping(presence)
 
 
 def load_config(path: Path) -> dict[str, Any]:
@@ -444,6 +433,7 @@ class _CameraWorker:
         self.actual_width = 0.0
         self.actual_height = 0.0
         self.actual_fps = 0.0
+        self.actual_fourcc = ""
         self.frames_captured = 0
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -455,9 +445,9 @@ class _CameraWorker:
             self.state = state
             self.reason = reason
 
-    def snapshot(self) -> tuple[CameraState, str, str, float, float, float, int]:
+    def snapshot(self) -> tuple[CameraState, str, str, float, float, float, str, int]:
         with self._lock:
-            return (self.state, self.reason, self.backend_name, self.actual_width, self.actual_height, self.actual_fps, self.frames_captured)
+            return (self.state, self.reason, self.backend_name, self.actual_width, self.actual_height, self.actual_fps, self.actual_fourcc, self.frames_captured)
 
     def start(self) -> None:
         self._thread = threading.Thread(target=self._run, name="sentry-camera", daemon=True)
@@ -477,11 +467,20 @@ class _CameraWorker:
             self._set_state(CameraState.OFFLINE, "opencv_not_installed")
             return
         camera = self.config["camera"]
-        backend_names = [camera["backend"]] if camera["backend"] != "auto" else ["dshow", "msmf", "any"]
-        backend_values = {"dshow": cv2.CAP_DSHOW, "msmf": cv2.CAP_MSMF, "any": cv2.CAP_ANY}
+        if camera.get("backend") == "auto":
+            backend_names = ["v4l2", "any"] if not sys.platform.startswith("win") else ["dshow", "msmf", "any"]
+        else:
+            backend_names = [camera["backend"]]
+        backend_values = {
+            "v4l2": getattr(cv2, "CAP_V4L2", cv2.CAP_ANY),
+            "dshow": cv2.CAP_DSHOW,
+            "msmf": cv2.CAP_MSMF,
+            "any": cv2.CAP_ANY,
+        }
+        source: Any = camera.get("device_path") or int(camera.get("index", 0))
         capture = None
         for backend_name in backend_names:
-            candidate = cv2.VideoCapture(int(camera["index"]), backend_values[backend_name])
+            candidate = cv2.VideoCapture(source, backend_values[backend_name])
             if candidate.isOpened():
                 capture = candidate
                 self.backend_name = backend_name
@@ -494,9 +493,13 @@ class _CameraWorker:
         capture.set(cv2.CAP_PROP_FRAME_WIDTH, int(camera["width"]))
         capture.set(cv2.CAP_PROP_FRAME_HEIGHT, int(camera["height"]))
         capture.set(cv2.CAP_PROP_FPS, float(camera["fps"]))
+        if camera.get("fourcc"):
+            capture.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*camera["fourcc"]))
         self.actual_width = capture.get(cv2.CAP_PROP_FRAME_WIDTH)
         self.actual_height = capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
         self.actual_fps = capture.get(cv2.CAP_PROP_FPS)
+        fourcc_value = int(capture.get(cv2.CAP_PROP_FOURCC) or 0)
+        self.actual_fourcc = "".join(chr((fourcc_value >> (8 * index)) & 0xFF) for index in range(4)).rstrip("\x00")
         failures = 0
         failure_limit = int(camera.get("read_failure_limit", 5))
         self._set_state(CameraState.ONLINE, "camera_opened")
@@ -526,6 +529,7 @@ class PerceptionService:
                 "new_track_confidence_threshold": config["tracker"]["new_track_confidence_threshold"],
                 "max_missing_frames": config["tracker"]["max_missing_frames"],
             }),
+            PresenceStateMachine(PresenceStateConfig.from_mapping(config.get("presence"))),
         )
         self.observation_callback = observation_callback
         self.worker = _CameraWorker(config, self.buffer)
@@ -550,7 +554,25 @@ class PerceptionService:
                     now = time.perf_counter()
                     state, reason, *_ = self.worker.snapshot()
                     if state != CameraState.ONLINE and now - last_health_emit >= 1.0:
-                        observation = Observation(state, datetime.now(timezone.utc).isoformat(), self._last_sequence, [], 0.0, reason, self.buffer.dropped_frames)
+                        evaluated_at = datetime.now(timezone.utc)
+                        room_state = self.engine.update_room_state(
+                            evaluated_at,
+                            camera_state=state,
+                            detector_usable=False,
+                        )
+                        observation = Observation(
+                            state,
+                            evaluated_at.isoformat(),
+                            self._last_sequence,
+                            [],
+                            0.0,
+                            reason,
+                            self.buffer.dropped_frames,
+                            room_state.state,
+                            None,
+                            room_state.transition,
+                            False,
+                        )
                         if self.observation_callback:
                             self.observation_callback(observation)
                         last_health_emit = now
@@ -559,12 +581,46 @@ class PerceptionService:
                 self._last_sequence = frame.sequence
                 state, reason, *_ = self.worker.snapshot()
                 if state != CameraState.ONLINE:
-                    observation = Observation(state, frame.captured_at.isoformat(), frame.sequence, [], 0.0, reason, self.buffer.dropped_frames)
+                    room_state = self.engine.update_room_state(
+                        frame.captured_at,
+                        camera_state=state,
+                        detector_usable=False,
+                    )
+                    observation = Observation(
+                        state,
+                        frame.captured_at.isoformat(),
+                        frame.sequence,
+                        [],
+                        0.0,
+                        reason,
+                        self.buffer.dropped_frames,
+                        room_state.state,
+                        None,
+                        room_state.transition,
+                        False,
+                    )
                 else:
                     try:
                         observation = self.engine.process(frame.image, frame_sequence=frame.sequence, captured_at=frame.captured_at, dropped_frames=self.buffer.dropped_frames)
                     except Exception as exc:
-                        observation = Observation(CameraState.DEGRADED, frame.captured_at.isoformat(), frame.sequence, [], 0.0, f"detector_failed:{type(exc).__name__}", self.buffer.dropped_frames)
+                        room_state = self.engine.update_room_state(
+                            frame.captured_at,
+                            camera_state=CameraState.DEGRADED,
+                            detector_usable=False,
+                        )
+                        observation = Observation(
+                            CameraState.DEGRADED,
+                            frame.captured_at.isoformat(),
+                            frame.sequence,
+                            [],
+                            0.0,
+                            f"detector_failed:{type(exc).__name__}",
+                            self.buffer.dropped_frames,
+                            room_state.state,
+                            None,
+                            room_state.transition,
+                            False,
+                        )
                 self._processing_ms.append(observation.processing_ms)
                 if self.observation_callback:
                     self.observation_callback(observation)
@@ -573,17 +629,19 @@ class PerceptionService:
         return self.summary()
 
     def summary(self) -> dict[str, Any]:
-        state, reason, backend, width, height, fps, captured = self.worker.snapshot()
+        state, reason, backend, width, height, fps, fourcc, captured = self.worker.snapshot()
         elapsed = max(0.001, time.perf_counter() - self._started_at) if self._started_at else 0.0
         processed = len(self._processing_ms)
         values = sorted(self._processing_ms)
         p95 = values[min(len(values) - 1, max(0, math.ceil(len(values) * 0.95) - 1))] if values else 0.0
         return {
             "camera_state": state.value,
+            "room_state": self.engine.presence_state.state.value,
             "health_reason": reason,
             "backend": backend,
             "actual_resolution": [width, height],
             "actual_camera_fps": fps,
+            "actual_fourcc": fourcc,
             "frames_captured": captured,
             "frames_processed": processed,
             "processed_fps": round(processed / elapsed, 3) if elapsed else 0.0,
