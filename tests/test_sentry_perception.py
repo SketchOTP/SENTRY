@@ -11,9 +11,13 @@ from perception.sentry_perception import (
     IoUTracker,
     LatestFrameBuffer,
     OpenVINOPersonDetector,
+    OpenVINOYOLOXSPersonDetector,
     PerceptionEngine,
     load_config,
     validate_config,
+    yolox_decode_output,
+    yolox_decode_reference_output,
+    yolox_preprocess,
 )
 from perception.presence_state import PresenceStateConfig, PresenceStateMachine
 
@@ -57,6 +61,17 @@ class PerceptionTests(unittest.TestCase):
         config["camera"]["device_path"] = "/dev/v4l/by-id/example-video-index0"
         config["camera"].pop("index")
         validate_config(config)
+
+    def test_config_accepts_ignored_presence_database_path(self):
+        config = load_config(Path("perception/config.example.json"))
+        self.assertEqual(config["storage"]["database_path"], "perception-data/runtime/sentry.db")
+        validate_config(config)
+
+    def test_config_rejects_non_string_presence_database_path(self):
+        config = load_config(Path("perception/config.example.json"))
+        config["storage"]["database_path"] = 123
+        with self.assertRaisesRegex(ValueError, "storage.database_path"):
+            validate_config(config)
 
     def test_config_rejects_invalid_fourcc(self):
         config = load_config(Path("perception/config.example.json"))
@@ -137,6 +152,7 @@ class PerceptionTests(unittest.TestCase):
         self.assertEqual(second.as_dict()["room_state_transition"], "empty->occupied")
         self.assertTrue(second.as_dict()["detector_evidence"])
         self.assertIn("mean_luminance", second.as_dict()["image_quality"])
+        self.assertEqual(second.as_dict()["candidates"][0]["confidence"], 0.8)
 
     def test_engine_uses_one_raw_inference_for_strong_and_support_evidence(self):
         detector = FakeRawDetector([
@@ -234,6 +250,85 @@ class PerceptionTests(unittest.TestCase):
         with patch("builtins.__import__", side_effect=import_without_openvino):
             with self.assertRaisesRegex(RuntimeError, "openvino is required"):
                 OpenVINOPersonDetector({})
+
+    def test_yolox_preprocess_preserves_aspect_ratio_and_top_left_padding(self):
+        import numpy as np
+
+        tensor, ratio = yolox_preprocess(np.zeros((720, 1280, 3), dtype=np.uint8))
+        self.assertEqual(tensor.shape, (3, 640, 640))
+        self.assertEqual(tensor.dtype, np.float32)
+        self.assertAlmostEqual(ratio, 0.5)
+        self.assertEqual(float(tensor[:, 400:, :].max()), 114.0)
+
+    def test_yolox_decode_matches_winning_class_and_nms_semantics(self):
+        import numpy as np
+
+        output = np.zeros((1, 8400, 85), dtype=np.float32)
+        output[0, 0, :6] = [10.0, 10.0, 3.0, 3.0, 0.9, 0.8]
+        output[0, 1, :6] = [9.0, 10.0, 3.0, 3.0, 0.95, 0.9]
+        output[0, 1, 6] = 0.99
+        reference = yolox_decode_reference_output(
+            output,
+            width=1280,
+            height=720,
+            ratio=0.5,
+            confidence_threshold=0.5,
+            nms_threshold=0.45,
+        )
+        kept = [row for row in reference if row["nms_kept"]]
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0]["final_class_id"], 1)
+        self.assertAlmostEqual(kept[0]["final_score"], 0.9405, places=5)
+        detections = yolox_decode_output(
+            output,
+            width=1280,
+            height=720,
+            ratio=0.5,
+            confidence_threshold=0.5,
+            nms_threshold=0.45,
+        )
+        self.assertEqual(detections, [])
+
+        person_only = np.zeros((1, 8400, 85), dtype=np.float32)
+        person_only[0, 0, :6] = [10.0, 10.0, 3.0, 3.0, 0.9, 0.8]
+        detections = yolox_decode_output(
+            person_only,
+            width=1280,
+            height=720,
+            ratio=0.5,
+            confidence_threshold=0.5,
+            nms_threshold=0.45,
+        )
+        self.assertEqual(len(detections), 1)
+        self.assertAlmostEqual(detections[0].confidence, 0.72, places=5)
+        for actual, expected in zip(detections[0].bbox, (0.0, 0.0, 320.6843, 320.6843)):
+            self.assertAlmostEqual(actual, expected, places=3)
+
+    def test_yolox_decode_rejects_nonpositive_and_malformed_output(self):
+        import numpy as np
+
+        output = np.zeros((1, 8400, 85), dtype=np.float32)
+        output[0, 0, 4] = -1.0
+        output[0, 0, 5] = 1.0
+        self.assertEqual(
+            yolox_decode_output(output, width=320, height=240, ratio=1.0, confidence_threshold=0.0),
+            [],
+        )
+        with self.assertRaisesRegex(ValueError, "expected YOLOX output shape"):
+            yolox_decode_output(np.zeros((1, 10, 85), dtype=np.float32), width=320, height=240, ratio=1.0, confidence_threshold=0.0)
+
+    def test_yolox_config_and_official_ir_contract(self):
+        config = load_config(Path("perception/config.example.json"))
+        self.assertEqual(config["detector"]["name"], "openvino_yolox_s")
+        detector = OpenVINOYOLOXSPersonDetector(config["detector"])
+        import numpy as np
+
+        raw = detector.detect_raw(np.zeros((240, 320, 3), dtype=np.uint8))
+        self.assertIsInstance(raw, list)
+        for detection in raw:
+            self.assertIsInstance(detection, Detection)
+            self.assertGreaterEqual(detection.confidence, 0.0)
+            self.assertLessEqual(detection.confidence, 1.0)
 
 
 if __name__ == "__main__":

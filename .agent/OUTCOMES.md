@@ -746,3 +746,39 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Automated suite after implementation: **32/32 PASSED**. Python compilation and `git diff --check`: PASSED. 0202 XML/BIN SHA-384 checksums: PASSED. OpenVINO CPU raw/strong smoke contract: PASSED.
 - Raw frames persisted: `NONE`; calibration files contain metadata only under ignored canonical `perception-data/runtime/`. Runtime perception Codex/Luna calls: `0`. Tracker/model/runtime/device/camera architecture was not replaced or tuned.
 - Recommendation: return to Architect with **ASYMMETRIC EVIDENCE FAILED — 0202 SOURCE INSUFFICIENT**. Preserve the prior Ubuntu occupied-state failure and this stronger raw-candidate evidence; do not increase absence grace, change the tracker, or begin M2.
+
+## OUTCOME-SENTRY-UBUNTU-M1-YOLOX-S-001 — YOLOX-S office state evidence insufficient
+- Date: 2026-08-28
+- Directive: `SENTRY-UBUNTU-M1-YOLOX-S-001`
+- Verdict: **YOLOX-S OFFICE EVIDENCE INSUFFICIENT**
+- Retrieval confidence: ADEQUATE for the official source record, ignored local artifacts, OpenVINO integration, metadata calibration, and fresh operator-confirmed Stage A.
+- Evidence level: E5_OPERATIONALLY_OBSERVED for the final empty-room Stage A; E4_REGRESSION_PROTECTED for implementation, export, runtime, calibration, and tests.
+
+### Provenance and pre-live result
+- Official YOLOX tag `0.3.0` resolves to commit `419778480ab6ec0590e5d3831b3afb3b46ab2aa3`. The official model-zoo checkpoint `0.1.1rc0/yolox_s.pth` SHA-256 is `f55ded7181e1b0c13285c56e7790b8f0e8f8db590fe4edb37f0b7f345c913a30`; official ONNX SHA-256 is `c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063`; official OpenVINO archive SHA-256 is `feeda7f65bdc9e44c4a8732fbfb22cd10787db9df0ef3c0472e5bf6f7b7ef7e3`. Separate checkpoint license terms were not stated in release metadata and remain a documented limitation.
+- Official ONNX input/output were `[1,3,640,640]` and `[1,8400,85]`. OpenVINO-converted IR matched official ONNX exactly on seeded CPU comparison (`max_abs=0`, `mean_abs=0`). The active path uses only OpenVINO CPU; model artifacts remain ignored under canonical `perception-data/`.
+- The initial smoke was non-ground-truth and passed at approximately `9.233 FPS`, `104.246 ms` median, and `115.274 ms` p95. No occupancy claim was drawn from it.
+
+### Metadata calibration
+- The same fresh labeled metadata records were evaluated at thresholds `0.10` through `0.50`. `0.50` was selected as the highest simulated state-qualified point. At `0.50`, the empty simulation had no false state transition; the one-person simulation had `99.0585%` authoritative occupied correctness, approximately `1.124s` entry latency, and no false-empty transition.
+- These results did not substitute for final live acceptance and did not alter tracker thresholds or architecture.
+
+### Final live Stage A — confirmed empty
+- Marker: `CONFIRMED_EMPTY — START` at `2026-08-28T17:29:00.375268+00:00`; runner end marker at `2026-08-28T17:30:08.775216+00:00`.
+- 566 observations were recorded; 565 were online and usable, with one startup `degraded` observation. At selected threshold `0.50`, 53/565 observations had positive candidate evidence (`9.38%`), with maximum two simultaneous detections and 55 qualifying candidate rows. Positive confidence reached `0.824309`; the high-confidence positives were sustained rather than isolated noise.
+- Authoritative state counts were `empty=379`, `occupied=186`, `degraded=1`. The state transitioned `empty->occupied` at `17:29:26.997927Z` and returned `occupied->empty` at `17:29:46.402313Z`, a `19.272s` false-occupancy interval while the operator-confirmed room was empty. This fails the required empty-state correctness and no-phantom criteria.
+- Performance: 891 captured / 565 processed, `9.403 FPS`, `102.107 ms` median, `109.405 ms` p95, 325 dropped frames; V4L2/MJPEG/1280x720/15 FPS, online at completion. The process snapshot reported RSS `209,350,656` to `573,624,320` bytes; CPU snapshot was not meaningful because the existing snapshot samples before sustained activity.
+
+### Boundary and recommendation
+- Primary disposition: **YOLOX-S OFFICE EVIDENCE INSUFFICIENT**. Stages B-D, low-light, camera disconnect/reconnect, and ten-minute soak were not run after the decisive Stage A failure. This is a detector/evidence failure at the room-state boundary, not a tracker qualification result.
+- Automated tests: **37/37 PASSED** after the calibration wrapper correction; Python compilation and `git diff --check` passed. Raw frames persisted: `NONE`. Runtime perception Codex/Luna calls: `0`. Working tree remains intentionally uncommitted because the candidate did not pass acceptance.
+- Recommendation: return to Architect before reverting, accepting, or replacing YOLOX-S. Do not begin M2, modify the tracker, increase grace, or model-shop automatically.
+## OUTCOME-SENTRY-M1-PRACTICAL-ACCEPTANCE-AND-M2-START — 2026-08-28
+- **Disposition:** M1 practical camera/human-detection foundation accepted for progression; detector qualification loop closed by Architect direction.
+- The decision preserves prior negative detector/edge-case evidence as historical operational risk. It does not claim perfect per-frame recall, perfect individual tracking, or completed camera recovery.
+- Project alignment: SENTRY now advances to the formal M2 goal of durable presence sessions, semantic state transitions, and queryable local history.
+- Implemented first bounded slice: metadata-only versioned SQLite `PresenceStore`, restart-safe current state and sessions, state-derived room/session events, and a localhost-only read API. No raw frames are stored.
+- Tests for migration, restart readback, session open/close, failure semantics, duplicate-track binary occupancy, and config validation pass. Full regression: **43/43 PASSED**. Threaded localhost API smoke: **PASSED** for health, current state, sessions, and events.
+- The API smoke initially exposed SQLite's default cross-thread guard; the store now uses a serialized connection lock, matching Python's documented requirement when a connection is shared across handler threads.
+- External discovery: Python standard-library `sqlite3` and `http.server` were used; no new dependency was added. The database remains under ignored canonical `perception-data/runtime/` storage.
+- Working tree review: `git diff --check` **PASSED**; raw frames and runtime Codex/Luna calls remain **NONE/0**. This outcome is the implementation handoff for M2 continuation, not full V0.1 acceptance.

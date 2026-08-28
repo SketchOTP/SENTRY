@@ -31,7 +31,7 @@
 - Do not treat the suggested repository shape in the project scope as permission to create unneeded empty runtime modules.
 
 ## Safety / operational constraints
-- M1 observation-only runtime implementation is authorized. Identity, persistence, sessions, semantic events, API, voice, and assistant integration remain gated by later directives. The authoritative current host is Ubuntu Linux with V4L2; Windows/DirectShow evidence is historical.
+- M1 observation remains local and metadata-only. The Architect has authorized progression into M2 persistence/sessions; identity, conversational grounding, proactive behavior, and broader assistant integration remain gated by later directives. The authoritative current host is Ubuntu Linux with V4L2; Windows/DirectShow evidence is historical.
 - Preserve private recordings, enrollment images, biometric profiles, secrets, generated databases, caches, and large model weights outside Git.
 - Do not expose local state beyond localhost without deliberate authorization and appropriate authentication.
 - Do not silently derive from or fork DAWN, upload continuous video, add hardware, or expand to whole-home scope.

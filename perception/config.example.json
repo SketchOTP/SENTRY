@@ -11,12 +11,13 @@
     "read_failure_limit": 5
   },
   "detector": {
-    "name": "openvino_person_detection_0202",
-    "model_xml": "perception-data/models/person-detection-0202/FP32/person-detection-0202.xml",
-    "model_bin": "perception-data/models/person-detection-0202/FP32/person-detection-0202.bin",
+    "name": "openvino_yolox_s",
+    "model_xml": "perception-data/models/yolox-s/converted_openvino/yolox_s.xml",
+    "model_bin": "perception-data/models/yolox-s/converted_openvino/yolox_s.bin",
     "device": "CPU",
-    "confidence_threshold": 0.40,
-    "hold_confidence_threshold": 0.40
+    "confidence_threshold": 0.50,
+    "nms_threshold": 0.45,
+    "hold_confidence_threshold": 0.50
   },
   "tracker": {
     "match_iou_threshold": 0.3,
@@ -28,5 +29,8 @@
     "entry_confirmation_seconds": 1.0,
     "entry_evidence_gap_seconds": 1.0,
     "absence_grace_seconds": 15.0
+  },
+  "storage": {
+    "database_path": "perception-data/runtime/sentry.db"
   }
 }

@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 ## Current status
 
-**M0 is accepted. Current authorized milestone: Ubuntu platform re-baseline before fresh M1 live qualification.** Windows/DirectShow results remain historical; the previously verified 0202 detector and temporal room-state layer are being reproduced on Ubuntu through V4L2.
+**M0 and the Ubuntu camera/perception foundation are accepted for V0.1 progression. Current milestone: M2 presence sessions and persistence.** The practical camera/human-detection behavior is good enough to move forward; remaining detector edge cases and physical recovery are tracked risks, not a reason to reopen detector selection.
 
 ## Project links
 
@@ -53,7 +53,7 @@ SENTRY must be able to:
 
 ## M1 implementation
 
-The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](docs/M1_PERCEPTION.md). It uses a bounded latest-frame buffer, the verified Open Model Zoo `person-detection-0202` detector through OpenVINO, a replaceable two-stage IoU tracker, and a timestamp-based `empty`/`occupied`/`degraded`/`offline` state aggregator. It produces metadata-only observations and makes zero Codex/Luna calls. Identity, persistence, semantic entry/exit events, and assistant integration remain later milestones.
+The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](docs/M1_PERCEPTION.md). It uses a bounded latest-frame buffer, the current locally hosted YOLOX-S detector through OpenVINO, a replaceable two-stage IoU tracker, and a timestamp-based `empty`/`occupied`/`degraded`/`offline` state aggregator. Structured metadata is now recorded by the first M2 SQLite history slice; raw frames remain local-only and are never persisted. Identity, conversational grounding, and proactive behavior remain later milestones.
 
 ## Explicitly out of V0.1
 
@@ -74,8 +74,8 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 ## Milestones
 
 1. **M0 — Bootstrap + DAWN feasibility**: reproduce assistant environment; prove a synthetic `person.entered` event can reach the assistant and optionally produce speech.
-2. **M1 — Camera + human presence**: stable Ubuntu V4L2 capture, person detection, tracking, diagnostics.
-3. **M2 — Presence sessions + persistence**: temporal hysteresis, entry/exit events, SQLite history/API.
+2. **M1 — Camera + human presence**: stable Ubuntu V4L2 capture, person detection, tracking, diagnostics (accepted foundation).
+3. **M2 — Presence sessions + persistence**: temporal hysteresis, entry/exit events, SQLite history/API (active).
 4. **M3 — Primary-user identity**: local enrollment, conservative recognition, unknown fallback.
 5. **M4 — Conversational grounding**: assistant queries current and historical office state.
 6. **M5 — Proactive arrival behavior**: eligibility gate, dedupe/cooldowns/budget, spoken action audit trail.

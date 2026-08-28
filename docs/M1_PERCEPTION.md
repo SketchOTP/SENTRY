@@ -1,4 +1,4 @@
-# M1 local perception
+# M1 local perception foundation
 
 M1 is an observation-only Ubuntu Linux service:
 
@@ -6,7 +6,7 @@ M1 is an observation-only Ubuntu Linux service:
 webcam -> bounded latest-frame buffer -> local person detector -> temporary IoU tracks -> temporal room state -> structured observations
 ```
 
-It makes zero SENTRY Codex/Luna calls. It does not perform identity recognition, persistence, sessions/history, semantic event emission, raw-frame storage, or a local API.
+It makes zero SENTRY Codex/Luna calls. The Architect has accepted the practical camera/human-detection foundation as good enough to proceed to M2; this is not a claim of perfect per-frame detector recall. Metadata-only sessions/events are now handled by `perception.presence_store`; raw-frame storage remains prohibited.
 
 The bounded state layer maintains only `empty`, `occupied`, `degraded`, or `offline`. It uses timestamp-based hysteresis: one second of bounded positive evidence for entry, a one-second evidence-gap tolerance, and a 15-second absence grace period for exit. Duplicate detections remain binary human evidence and do not become multiple authoritative occupants. These values are configuration, not frame-count rules.
 
@@ -14,15 +14,19 @@ Each frame may also be reduced to metadata-only luminance/contrast measurements 
 
 ## Selected stack
 
-The current working-tree candidate restores the previously verified Open Model Zoo `person-detection-0202` model through the official OpenVINO Python Runtime and a small SENTRY-owned two-stage IoU tracker. This candidate is `IMPLEMENTED_UNVERIFIED` until room-state qualification completes. The tracker is unchanged from the HOG, 0202, 0303, and RT-DETR investigations.
+The current backend is official Megvii YOLOX-S through the already-qualified OpenVINO Python Runtime and a small SENTRY-owned two-stage IoU tracker. It is frozen as the practical V0.1 sensing backend by Architect direction; prior detector experiments remain historical evidence and are not reopened. The tracker remains unchanged from the HOG, 0202, 0303, and RT-DETR investigations.
 
-- `openvino==2026.3.1`, Apache-2.0, used for local CPU inference of the externally downloaded IR model.
+- YOLOX-S source tag `0.3.0` resolves to commit `419778480ab6ec0590e5d3831b3afb3b46ab2aa3` in the official [Megvii repository](https://github.com/Megvii-BaseDetection/YOLOX), which is Apache-2.0 and documents OpenVINO deployment. The official model-zoo checkpoint URL is `https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth`; its local SHA-256 is `f55ded7181e1b0c13285c56e7790b8f0e8f8db590fe4edb37f0b7f345c913a30`. Release metadata does not state separate checkpoint terms; that limitation remains explicit.
+- The official ONNX release SHA-256 is `c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063`. OpenVINO 2026.3 converted it to ignored IR with `[1,3,640,640]` input and `[1,8400,85]` output. Deterministic CPU output comparison between official ONNX and the converted IR was exact (`max_abs=0`).
+- SENTRY follows upstream YOLOX validation semantics: top-left 114 padding with aspect-preserving resize, CHW float32 input, stride 8/16/32 grid decode, objectness × winning-class probability, final winning-class selection, coordinate restoration, clipping, and class-agnostic NMS `0.45`; only final class COCO person (`0`) is passed to the detector contract. Metadata-only room-state calibration selected operating confidence `0.50`, but final live Stage A produced sustained false occupancy in a confirmed-empty room; YOLOX-S office evidence remains insufficient pending this postprocessing investigation.
+
+- `openvino==2026.3.1`, Apache-2.0, used for local CPU inference of the externally downloaded YOLOX-S IR model.
 - `opencv-python-headless==4.12.0.88`, used for camera and image handling.
 - `psutil==7.0.0`, BSD-3-Clause, used only for process metrics.
-- `person-detection-0202` is stored as ignored local Open Model Zoo FP32 XML/BIN under `perception-data/models/person-detection-0202/FP32/`; its recorded manifest checksums remain the authoritative provenance. It uses 512x512 BGR input and emits `[1,1,200,7]` detections. SENTRY currently uses `0.40` as both the strong entry gate and hold threshold because the Ubuntu asymmetric-evidence calibration found no safe lower hold threshold. Raw positive candidates are available for one-inference offline calibration only.
+- The previously qualified-but-rejected `person-detection-0202` artifacts remain stored as ignored local Open Model Zoo FP32 XML/BIN under `perception-data/models/person-detection-0202/FP32/` for historical evidence only. They are not loaded by the active configuration.
 - The tracker is original SENTRY code. It keeps a bounded track table, associates high-confidence detections before lower-confidence detections, and retains unmatched tracks for a configured short dropout window.
 
-YOLOX plus ByteTrack was evaluated first because YOLOX is Apache-2.0 and ByteTrack is MIT, and both are viable future options. It was not adopted for this first live attempt because the host had no Python/CV runtime, the YOLOX deployment path requires a separately sourced model artifact, and adding a PyTorch/ONNX stack before proving camera access would increase the installation and provenance surface. The detector interface is replaceable so a later benchmark can compare YOLOX-Nano or another permissive model on the same observation contract.
+YOLOX-S is now the single Architect-authorized detector candidate because its official source, model-zoo artifacts, and OpenVINO deployment path are available under a bounded provenance record. The production path does not add PyTorch or ONNX Runtime; it loads the ignored OpenVINO IR produced from the official ONNX release. No ByteTrack dependency is used.
 
 The selected runtime device is CPU. The host exposes other devices, but CPU keeps this first qualification deterministic and does not add a GPU-specific runtime.
 
@@ -41,6 +45,14 @@ The service requests the configured resolution/FPS and FOURCC through V4L2, reco
 ## Asymmetric-evidence calibration result
 
 The Ubuntu Phase 2 calibration used a 60-second operator-confirmed empty segment (889 observations) and a 120-second continuously operator-confirmed one-person segment (1,791 observations). The fixed `0.40` entry gate appeared in only 63/1,791 occupied observations. Support thresholds from `0.10` through `0.40` produced simulated occupied correctness from 62.9% (0.10–0.35) to 40.1% (0.40); none met the `>=95%` requirement and bounded post-exit-empty requirement. No production hold threshold was changed.
+
+## YOLOX-S room-state qualification history
+
+Metadata-only calibration of fresh empty and one-person candidate records selected threshold `0.50` as the highest tested point passing the simulated state gates. The prior operator-confirmed-empty Stage A recorded 53/565 positive observations at or above `0.50`, with candidate confidence up to `0.824309`; the authoritative state was falsely `occupied` for 186/565 observations, including a sustained `19.272s` interval. This was recorded as `YOLOX-S OFFICE EVIDENCE INSUFFICIENT` under the prior strict qualification directive. The Architect subsequently accepted the practical camera/human-detection behavior as sufficient to proceed, explicitly ending the detector carousel. The residual risk is carried forward as an operational limitation rather than hidden or re-tested here.
+
+## M2 persistence slice
+
+`perception.presence_store.PresenceStore` records the current office state, state-derived room/session events, and open/completed presence sessions in a versioned SQLite database. The default ignored path is `perception-data/runtime/sentry.db`. The store consumes structured observations only, uses UTC timestamps, supports reopen/restart reads, and stores no raw image or video data. `tools/sentry_state_api.py` exposes localhost-only health, current-state, sessions, and event queries.
 
 ## Evidence boundary
 

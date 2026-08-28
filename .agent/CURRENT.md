@@ -1,15 +1,25 @@
 # Current Project State
 
-Last updated: 2026-08-28T12:40:00-04:00
+Last updated: 2026-08-28T19:05:00-04:00
 
 ## Current stage
-Ubuntu M1 asymmetric-evidence calibration
+M2 presence sessions and persistence
 
 ## Current objective
-Determine whether 0202 raw candidates support a safe lower hold threshold while preserving the fixed 0.40 occupancy-entry gate.
+Carry the accepted practical Ubuntu camera/human-detection foundation into durable, restart-safe presence sessions and queryable local history.
 
 ## Active directive
-SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001 — Phase 2 complete; no asymmetric operating band qualifies.
+Architect authorization to proceed past M1 — accept practical camera/human detection for V0.1 and begin the smallest M2 presence-session/persistence slice. Detector selection is frozen; no further detector qualification is authorized in this phase.
+
+## Architect transition — 2026-08-28
+- The Architect explicitly accepted the practical camera/human-detection foundation as good enough for the project goal and authorized progression. This supersedes the prior detector-specific qualification loop without rewriting its historical evidence.
+- Next work is M2: record timestamped room-state transitions and open/completed presence sessions in SQLite, expose a localhost-only query surface, and verify restart-safe history. No identity or proactive behavior is being added in this slice.
+- Residual detector edge cases, individual-track quality, and physical camera recovery remain known operational risks; they are not being used to block the next project-goal milestone.
+
+## M2 persistence slice — current
+- `perception.presence_store.PresenceStore` is the metadata-only SQLite store. It applies schema migration 1, records current room state, emits state-derived room/session events, and closes open sessions on `occupied->empty`.
+- `tools/sentry_state_api.py` provides localhost-only `/health`, `/v1/rooms/office/state`, `/v1/rooms/office/sessions`, and `/v1/events` reads. The default database is ignored at `perception-data/runtime/sentry.db`.
+- Raw frames, embeddings, and continuous Codex/Luna calls remain outside this slice.
 
 ## Platform migration status
 - Ubuntu 24.04.4 LTS / Linux 7.0.0-30-generic / x86_64 is now authoritative for future V0.1 work. The canonical project remains `/srv/ATLAS/100_ACTIVE/Projects/SENTRY` on the Atlas share; the Ubuntu desktop currently reaches that exact checkout through its authenticated user SFTP mount.
@@ -19,29 +29,41 @@ SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001 — Phase 2 complete; no asymmetric ope
 - 0202 FP32 XML/BIN checksums remain `fc218405...72a6a` and `e807fab...ab578`; model load/compile and zero-array output contract pass on Ubuntu. Full Linux tests pass 26/26.
 - Linux V4L2 camera/inference smoke passed: 666 captured / 665 processed, 14.760 processed FPS, 16.189 ms median and 17.912 ms p95, 0 dropped frames. A separate 20-second sample measured 13.426 processed FPS, 15.758 ms median, 17.169 ms p95, mean process CPU 92.52%, peak 106.00%, and 0 dropped frames. Smoke telemetry is not occupancy ground truth.
 - The bounded OAuth bridge passed a synthetic `person.entered` proof on Linux using `gpt-5.6-luna` at low effort; perception makes zero Codex/Luna calls. PipeWire/PulseAudio and NexiGo microphone/output inventory completed; voice implementation remains out of scope.
-- No raw frames were persisted. Runtime/model evidence remains under ignored canonical `perception-data/` paths. RT-DETR artifacts remain historical/ignored and are not the active backend; 0202 remains the active candidate.
+- No raw frames were persisted. Runtime/model evidence remains under ignored canonical `perception-data/` paths. RT-DETR and 0202 artifacts remain historical/ignored; YOLOX-S is the frozen practical V0.1 backend by Architect direction.
 - The asymmetric-evidence diagnostic path exposes positive 0202 candidates from the same single inference, but production semantics remain unchanged at entry/hold threshold `0.40` because calibration found no qualifying lower support threshold.
+- Official YOLOX-S integration remains the active local backend: upstream tag `0.3.0` commit `419778480ab6ec0590e5d3831b3afb3b46ab2aa3`, official model-zoo checkpoint `0.1.1rc0/yolox_s.pth`, official ONNX-to-OpenVINO conversion, 640x640 input, 8400x85 output, COCO person filtering, upstream letterbox/grid decode, and NMS `0.45`. Local model artifacts remain ignored. The Architect accepted practical camera/human detection as sufficient and froze detector selection for V0.1 progression.
 - Ubuntu platform migration commit `e9977aa` (`chore: rebaseline SENTRY on Ubuntu`) is pushed to `origin/main`; the canonical checkout is clean after the push.
+
+## Latest YOLOX-S qualification result (historical evidence)
+- Metadata-only labeled calibration used the existing YOLOX-S candidate records and selected `0.50` as the highest tested state-qualified threshold. Empty-state simulation qualified at `0.50`; the one-person simulation reached `99.0585%` authoritative occupied correctness with approximately `1.124s` simulated entry latency and no false-empty transition.
+- Fresh final Stage A was operator-confirmed empty from `2026-08-28T17:29:00.375268Z` through `2026-08-28T17:30:08.775216Z`. It recorded 566 observations, 565 online usable observations, 53/565 threshold-qualified positive observations (`9.38%`), maximum two simultaneous detections, and authoritative state `occupied` for 186/565 observations (`32.92%`) in a sustained `19.272s` false-occupancy interval. Positive confidences reached `0.824309` (55 threshold-qualified candidates including duplicate boxes).
+- Stage A therefore stopped at the prior strict false-human-evidence boundary. Stages B-D, low-light, camera recovery, and soak were not run under that directive. The historical result was `YOLOX-S OFFICE EVIDENCE INSUFFICIENT`; the Architect has since accepted practical camera/human detection and authorized progression.
+
+## YOLOX postprocessing root-cause investigation (historical)
+- Official YOLOX 0.3.0 semantics select the winning class across all class probabilities using `objectness × top_class_probability`, then apply class-agnostic NMS; person is accepted only when the final winning class is COCO person (`0`). The prior SENTRY decoder instead evaluated `objectness × person_probability` before NMS, which is a confirmed divergence.
+- A deterministic overlapping-box case demonstrated the consequence: the legacy path would retain a person-scored box at `0.72`, while the official winner was non-person at `0.9405` and suppressed it. SENTRY now follows the official winning-class/NMS order and exposes metadata-only parity rows for diagnostics.
+- The identical-tensor synthetic OpenVINO check passed: raw shape `[1,8400,85]`, corrected SENTRY final-person count matched the reference count (`0 == 0`). The full automated suite remains `37/37` after the correction.
+- A live parity probe could not open the stable NexiGo device because `/dev/video0` was held by unrelated `anima` process PID `219972`. No process was terminated and no live parity claim was made. This historical qualification loop is closed by Architect decision; no further detector-specific Stage A-D run is required before M2.
 
 ## Current verified state
 - The Architect rejected RT-DETR for V0.1 after confirmed-empty false-human evidence and sub-floor throughput, then authorized this final reuse test of the already-investigated 0202 signal through the room-state layer. RT-DETR-specific working-tree code was removed from active production source after complete diff preservation.
-- The restored 0202 implementation comes from historical commit `ec4a2f3`, uses the existing OpenVINO CPU runtime, and remains the active candidate; fresh asymmetric calibration found no qualifying support operating band.
+- The restored 0202 implementation and fresh asymmetric calibration remain historical negative evidence; no qualifying support operating band was found. The current active backend is the Architect-approved YOLOX-S integration described above.
 - The temporal state layer is implemented behind structured observations. It maintains only `empty`, `occupied`, `degraded`, and `offline`; it uses timestamp-based entry confirmation of 1.0 seconds, a 1.0-second entry evidence-gap tolerance, and a 15.0-second absence grace period. Duplicate detections are binary human evidence and do not count occupants.
-- Structured observations now include room state, state transitions, strong/support detector evidence, maximum candidate confidence, and metadata-only luminance/contrast measurements. No image enhancement, persistence, sessions, semantic events, API, identity, or M2 behavior was added.
+- Structured observations include room state, state transitions, strong/support detector evidence, maximum candidate confidence, and metadata-only luminance/contrast measurements. The M2 slice now adds metadata-only persistence, sessions, derived events, and a localhost read API; no image enhancement, identity, or proactive behavior was added.
 - State-machine deterministic tests and the restored 0202 perception suite pass 24/24 using the repository `.venv`. The 0202 FP32 XML/BIN remain ignored and match the recorded Open Model Zoo SHA-384 checksums.
 - Pre-live scope review passed: no detector/model/runtime/tracker changes, no raw frames persisted, and no Codex/Luna perception calls. The asymmetric calibration now provides fresh operator-labeled raw-candidate evidence for the current directive.
 - Canonical path `\\atlas\\ATLAS\\100_ACTIVE\\Projects\\SENTRY` contains a valid Git checkout restored from GitHub after the damaged path was absent on repeated inventory reads.
-- The last committed `main` and `origin/main` state is the calibration diagnostic/evidence commit recorded in the latest outcome; all authorized changes are pushed.
+- The last committed `main` and `origin/main` state was `52c2095` before this authorized transition; the YOLOX-S implementation, calibration tooling, and evidence are being committed together with the M2 persistence slice so GitHub reflects the accepted direction.
 - `git fsck --full` passed with exit code 0 and no reported errors.
 - Authority kernel, reusable skills, perception source, configuration, requirements, documentation, and tests are present.
 - Existing and decoder-focused automated tests pass 15/15.
 - No surviving SENTRY files or directories were present before restoration; no unique uncommitted SENTRY material was found or discarded, and no quarantine was required.
 - The parent Atlas project share was reachable and stable across repeated reads. Neighboring visible project directories were not treated as comparable Git checkout evidence.
-- Architect accepted the camera-access investigation as valid evidence, but M1 remains unaccepted because human detection quality, multi-person tracking, dropout continuity, and controlled camera recovery remain unproven.
+- Architect accepted the practical camera/human-detection foundation as sufficient for progression. Individual tracking quality and controlled camera recovery remain operational risks to validate later; they do not reopen detector selection in the current M2 slice.
 - Human-visible Windows Camera preview confirmed one real seated person in the office scene. A 30-second live run produced person records in 238/271 observations (87.8%), but up to 3 simultaneous tracks and IDs 1–14 in a one-person scene. A 90-second run produced up to 6 tracks and 29 unique IDs, materially failing stable office-presence behavior.
 - A synchronized occlusion attempt produced one track with two detector-visible observations followed by bounded predicted misses through miss count 12, but the physical timing/box correspondence was not sufficient to accept controlled dropout continuity.
 - The existing service remained online during a 90-second run. An authorized PnP disable attempt returned `Generic failure`, and a restart attempt returned `Access is denied`; controlled offline/reopen recovery was not executed.
-- M0 remains complete; M2, identity, persistence, events, and broader embodiment remain unauthorized.
+- M0 and the practical M1 camera foundation are complete for progression. M2 persistence/sessions is active; identity, broader events, conversational grounding, proactive behavior, and embodiment remain ahead.
 - Architect-authorized FP32 `person-detection-0202` XML/BIN artifacts were downloaded under ignored canonical `perception-data/models/person-detection-0202/FP32/`; both match the Open Model Zoo manifest SHA-384 checksums.
 - The pinned generic `opencv-python-headless==4.12.0.88` failed both `cv2.dnn.readNet` and `cv2.dnn.readNetFromModelOptimizer` with `Backend (plugin) is not available: 'openvino'`. The detector experiment was reverted; no alternate runtime was introduced.
 - Architect has now authorized exactly one additional runtime. Isolated `.venv` installation passed with `openvino==2026.3.1`, `opencv-python-headless==4.12.0.88`, `psutil==7.0.0`, and transitive `numpy==2.2.6` / `openvino-telemetry==2025.2.0`.
@@ -72,7 +94,7 @@ SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001 — Phase 2 complete; no asymmetric ope
 - Stage A of `SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001` failed decisively: during the fresh operator-confirmed-empty run, the RT-DETR path produced 8 positive candidate observations and the authoritative state transitioned `empty->occupied` for approximately 15.8 seconds. Stop at the false-human-evidence boundary; do not request Stage B-D markers or commit RT-DETR as accepted production capability.
 - Fresh Ubuntu room-state qualification has Stage A passed and Stage B stopped after the one authorized retry. The retry produced brief evidence and an occupied transition, then falsely returned to `empty` while the operator remained in frame; classify as `STATE FAILURE — UBUNTU OCCUPIED EVIDENCE INSUFFICIENT`, not an operator-protocol failure. Do not reuse earlier detector-specific markers or per-frame calibration results as this directive's state evidence.
 - Low-light health thresholds are unresolved until labeled dim/insufficient-light evidence is collected; the implementation supports explicit degraded quality but does not invent a luminance cutoff.
-- M1 live acceptance is still open: the current OpenVINO detector/tracker combination has a confirmed one-person quality failure, and camera recovery remains unproven.
+- M1 strict live qualification evidence remains historical and incomplete, but the Architect has authorized the practical foundation as good enough. M2 persistence/sessions is the active milestone; camera recovery remains a later operational gate.
 - The current detector quality is inadequate for ordinary confirmed office presence sensing; the unchanged tracker cannot be evaluated as a separate bottleneck from this failed detector input.
 - A human-confirmed one-person segment was completed; the current OpenVINO detector produced a confirmed quality failure and telemetry-only runs remain non-acceptance evidence.
 - Controlled camera failure/recovery remains blocked pending an authorized physical disconnect/reconnect or administrative device-interruption path.

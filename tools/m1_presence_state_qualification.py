@@ -19,6 +19,7 @@ MARKERS = {
     "empty": "CONFIRMED_EMPTY",
     "entry": "CONFIRMED_ENTRY",
     "occupied": "CONFIRMED_OCCUPIED",
+    "one_person": "CONFIRMED_ONE_PERSON",
     "exit": "CONFIRMED_EXIT",
     "dim_usable": "CONFIRMED_DIM_USABLE",
     "insufficient_light": "CONFIRMED_INSUFFICIENT_LIGHT",
@@ -38,7 +39,6 @@ def main(argv: list[str] | None = None) -> int:
     config = load_config(args.config)
     records: list[dict[str, object]] = []
     marker = MARKERS[args.segment]
-    print(f"GROUND_TRUTH_MARKER {marker} {datetime.now(timezone.utc).isoformat()}", flush=True)
 
     def emit(observation) -> None:
         record = observation.as_dict()
@@ -52,6 +52,10 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     service = PerceptionService(config, emit)
+    # Model initialization can take tens of seconds. Emit the operator marker
+    # only after that blind interval so entry timing is correlated with the
+    # actual camera run rather than process startup.
+    print(f"GROUND_TRUTH_MARKER {marker} {datetime.now(timezone.utc).isoformat()}", flush=True)
     metrics_start = _system_snapshot()
     summary = service.run(args.duration_seconds)
     metrics_end = _system_snapshot()

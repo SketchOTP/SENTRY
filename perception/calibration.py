@@ -72,6 +72,75 @@ def _false_runs(values: list[bool], timestamps: list[datetime]) -> list[float]:
     return [round(value, 3) for value in runs]
 
 
+def _state_duration(states: list[str], timestamps: list[datetime], expected: str) -> tuple[float, float]:
+    if not timestamps:
+        return 0.0, 0.0
+    intervals = [
+        (timestamps[index + 1] - timestamps[index]).total_seconds()
+        for index in range(len(timestamps) - 1)
+        if timestamps[index + 1] > timestamps[index]
+    ]
+    interval = statistics.median(intervals) if intervals else 0.0
+    total = sum(intervals) + interval
+    correct = sum(
+        (timestamps[index + 1] - timestamps[index]).total_seconds()
+        if index + 1 < len(timestamps) and timestamps[index + 1] > timestamps[index]
+        else interval
+        for index, state in enumerate(states)
+        if state == expected
+    )
+    return round(correct, 3), round(total, 3)
+
+
+def _simulate_room_state_segment(
+    records: list[dict[str, Any]],
+    threshold: float,
+    expected_state: str,
+) -> dict[str, Any]:
+    from .presence_state import PresenceStateConfig, PresenceStateMachine
+
+    ordered = [record for record in sorted(records, key=lambda record: record["captured_at"]) if record.get("camera_state", "online") == "online"]
+    machine = PresenceStateMachine(PresenceStateConfig())
+    timestamps: list[datetime] = []
+    evidence: list[bool] = []
+    states: list[str] = []
+    transitions: list[str] = []
+    for record in ordered:
+        now = _parse_timestamp(record["captured_at"])
+        confidences = [float(candidate["confidence"]) for candidate in record.get("candidates", [])]
+        positive = any(value >= threshold for value in confidences)
+        snapshot = machine.update(now, camera_state="online", entry_evidence=positive, support_evidence=positive)
+        timestamps.append(now)
+        evidence.append(positive)
+        states.append(snapshot.state.value)
+        if snapshot.transition:
+            transitions.append(snapshot.transition)
+    correct_seconds, total_seconds = _state_duration(states, timestamps, expected_state)
+    first_evidence = timestamps[evidence.index(True)] if True in evidence else None
+    occupied_at = next(
+        timestamp for timestamp, state in zip(timestamps, states) if state == "occupied"
+    ) if "occupied" in states else None
+    return {
+        "total_observations": len(ordered),
+        "positive_observations": sum(evidence),
+        "positive_rate": round(sum(evidence) / len(evidence), 6) if evidence else 0.0,
+        "authoritative_state_counts": {state: states.count(state) for state in sorted(set(states))},
+        "correct_seconds": correct_seconds,
+        "total_seconds": total_seconds,
+        "authoritative_correctness": round(correct_seconds / total_seconds, 6) if total_seconds else 0.0,
+        "first_positive_at": first_evidence.isoformat() if first_evidence else None,
+        "occupied_at": occupied_at.isoformat() if occupied_at else None,
+        "entry_latency_seconds": round((occupied_at - first_evidence).total_seconds(), 3) if occupied_at and first_evidence else None,
+        "longest_evidence_gap_seconds": max(_false_runs([not value for value in evidence], timestamps), default=0.0),
+        "false_transitions": [
+            transition for transition in transitions
+            if (expected_state == "empty" and transition == "empty->occupied")
+            or (expected_state == "occupied" and transition == "occupied->empty")
+        ],
+        "transitions": transitions,
+    }
+
+
 def _raw_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
     confidences = [
         float(candidate["confidence"])
@@ -304,6 +373,35 @@ def evaluate_thresholds(
                     "p95": _percentile(raw_confidences, 0.95),
                     "max": max(raw_confidences, default=None),
                 },
+                "state_simulation": _simulate_room_state_segment(
+                    segment_records,
+                    threshold_value,
+                    "empty" if segment == "empty" else "occupied",
+                ),
             }
         results[segment] = segment_result
-    return results
+    empty_results = results.get("empty", {})
+    occupied_results = results.get("one_person", results.get("occupied", {}))
+    for threshold in set(empty_results).intersection(occupied_results):
+        empty_state = empty_results[threshold]["state_simulation"]
+        occupied_state = occupied_results[threshold]["state_simulation"]
+        empty_results[threshold]["qualifies_state"] = (
+            empty_state["authoritative_correctness"] >= 0.95
+            and not empty_state["false_transitions"]
+        )
+        occupied_results[threshold]["qualifies_state"] = (
+            occupied_state["authoritative_correctness"] >= 0.95
+            and occupied_state["entry_latency_seconds"] is not None
+            and occupied_state["entry_latency_seconds"] <= 3.0
+            and not occupied_state["false_transitions"]
+        )
+    qualifying = [
+        threshold for threshold in sorted(set(empty_results).intersection(occupied_results), key=float, reverse=True)
+        if empty_results[threshold].get("qualifies_state") and occupied_results[threshold].get("qualifies_state")
+    ]
+    return {
+        "thresholds": [round(float(value), 2) for value in thresholds],
+        "results": results,
+        "qualifying_thresholds": qualifying,
+        "selected_threshold": qualifying[0] if qualifying else None,
+    }

@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: Ubuntu M1 asymmetric-evidence calibration
-- Active directive: SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001 — Phase 2 calibration complete; no qualifying support threshold found
+- Current stage: M2 presence sessions and persistence
+- Active directive: Architect authorization to proceed past M1 — freeze practical camera/human detection and implement the smallest durable metadata-only presence history slice
 - Active task packet: `.agent/tasks/active/SENTRY-M1-PERCEPTION-001/`
-- Last accepted outcome: M0 Codex/Luna reasoning and context optimization — Architect accepted
-- Latest recorded outcome: OUTCOME-SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001 — no qualifying support threshold found
-- Last state sync: 2026-08-28T12:40:00-04:00
+- Last accepted outcome: M1 practical camera foundation accepted for progression; M2 persistence slice active
+- Latest recorded outcome: M1 practical camera foundation accepted for progression; M2 persistence slice implemented
+- Last state sync: 2026-08-28T19:05:00-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

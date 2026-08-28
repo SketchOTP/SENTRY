@@ -1,8 +1,8 @@
-"""Bounded, local Windows webcam perception for SENTRY M1.
+"""Bounded, local webcam perception and metadata persistence for SENTRY.
 
-The implementation deliberately stops at observations. It does not identify
-people, create presence sessions, persist frames, emit semantic entry/exit
-events, or call Codex/Luna.
+The continuous path remains local and metadata-only. It does not identify
+people, persist frames, or call Codex/Luna. When configured, structured room
+state transitions are recorded by the separate M2 presence store.
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from .presence_state import (
     RoomState,
     measure_image_quality,
 )
+from .presence_store import PresenceStore
 
 
 class CameraState(str, Enum):
@@ -299,6 +300,261 @@ class OpenVINOPersonDetector:
         return self._decode_detections(output, width, height, self.confidence_threshold)
 
 
+def yolox_preprocess(image: Any, input_size: tuple[int, int] = (640, 640)) -> tuple[Any, float]:
+    """Apply the official YOLOX validation preprocessing.
+
+    YOLOX uses aspect-preserving resize into a top-left anchored 114-padded
+    canvas, then CHW float32 conversion.  The ratio is retained for restoring
+    predictions to the original camera coordinate system.
+    """
+
+    import cv2
+    import numpy as np
+
+    if len(image.shape) != 3 or image.shape[2] != 3:
+        raise ValueError("YOLOX detector expects a BGR image with three channels")
+    height, width = image.shape[:2]
+    if height <= 0 or width <= 0:
+        raise ValueError("YOLOX detector expects a non-empty image")
+    target_height, target_width = input_size
+    ratio = min(target_height / height, target_width / width)
+    resized = cv2.resize(
+        image,
+        (int(width * ratio), int(height * ratio)),
+        interpolation=cv2.INTER_LINEAR,
+    ).astype(np.uint8)
+    padded = np.ones((target_height, target_width, 3), dtype=np.uint8) * 114
+    padded[: resized.shape[0], : resized.shape[1]] = resized
+    tensor = np.ascontiguousarray(padded.transpose(2, 0, 1), dtype=np.float32)
+    return tensor, ratio
+
+
+def _yolox_decode_arrays(
+    output: Any,
+    *,
+    width: int,
+    height: int,
+    ratio: float,
+    input_size: tuple[int, int] = (640, 640),
+) -> tuple[Any, Any]:
+    """Decode YOLOX grid coordinates and restore boxes to image pixels."""
+
+    import numpy as np
+
+    values = np.asarray(output)
+    expected_rows = sum((input_size[0] // stride) * (input_size[1] // stride) for stride in (8, 16, 32))
+    if values.shape != (1, expected_rows, 85):
+        raise ValueError(f"expected YOLOX output shape (1, {expected_rows}, 85), got {tuple(values.shape)}")
+    if ratio <= 0:
+        raise ValueError("YOLOX preprocessing ratio must be positive")
+
+    decoded = values[0].astype(np.float32, copy=True)
+    grids: list[Any] = []
+    strides: list[Any] = []
+    for stride in (8, 16, 32):
+        grid_y, grid_x = np.meshgrid(
+            np.arange(input_size[0] // stride),
+            np.arange(input_size[1] // stride),
+            indexing="ij",
+        )
+        grids.append(np.stack((grid_x, grid_y), axis=-1).reshape(-1, 2))
+        strides.append(np.full((grid_x.size, 1), stride, dtype=np.float32))
+    grid = np.concatenate(grids, axis=0)
+    expanded_stride = np.concatenate(strides, axis=0)
+    decoded[:, :2] = (decoded[:, :2] + grid) * expanded_stride
+    decoded[:, 2:4] = np.exp(decoded[:, 2:4]) * expanded_stride
+
+    boxes = np.empty_like(decoded[:, :4])
+    boxes[:, 0] = decoded[:, 0] - decoded[:, 2] / 2
+    boxes[:, 1] = decoded[:, 1] - decoded[:, 3] / 2
+    boxes[:, 2] = decoded[:, 0] + decoded[:, 2] / 2
+    boxes[:, 3] = decoded[:, 1] + decoded[:, 3] / 2
+    boxes /= ratio
+    boxes[:, 0::2] = np.clip(boxes[:, 0::2], 0, width)
+    boxes[:, 1::2] = np.clip(boxes[:, 1::2], 0, height)
+
+    return decoded, boxes
+
+
+def _yolox_nms_indices(boxes: Any, scores: Any, nms_threshold: float) -> list[int]:
+    import numpy as np
+
+    order = scores.argsort()[::-1]
+    keep: list[int] = []
+    while order.size:
+        index = int(order[0])
+        keep.append(index)
+        if order.size == 1:
+            break
+        current = boxes[index]
+        remainder = boxes[order[1:]]
+        left = np.maximum(current[0], remainder[:, 0])
+        top = np.maximum(current[1], remainder[:, 1])
+        right = np.minimum(current[2], remainder[:, 2])
+        bottom = np.minimum(current[3], remainder[:, 3])
+        intersection = np.maximum(0, right - left) * np.maximum(0, bottom - top)
+        current_area = max(0.0, current[2] - current[0]) * max(0.0, current[3] - current[1])
+        remainder_area = np.maximum(0, remainder[:, 2] - remainder[:, 0]) * np.maximum(0, remainder[:, 3] - remainder[:, 1])
+        union = current_area + remainder_area - intersection
+        overlap = np.divide(intersection, union, out=np.zeros_like(intersection), where=union > 0)
+        order = order[1:][overlap <= nms_threshold]
+    return keep
+
+
+def yolox_decode_reference_output(
+    output: Any,
+    *,
+    width: int,
+    height: int,
+    ratio: float,
+    confidence_threshold: float,
+    nms_threshold: float = 0.45,
+    input_size: tuple[int, int] = (640, 640),
+) -> list[dict[str, Any]]:
+    """Return official YOLOX final-class candidates with NMS diagnostics.
+
+    This mirrors the upstream ONNX/PyTorch path: select the winning class
+    from all class probabilities, score it with objectness, then apply
+    class-agnostic NMS.  Rows suppressed by NMS are retained as metadata for
+    parity diagnostics; only rows marked ``nms_kept`` are final detections.
+    """
+
+    import numpy as np
+
+    if not 0 <= confidence_threshold <= 1:
+        raise ValueError("YOLOX confidence_threshold must be between 0 and 1")
+    if not 0 <= nms_threshold <= 1:
+        raise ValueError("YOLOX nms_threshold must be between 0 and 1")
+    decoded, boxes = _yolox_decode_arrays(
+        output, width=width, height=height, ratio=ratio, input_size=input_size
+    )
+    class_probabilities = decoded[:, 5:]
+    top_class_ids = class_probabilities.argmax(axis=1)
+    top_class_probabilities = class_probabilities[
+        np.arange(len(top_class_ids)), top_class_ids
+    ]
+    scores = decoded[:, 4] * top_class_probabilities
+    valid = (
+        np.isfinite(decoded[:, 4])
+        & np.isfinite(top_class_probabilities)
+        & np.isfinite(scores)
+        & (scores > confidence_threshold)
+        & (boxes[:, 2] > boxes[:, 0])
+        & (boxes[:, 3] > boxes[:, 1])
+    )
+    candidate_indices = np.flatnonzero(valid)
+    if candidate_indices.size == 0:
+        return []
+    valid_boxes = boxes[candidate_indices]
+    valid_scores = scores[candidate_indices]
+    keep = set(_yolox_nms_indices(valid_boxes, valid_scores, nms_threshold))
+    rows: list[dict[str, Any]] = []
+    for local_index, source_index in enumerate(candidate_indices):
+        rows.append(
+            {
+                "source_index": int(source_index),
+                "final_class_id": int(top_class_ids[source_index]),
+                "objectness": float(decoded[source_index, 4]),
+                "person_probability": float(decoded[source_index, 5]),
+                "top_class_probability": float(top_class_probabilities[source_index]),
+                "top_class_id": int(top_class_ids[source_index]),
+                "final_score": float(scores[source_index]),
+                "bbox": [float(value) for value in boxes[source_index]],
+                "nms_kept": local_index in keep,
+            }
+        )
+    return rows
+
+
+def yolox_decode_output(
+    output: Any,
+    *,
+    width: int,
+    height: int,
+    ratio: float,
+    confidence_threshold: float,
+    nms_threshold: float = 0.45,
+    input_size: tuple[int, int] = (640, 640),
+) -> list[Detection]:
+    """Decode official YOLOX output and retain final-class COCO person detections."""
+
+    rows = yolox_decode_reference_output(
+        output,
+        width=width,
+        height=height,
+        ratio=ratio,
+        confidence_threshold=confidence_threshold,
+        nms_threshold=nms_threshold,
+        input_size=input_size,
+    )
+    return [
+        Detection(tuple(row["bbox"]), row["final_score"])
+        for row in rows
+        if row["nms_kept"] and row["final_class_id"] == 0
+    ]
+
+
+class OpenVINOYOLOXSPersonDetector:
+    """YOLOX-S detector using the official OpenVINO IR export."""
+
+    def __init__(self, config: dict[str, Any]) -> None:
+        try:
+            import numpy as np
+            from openvino import Core
+        except ImportError as exc:  # pragma: no cover - depends on runtime install
+            raise RuntimeError("openvino is required for the YOLOX-S detector") from exc
+        self._np = np
+        self.confidence_threshold = float(config.get("confidence_threshold", 0.25))
+        self.nms_threshold = float(config.get("nms_threshold", 0.45))
+        self.model_xml = Path(config.get("model_xml", ""))
+        self.model_bin = Path(config.get("model_bin", ""))
+        self.device = str(config.get("device", "CPU"))
+        if not self.model_xml.is_file():
+            raise RuntimeError(f"model XML file not found: {self.model_xml}")
+        if not self.model_bin.is_file():
+            raise RuntimeError(f"model BIN file not found: {self.model_bin}")
+        try:
+            core = Core()
+            model = core.read_model(str(self.model_xml), str(self.model_bin))
+            inputs = list(model.inputs)
+            outputs = list(model.outputs)
+            if len(inputs) != 1 or list(inputs[0].shape) != [1, 3, 640, 640]:
+                raise ValueError(f"expected one input shaped [1, 3, 640, 640], got {[list(item.shape) for item in inputs]}")
+            if len(outputs) != 1 or list(outputs[0].shape) != [1, 8400, 85]:
+                raise ValueError(f"expected one output shaped [1, 8400, 85], got {[list(item.shape) for item in outputs]}")
+            self._compiled_model = core.compile_model(model, self.device)
+            self._input_name = inputs[0].any_name
+            self._request = self._compiled_model.create_infer_request()
+        except Exception as exc:
+            raise RuntimeError(f"unable to load or compile YOLOX-S OpenVINO model: {exc}") from exc
+
+    def _infer(self, image: Any) -> tuple[Any, float, int, int]:
+        height, width = image.shape[:2]
+        tensor, ratio = yolox_preprocess(image)
+        result = self._request.infer({self._input_name: tensor[self._np.newaxis, ...]})
+        output = next(iter(result.values()))
+        if tuple(output.shape) != (1, 8400, 85):
+            raise RuntimeError(f"unexpected YOLOX-S output shape: {tuple(output.shape)}")
+        return output, ratio, width, height
+
+    def _detect_at(self, image: Any, confidence_threshold: float) -> list[Detection]:
+        output, ratio, width, height = self._infer(image)
+        return yolox_decode_output(
+            output,
+            width=width,
+            height=height,
+            ratio=ratio,
+            confidence_threshold=confidence_threshold,
+            nms_threshold=self.nms_threshold,
+        )
+
+    def detect_raw(self, image: Any) -> list[Detection]:
+        return self._detect_at(image, 0.0)
+
+    def detect(self, image: Any) -> list[Detection]:
+        return self._detect_at(image, self.confidence_threshold)
+
+
 @dataclass
 class Observation:
     camera_state: CameraState
@@ -315,6 +571,7 @@ class Observation:
     strong_detector_evidence: bool = False
     support_detector_evidence: bool = False
     max_person_confidence: float | None = None
+    candidates: list[dict[str, Any]] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -332,6 +589,7 @@ class Observation:
             "strong_detector_evidence": self.strong_detector_evidence,
             "support_detector_evidence": self.support_detector_evidence,
             "max_person_confidence": self.max_person_confidence,
+            "candidates": self.candidates,
         }
 
 
@@ -430,6 +688,10 @@ class PerceptionEngine:
             strong_detector_evidence=strong_evidence,
             support_detector_evidence=support_evidence,
             max_person_confidence=max((candidate.confidence for candidate in raw_candidates), default=None),
+            candidates=[
+                {"bbox": [round(value, 2) for value in candidate.bbox], "confidence": candidate.confidence}
+                for candidate in raw_candidates
+            ],
         )
 
 
@@ -451,8 +713,8 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ValueError(f"camera.{key} must be positive")
     if int(camera.get("buffer_size", 1)) != 1:
         raise ValueError("camera.buffer_size must remain 1 to enforce latest-frame behavior")
-    if detector.get("name") != "openvino_person_detection_0202":
-        raise ValueError("only the explicitly selected openvino_person_detection_0202 detector is implemented")
+    if detector.get("name") not in {"openvino_person_detection_0202", "openvino_yolox_s"}:
+        raise ValueError("detector.name must be openvino_person_detection_0202 or openvino_yolox_s")
     if not 0 <= float(detector.get("confidence_threshold", 0.5)) <= 1:
         raise ValueError("detector.confidence_threshold must be between 0 and 1")
     hold_threshold = float(detector.get("hold_confidence_threshold", detector.get("confidence_threshold", 0.5)))
@@ -462,6 +724,14 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("detector.model_xml and detector.model_bin are required")
     if not detector.get("device", "CPU"):
         raise ValueError("detector.device must be non-empty")
+    if detector.get("name") == "openvino_yolox_s":
+        if not 0 <= float(detector.get("nms_threshold", 0.45)) <= 1:
+            raise ValueError("detector.nms_threshold must be between 0 and 1")
+    storage = config.get("storage", {})
+    if not isinstance(storage, dict):
+        raise ValueError("storage must be an object")
+    if storage.get("database_path") is not None and not isinstance(storage.get("database_path"), str):
+        raise ValueError("storage.database_path must be a string when provided")
     if int(tracker.get("max_missing_frames", 0)) < 0:
         raise ValueError("tracker.max_missing_frames must be non-negative")
     presence = config.get("presence", {})
@@ -579,8 +849,14 @@ class PerceptionService:
         validate_config(config)
         self.config = config
         self.buffer = LatestFrameBuffer()
+        detector_name = config["detector"]["name"]
+        detector_class = (
+            OpenVINOYOLOXSPersonDetector
+            if detector_name == "openvino_yolox_s"
+            else OpenVINOPersonDetector
+        )
         self.engine = PerceptionEngine(
-            OpenVINOPersonDetector(config["detector"]),
+            detector_class(config["detector"]),
             IoUTracker(**{
                 "match_iou_threshold": config["tracker"]["match_iou_threshold"],
                 "high_confidence_threshold": config["tracker"]["high_confidence_threshold"],
@@ -594,6 +870,10 @@ class PerceptionService:
             ),
         )
         self.observation_callback = observation_callback
+        storage = config.get("storage", {})
+        database_path = storage.get("database_path") if isinstance(storage, dict) else None
+        self.presence_store = PresenceStore(database_path) if database_path else None
+        self.last_persistence_error: str | None = None
         self.worker = _CameraWorker(config, self.buffer)
         self._stop = threading.Event()
         self._last_sequence = 0
@@ -603,6 +883,19 @@ class PerceptionService:
     def stop(self) -> None:
         self._stop.set()
         self.worker.stop()
+        if self.presence_store is not None:
+            self.presence_store.close()
+            self.presence_store = None
+
+    def _record_observation(self, observation: Observation) -> None:
+        if self.presence_store is None:
+            return
+        try:
+            self.presence_store.record_observation(observation)
+        except Exception as exc:  # pragma: no cover - exercised by filesystem faults
+            # A history outage is explicit diagnostic state. It must never
+            # turn a missing observation into authoritative empty-room truth.
+            self.last_persistence_error = f"{type(exc).__name__}: {exc}"
 
     def run(self, duration_seconds: float | None = None) -> dict[str, Any]:  # pragma: no cover - exercised by live/CLI tests
         self._started_at = time.perf_counter()
@@ -635,6 +928,7 @@ class PerceptionService:
                             room_state.transition,
                             False,
                         )
+                        self._record_observation(observation)
                         if self.observation_callback:
                             self.observation_callback(observation)
                         last_health_emit = now
@@ -684,6 +978,7 @@ class PerceptionService:
                             False,
                         )
                 self._processing_ms.append(observation.processing_ms)
+                self._record_observation(observation)
                 if self.observation_callback:
                     self.observation_callback(observation)
         finally:
@@ -711,6 +1006,7 @@ class PerceptionService:
             "p95_processing_ms": round(p95, 3),
             "dropped_frames": self.buffer.dropped_frames,
             "codex_luna_calls": 0,
+            "persistence_error": self.last_persistence_error,
         }
 
 

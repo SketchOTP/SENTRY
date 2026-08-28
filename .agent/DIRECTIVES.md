@@ -266,3 +266,18 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Stop condition reached: `ASYMMETRIC EVIDENCE FAILED — 0202 SOURCE INSUFFICIENT`. No support threshold met the `>=95%` occupied-state requirement with bounded exit. Fresh live Phase 4 A-D stages, Phase 3 production activation, and any threshold change were not run.
 - Automated tests: **32/32 PASSED**; raw frames `NONE`; perception Codex/Luna calls `0`.
 - Source: Architect directive `SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001`, current Ubuntu 0202 implementation, fresh operator-confirmed metadata-only segments, and the corrected offline state simulator.
+
+## SENTRY-UBUNTU-M1-YOLOX-S-001 — Official YOLOX-S room-state qualification
+- Issued: 2026-08-28
+- Status: **STOPPED AT FINAL STAGE A — OFFICE EVIDENCE INSUFFICIENT; returned to Architect**
+- Scope executed: official YOLOX-S source/export/runtime integration, metadata-only state calibration, and one fresh operator-confirmed empty-room Stage A. Tracker, camera stack, OpenVINO CPU path, state timing, and privacy boundary remained unchanged.
+- Calibration: selected `0.50` as the highest tested state-qualified threshold from the same labeled metadata records; simulated empty state qualified and one-person occupied correctness was `99.0585%` with approximately `1.124s` entry latency.
+- Final Stage A: 566 observations, 565 online usable; 53/565 threshold-qualified positive observations (`9.38%`), maximum two simultaneous detections, and authoritative `occupied` for 186/565 observations (`32.92%`) including a sustained `19.272s` false-occupancy interval. Positive confidence reached `0.824309`.
+- Stop boundary: `YOLOX-S OFFICE EVIDENCE INSUFFICIENT`. Stages B-D, low-light, camera recovery, and soak were not run. No accepted production-detector commit or push was made.
+- Automated suite after calibration correction and threshold selection: **37/37 PASSED**; compilation and `git diff --check` passed. Raw frames: `NONE`; perception Codex/Luna calls: `0`.
+## Architect authorization — proceed from M1 to M2 presence persistence — 2026-08-28
+- Status: **AUTHORIZED / M2 ACTIVE**
+- Decision: Practical Ubuntu camera/human detection is good enough for the project goal. Freeze detector selection and stop reopening per-frame detector qualification.
+- Objective: Carry the existing `empty/occupied/degraded/offline` state into durable, restart-safe metadata-only presence sessions and queryable local history.
+- Scope: Versioned SQLite store, state-derived room/session events, current-state readback, and localhost-only query API. No identity, raw-frame persistence, proactive behavior, new detector, tracker replacement, or broad M2 framework.
+- Source: Architect/user authorization in the active Codex task, reconciled with the SENTRY Notion goal and `docs/PROJECT_SCOPE.md` M2 deliverables.

@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from perception.calibration import evaluate_asymmetric_thresholds
+from perception.calibration import evaluate_asymmetric_thresholds, evaluate_thresholds
 
 
 class AsymmetricCalibrationTests(unittest.TestCase):
@@ -29,6 +29,19 @@ class AsymmetricCalibrationTests(unittest.TestCase):
         exit_result = result["thresholds"]["0.20"]["post_exit_empty"]
         self.assertTrue(exit_result["reaches_empty_within_25s"])
         self.assertLessEqual(exit_result["simulated_empty_seconds"], 25.0)
+
+    def test_threshold_evaluation_uses_metadata_only_candidates(self):
+        records = [
+            self._record("empty", 0, None),
+            self._record("empty", 1, None),
+            self._record("one_person", 0, 0.8),
+            self._record("one_person", 1, None),
+        ]
+        result = evaluate_thresholds(records, thresholds=(0.5,))
+        self.assertEqual(result["results"]["empty"]["0.50"]["zero_detections"], 2)
+        self.assertEqual(result["results"]["one_person"]["0.50"]["any_detection_rate"], 0.5)
+        self.assertEqual(result["qualifying_thresholds"], [])
+        self.assertEqual(result["results"]["empty"]["0.50"]["state_simulation"]["authoritative_correctness"], 1.0)
 
 
 if __name__ == "__main__":
