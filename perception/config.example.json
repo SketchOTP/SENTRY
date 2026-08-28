@@ -1,7 +1,7 @@
 {
   "camera": {
     "index": 0,
-    "device_path": null,
+    "device_path": "/dev/v4l/by-id/usb-webcamvendor_NexiGo_N60_FHD_Webcam_Jan_29_2024-10:32:28-N60-video-index0",
     "backend": "v4l2",
     "fourcc": "MJPG",
     "width": 1280,
@@ -15,7 +15,8 @@
     "model_xml": "perception-data/models/person-detection-0202/FP32/person-detection-0202.xml",
     "model_bin": "perception-data/models/person-detection-0202/FP32/person-detection-0202.bin",
     "device": "CPU",
-    "confidence_threshold": 0.40
+    "confidence_threshold": 0.40,
+    "hold_confidence_threshold": 0.40
   },
   "tracker": {
     "match_iou_threshold": 0.3,

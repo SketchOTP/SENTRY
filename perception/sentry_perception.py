@@ -269,7 +269,7 @@ class OpenVINOPersonDetector:
             detections.append(Detection((left, top, right, bottom), float(confidence)))
         return detections
 
-    def detect(self, image: Any) -> list[Detection]:
+    def _infer(self, image: Any) -> tuple[Any, int, int]:
         height, width = image.shape[:2]
         if len(image.shape) != 3 or image.shape[2] != 3:
             raise ValueError("detector expects a BGR image with three channels")
@@ -281,6 +281,21 @@ class OpenVINOPersonDetector:
         output = next(iter(result.values()))
         if tuple(output.shape) != (1, 1, 200, 7):
             raise RuntimeError(f"unexpected detector output shape: {tuple(output.shape)}")
+        return output, width, height
+
+    def detect_raw(self, image: Any) -> list[Detection]:
+        """Decode positive person candidates before the production cutoff.
+
+        This is metadata-only and performs exactly one inference. The returned
+        candidates are intended for threshold calibration or evidence policy;
+        callers must choose the production subset explicitly.
+        """
+
+        output, width, height = self._infer(image)
+        return self._decode_detections(output, width, height, 1e-12)
+
+    def detect(self, image: Any) -> list[Detection]:
+        output, width, height = self._infer(image)
         return self._decode_detections(output, width, height, self.confidence_threshold)
 
 
@@ -297,6 +312,9 @@ class Observation:
     image_quality: dict[str, float] | None = None
     room_state_transition: str | None = None
     detector_evidence: bool = False
+    strong_detector_evidence: bool = False
+    support_detector_evidence: bool = False
+    max_person_confidence: float | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -311,6 +329,9 @@ class Observation:
             "image_quality": self.image_quality,
             "room_state_transition": self.room_state_transition,
             "detector_evidence": self.detector_evidence,
+            "strong_detector_evidence": self.strong_detector_evidence,
+            "support_detector_evidence": self.support_detector_evidence,
+            "max_person_confidence": self.max_person_confidence,
         }
 
 
@@ -322,10 +343,22 @@ class PerceptionEngine:
         detector: Detector,
         tracker: IoUTracker,
         presence_state: PresenceStateMachine | None = None,
+        *,
+        entry_confidence_threshold: float | None = None,
+        hold_confidence_threshold: float | None = None,
     ) -> None:
         self.detector = detector
         self.tracker = tracker
         self.presence_state = presence_state or PresenceStateMachine()
+        configured_threshold = float(getattr(detector, "confidence_threshold", 0.40))
+        self.entry_confidence_threshold = (
+            configured_threshold if entry_confidence_threshold is None else float(entry_confidence_threshold)
+        )
+        self.hold_confidence_threshold = (
+            self.entry_confidence_threshold if hold_confidence_threshold is None else float(hold_confidence_threshold)
+        )
+        if not 0 <= self.hold_confidence_threshold <= self.entry_confidence_threshold <= 1:
+            raise ValueError("hold_confidence_threshold must be <= entry_confidence_threshold, both between 0 and 1")
 
     def update_room_state(
         self,
@@ -333,6 +366,8 @@ class PerceptionEngine:
         *,
         camera_state: CameraState,
         human_evidence: bool = False,
+        entry_evidence: bool | None = None,
+        support_evidence: bool | None = None,
         detector_usable: bool = True,
         visual_quality_usable: bool = True,
     ) -> PresenceStateSnapshot:
@@ -340,6 +375,8 @@ class PerceptionEngine:
             evaluated_at,
             camera_state=camera_state,
             human_evidence=human_evidence,
+            entry_evidence=entry_evidence,
+            support_evidence=support_evidence,
             detector_usable=detector_usable,
             visual_quality_usable=visual_quality_usable,
         )
@@ -357,12 +394,27 @@ class PerceptionEngine:
         shape = getattr(image, "shape", None)
         if shape is not None and len(shape) in {2, 3}:
             image_quality = measure_image_quality(image).as_dict()
-        detections = self.detector.detect(image)
-        people = self.tracker.update(detections)
+        raw_detector = getattr(self.detector, "detect_raw", None)
+        if callable(raw_detector):
+            raw_candidates = raw_detector(image)
+            entry_detections = [
+                detection for detection in raw_candidates if detection.confidence >= self.entry_confidence_threshold
+            ]
+            support_detections = [
+                detection for detection in raw_candidates if detection.confidence >= self.hold_confidence_threshold
+            ]
+        else:
+            entry_detections = self.detector.detect(image)
+            support_detections = entry_detections
+            raw_candidates = entry_detections
+        people = self.tracker.update(entry_detections)
+        strong_evidence = bool(entry_detections)
+        support_evidence = bool(support_detections)
         room_state = self.update_room_state(
             captured_at,
             camera_state=CameraState.ONLINE,
-            human_evidence=bool(detections),
+            entry_evidence=strong_evidence,
+            support_evidence=support_evidence,
         )
         return Observation(
             camera_state=CameraState.ONLINE,
@@ -374,7 +426,10 @@ class PerceptionEngine:
             room_state=room_state.state,
             image_quality=image_quality,
             room_state_transition=room_state.transition,
-            detector_evidence=bool(detections),
+            detector_evidence=strong_evidence,
+            strong_detector_evidence=strong_evidence,
+            support_detector_evidence=support_evidence,
+            max_person_confidence=max((candidate.confidence for candidate in raw_candidates), default=None),
         )
 
 
@@ -400,6 +455,9 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("only the explicitly selected openvino_person_detection_0202 detector is implemented")
     if not 0 <= float(detector.get("confidence_threshold", 0.5)) <= 1:
         raise ValueError("detector.confidence_threshold must be between 0 and 1")
+    hold_threshold = float(detector.get("hold_confidence_threshold", detector.get("confidence_threshold", 0.5)))
+    if not 0 <= hold_threshold <= float(detector.get("confidence_threshold", 0.5)):
+        raise ValueError("detector.hold_confidence_threshold must be between 0 and confidence_threshold")
     if not detector.get("model_xml") or not detector.get("model_bin"):
         raise ValueError("detector.model_xml and detector.model_bin are required")
     if not detector.get("device", "CPU"):
@@ -530,6 +588,10 @@ class PerceptionService:
                 "max_missing_frames": config["tracker"]["max_missing_frames"],
             }),
             PresenceStateMachine(PresenceStateConfig.from_mapping(config.get("presence"))),
+            entry_confidence_threshold=float(config["detector"].get("confidence_threshold", 0.40)),
+            hold_confidence_threshold=float(
+                config["detector"].get("hold_confidence_threshold", config["detector"].get("confidence_threshold", 0.40))
+            ),
         )
         self.observation_callback = observation_callback
         self.worker = _CameraWorker(config, self.buffer)

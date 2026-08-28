@@ -18,7 +18,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from perception.calibration import DEFAULT_THRESHOLDS, evaluate_thresholds
+from perception.calibration import (
+    ASYMMETRIC_SUPPORT_THRESHOLDS,
+    DEFAULT_THRESHOLDS,
+    evaluate_asymmetric_thresholds,
+    evaluate_thresholds,
+)
 from perception.sentry_perception import CameraState, LatestFrameBuffer, OpenVINOPersonDetector, _CameraWorker, load_config
 
 
@@ -81,7 +86,14 @@ def main(argv: list[str] | None = None) -> int:
     with args.output.open("w", encoding="utf-8") as output:
         for record in records:
             output.write(json.dumps(record, sort_keys=True) + "\n")
-    results = evaluate_thresholds(records, DEFAULT_THRESHOLDS)
+    results = {
+        "legacy_thresholds": evaluate_thresholds(records, DEFAULT_THRESHOLDS),
+        "asymmetric": evaluate_asymmetric_thresholds(
+            records,
+            entry_threshold=float(config["detector"].get("confidence_threshold", 0.40)),
+            support_thresholds=ASYMMETRIC_SUPPORT_THRESHOLDS,
+        ),
+    }
     end_marker = f"{start_marker}_END"
     print(f"GROUND_TRUTH_MARKER {end_marker} {datetime.now(timezone.utc).isoformat()}", flush=True)
     print(json.dumps({"ok": True, "segment": args.segment, "records": len(records), "thresholds": results}, sort_keys=True))

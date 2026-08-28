@@ -254,3 +254,15 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Primary disposition: **STATE FAILURE — UBUNTU OCCUPIED EVIDENCE INSUFFICIENT**. This is not an operator-protocol failure and does not authorize Stage C-F, detector changes, tracker changes, or M2.
 - Raw frames: none persisted. Perception Codex/Luna calls: `0`. Tracker/model/runtime/camera configuration unchanged.
 - Source: Architect directive `SENTRY-UBUNTU-M1-PRESENCE-QUALIFICATION-001`, fresh operator markers, operator correction confirming continued visibility, and metadata-only canonical runtime records.
+## SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001 — Test strong entry plus lower support hold evidence
+- Issued: 2026-08-28
+- Status: **STOPPED AT PHASE 2 — NO QUALIFYING OPERATING BAND; returned to Architect**
+- Project stage: Ubuntu M1 asymmetric-evidence calibration
+- Objective: Expose positive 0202 candidates from one inference, evaluate a fixed `0.40` entry threshold with lower support thresholds, and change production hold semantics only if the same metadata proves a valid operating band.
+- Scope: Metadata-only raw candidate capture, operator-confirmed 60-second empty and 120-second continuous-one-person segments, offline support thresholds `0.10` through `0.40`, and deterministic state-policy simulation.
+- Exclusions: No new detector/model/runtime, tracker change, grace increase, entry-threshold relaxation, GPU/FP16, image enhancement, identity, persistence, events, API, voice, M2, or Codex/Luna perception calls.
+- Pre-live implementation: Added one-inference `detect_raw()` exposure, explicit strong/support evidence state inputs, production telemetry fields, and calibration simulation. Production hold remains `0.40`; no Phase 3 behavior was activated.
+- Phase 2 evidence: Empty segment had 889 observations and 40,815 positive raw candidates, max confidence `0.285640`, and zero candidates at `0.40`. Continuous-one-person segment had 1,791 observations and 55,051 positive raw candidates, max confidence `0.547175`, but only 63 observations at `0.40`; the simulated fixed-entry state achieved only 62.9257% occupied correctness for support thresholds `0.10` through `0.35` and 40.0893% at `0.40`.
+- Stop condition reached: `ASYMMETRIC EVIDENCE FAILED — 0202 SOURCE INSUFFICIENT`. No support threshold met the `>=95%` occupied-state requirement with bounded exit. Fresh live Phase 4 A-D stages, Phase 3 production activation, and any threshold change were not run.
+- Automated tests: **32/32 PASSED**; raw frames `NONE`; perception Codex/Luna calls `0`.
+- Source: Architect directive `SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001`, current Ubuntu 0202 implementation, fresh operator-confirmed metadata-only segments, and the corrected offline state simulator.

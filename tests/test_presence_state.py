@@ -112,6 +112,33 @@ class PresenceStateMachineTests(unittest.TestCase):
         result = machine.update(self.at(1.1), camera_state="online", human_evidence=True)
         self.assertEqual(result.state, RoomState.OCCUPIED)
 
+    def test_support_evidence_cannot_start_occupancy(self):
+        machine = PresenceStateMachine(self.config)
+        machine.update(self.at(0), camera_state="online", entry_evidence=False, support_evidence=True)
+        result = machine.update(self.at(1.1), camera_state="online", entry_evidence=False, support_evidence=True)
+        self.assertEqual(result.state, RoomState.EMPTY)
+
+    def test_support_evidence_refreshes_confirmed_occupancy(self):
+        machine = PresenceStateMachine(self.config)
+        machine.update(self.at(0), camera_state="online", entry_evidence=True, support_evidence=True)
+        machine.update(self.at(1.1), camera_state="online", entry_evidence=True, support_evidence=True)
+        self.assertEqual(
+            machine.update(self.at(10), camera_state="online", entry_evidence=False, support_evidence=True).state,
+            RoomState.OCCUPIED,
+        )
+        self.assertEqual(
+            machine.update(self.at(25.1), camera_state="online", entry_evidence=False, support_evidence=False).state,
+            RoomState.EMPTY,
+        )
+
+    def test_support_evidence_stops_and_occupancy_exits_within_grace(self):
+        machine = PresenceStateMachine(self.config)
+        machine.update(self.at(0), camera_state="online", entry_evidence=True, support_evidence=True)
+        machine.update(self.at(1.1), camera_state="online", entry_evidence=True, support_evidence=True)
+        result = machine.update(self.at(16.2), camera_state="online", entry_evidence=False, support_evidence=False)
+        self.assertEqual(result.state, RoomState.EMPTY)
+        self.assertLessEqual((result.evaluated_at - self.at(1.1)).total_seconds(), 15.1)
+
     def test_entry_timing_uses_elapsed_time_not_update_count(self):
         machine = PresenceStateMachine(self.config)
         machine.update(self.at(0), camera_state="online", human_evidence=True)

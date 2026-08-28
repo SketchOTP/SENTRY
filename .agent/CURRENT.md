@@ -1,15 +1,15 @@
 # Current Project State
 
-Last updated: 2026-08-28T10:00:00-04:00
+Last updated: 2026-08-28T12:40:00-04:00
 
 ## Current stage
-Ubuntu platform re-baseline before fresh M1 live qualification
+Ubuntu M1 asymmetric-evidence calibration
 
 ## Current objective
-Reproduce the accepted SENTRY foundation on Ubuntu Linux with V4L2 camera acquisition, OpenVINO CPU inference, canonical Atlas storage, and Linux Codex/Luna parity before restarting M1 live ground truth.
+Determine whether 0202 raw candidates support a safe lower hold threshold while preserving the fixed 0.40 occupancy-entry gate.
 
 ## Active directive
-SENTRY-UBUNTU-PLATFORM-MIGRATION-001 — Ubuntu pre-live baseline completed; fresh Linux M1 qualification is next.
+SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001 — Phase 2 complete; no asymmetric operating band qualifies.
 
 ## Platform migration status
 - Ubuntu 24.04.4 LTS / Linux 7.0.0-30-generic / x86_64 is now authoritative for future V0.1 work. The canonical project remains `/srv/ATLAS/100_ACTIVE/Projects/SENTRY` on the Atlas share; the Ubuntu desktop currently reaches that exact checkout through its authenticated user SFTP mount.
@@ -20,15 +20,16 @@ SENTRY-UBUNTU-PLATFORM-MIGRATION-001 — Ubuntu pre-live baseline completed; fre
 - Linux V4L2 camera/inference smoke passed: 666 captured / 665 processed, 14.760 processed FPS, 16.189 ms median and 17.912 ms p95, 0 dropped frames. A separate 20-second sample measured 13.426 processed FPS, 15.758 ms median, 17.169 ms p95, mean process CPU 92.52%, peak 106.00%, and 0 dropped frames. Smoke telemetry is not occupancy ground truth.
 - The bounded OAuth bridge passed a synthetic `person.entered` proof on Linux using `gpt-5.6-luna` at low effort; perception makes zero Codex/Luna calls. PipeWire/PulseAudio and NexiGo microphone/output inventory completed; voice implementation remains out of scope.
 - No raw frames were persisted. Runtime/model evidence remains under ignored canonical `perception-data/` paths. RT-DETR artifacts remain historical/ignored and are not the active backend; 0202 remains the active candidate.
+- The asymmetric-evidence diagnostic path exposes positive 0202 candidates from the same single inference, but production semantics remain unchanged at entry/hold threshold `0.40` because calibration found no qualifying lower support threshold.
 - Ubuntu platform migration commit `e9977aa` (`chore: rebaseline SENTRY on Ubuntu`) is pushed to `origin/main`; the canonical checkout is clean after the push.
 
 ## Current verified state
 - The Architect rejected RT-DETR for V0.1 after confirmed-empty false-human evidence and sub-floor throughput, then authorized this final reuse test of the already-investigated 0202 signal through the room-state layer. RT-DETR-specific working-tree code was removed from active production source after complete diff preservation.
-- The restored 0202 implementation comes from historical commit `ec4a2f3`, uses the existing OpenVINO CPU runtime, and is explicitly `IMPLEMENTED_UNVERIFIED` pending fresh room-state evidence.
+- The restored 0202 implementation comes from historical commit `ec4a2f3`, uses the existing OpenVINO CPU runtime, and remains the active candidate; fresh asymmetric calibration found no qualifying support operating band.
 - The temporal state layer is implemented behind structured observations. It maintains only `empty`, `occupied`, `degraded`, and `offline`; it uses timestamp-based entry confirmation of 1.0 seconds, a 1.0-second entry evidence-gap tolerance, and a 15.0-second absence grace period. Duplicate detections are binary human evidence and do not count occupants.
-- Structured observations now include room state, state transitions, binary detector evidence, and metadata-only luminance/contrast measurements. No image enhancement, persistence, sessions, semantic events, API, identity, or M2 behavior was added.
+- Structured observations now include room state, state transitions, strong/support detector evidence, maximum candidate confidence, and metadata-only luminance/contrast measurements. No image enhancement, persistence, sessions, semantic events, API, identity, or M2 behavior was added.
 - State-machine deterministic tests and the restored 0202 perception suite pass 24/24 using the repository `.venv`. The 0202 FP32 XML/BIN remain ignored and match the recorded Open Model Zoo SHA-384 checksums.
-- Pre-live scope review passed: no runtime/tracker/camera/dependency changes, no raw frames persisted, and no Codex/Luna perception calls. Stage A now provides the first fresh operator-labeled room-state evidence for this directive.
+- Pre-live scope review passed: no detector/model/runtime/tracker changes, no raw frames persisted, and no Codex/Luna perception calls. The asymmetric calibration now provides fresh operator-labeled raw-candidate evidence for the current directive.
 - Canonical path `\\atlas\\ATLAS\\100_ACTIVE\\Projects\\SENTRY` contains a valid Git checkout restored from GitHub after the damaged path was absent on repeated inventory reads.
 - The last committed `main` and `origin/main` state is the calibration diagnostic/evidence commit recorded in the latest outcome; all authorized changes are pushed.
 - `git fsck --full` passed with exit code 0 and no reported errors.
@@ -76,7 +77,8 @@ SENTRY-UBUNTU-PLATFORM-MIGRATION-001 — Ubuntu pre-live baseline completed; fre
 - A human-confirmed one-person segment was completed; the current OpenVINO detector produced a confirmed quality failure and telemetry-only runs remain non-acceptance evidence.
 - Controlled camera failure/recovery remains blocked pending an authorized physical disconnect/reconnect or administrative device-interruption path.
 - The original Atlas incident has no proven low-level root cause; no broad storage repair or migration was attempted.
-- RT-DETR remains rejected for this host. The prior 0202 per-frame calibration failure is preserved as historical evidence, but this directive evaluates binary room-state correctness with threshold `0.40`; Stage A passed and Stage B is next. Do not repeat detector calibration or change the tracker. M2 remains unauthorized.
+- RT-DETR remains rejected for this host. The prior 0202 per-frame and Ubuntu occupied-state failures are preserved as historical evidence; the authorized asymmetric reuse test also found no qualifying support threshold. Do not change the tracker, increase absence grace, model-shop, or begin M2.
+- Fresh asymmetric calibration stopped after Phase 2: confirmed-empty raw candidates were low-confidence, while the continuously confirmed one-person segment had only 63/1791 observations at or above the fixed `0.40` entry threshold. No support threshold from `0.10` through `0.40` achieved simulated occupied correctness of `>=95%` with a valid bounded exit.
 
 ## Latest recorded evidence
 - `OUTCOME-SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001-STAGE-A`: retained as negative evidence; RT-DETR produced false occupied state and missed the FPS floor.
@@ -98,6 +100,6 @@ SENTRY-UBUNTU-PLATFORM-MIGRATION-001 — Ubuntu pre-live baseline completed; fre
 - HOG/tracker telemetry must not be promoted to person-quality acceptance when one known person produces multiple simultaneous tracks and high ID churn.
 
 ## Next Architect decision point
-The Ubuntu qualification stopped at Stage B after the one authorized retry because the authoritative state falsely returned to `empty` while the operator remained visible. Architect decision is required before any further live marker; do not change the detector/tracker or begin M2.
+The asymmetric-evidence calibration found no qualifying operating band. Architect decision is required before any Phase 3 production change or further live marker; do not increase the 15-second grace, change the tracker, model-shop, or begin M2.
 
 This file is a mutable snapshot. Do not use it to erase historical outcomes or decisions.

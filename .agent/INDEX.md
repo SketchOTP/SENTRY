@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: Ubuntu platform re-baseline before fresh M1 live qualification
-- Active directive: SENTRY-UBUNTU-PLATFORM-MIGRATION-001 — pre-live baseline in progress; Windows Stage B is historical INVALID/UNRESOLVED
+- Current stage: Ubuntu M1 asymmetric-evidence calibration
+- Active directive: SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001 — Phase 2 calibration complete; no qualifying support threshold found
 - Active task packet: `.agent/tasks/active/SENTRY-M1-PERCEPTION-001/`
 - Last accepted outcome: M0 Codex/Luna reasoning and context optimization — Architect accepted
-- Latest recorded outcome: OUTCOME-SENTRY-CONVERGENCE-0202-PRESENCE-STATE-001-STAGE-A — confirmed-empty state passed on historical Windows platform
-- Last state sync: 2026-08-28T10:00:00-04:00
+- Latest recorded outcome: OUTCOME-SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001 — no qualifying support threshold found
+- Last state sync: 2026-08-28T12:40:00-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

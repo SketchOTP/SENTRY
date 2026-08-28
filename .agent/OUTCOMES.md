@@ -721,3 +721,28 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Stages C-F were not run. Low-light and physical camera recovery remain unqualified.
 - Raw frames: none persisted. Perception Codex/Luna calls: 0. Tracker was unchanged. No detector, threshold, runtime, camera, or M2 changes were made.
 - Primary disposition: **STATE FAILURE — UBUNTU OCCUPIED EVIDENCE INSUFFICIENT**. Architect decision required before another marker or further qualification attempt.
+## OUTCOME-SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001 — No qualifying support threshold
+- Date: 2026-08-28
+- Directive: `SENTRY-UBUNTU-M1-ASYMMETRIC-EVIDENCE-001`
+- Verdict: **ASYMMETRIC EVIDENCE FAILED — 0202 SOURCE INSUFFICIENT**
+- Retrieval confidence: ADEQUATE for current Ubuntu repository, runtime, detector, raw metadata captures, and deterministic simulator
+- Evidence level: E5_OPERATIONALLY_OBSERVED for operator-confirmed calibration segments; E4_REGRESSION_PROTECTED for the implementation/tests
+
+### Pre-live correction and implementation
+- The first empty marker attempt produced zero observations because the example config still used numeric camera index `0`. It was not counted. The stable NexiGo V4L2 by-id path was verified and configured before the valid run.
+- Added a one-inference `detect_raw()` path for positive 0202 candidates; production `detect()` remains the configured strong cutoff. The state contract now distinguishes strong entry evidence from support hold evidence, and telemetry exposes both flags plus maximum raw candidate confidence.
+- The checked-in hold threshold remains `0.40`, equal to the entry threshold, so production occupancy behavior was not changed after the failed operating-band selection.
+
+### Operator-confirmed Phase 2 segments
+- Confirmed-empty marker: `CONFIRMED_EMPTY — START` at `2026-08-28T16:33:43.349436+00:00`; 889 observations over approximately 60 seconds. Raw candidates appeared in all 889 observations, with 40,815 positive candidates; confidence p50/p75/p90/p95/max was `0.026596 / 0.031280 / 0.041034 / 0.047504 / 0.285640`. The fixed `0.40` strong-entry gate produced no positive candidates. Support false-positive observations were 13 at 0.10, 11 at 0.15, 7 at 0.20, 2 at 0.25, and 0 at 0.30-0.40.
+- Confirmed-one-person marker: `CONFIRMED_ONE_PERSON — START` at `2026-08-28T16:35:47.429792+00:00`; operator-confirmed continuous presence; 1,791 observations over approximately 120 seconds. Raw candidates appeared in all observations, with 55,051 positive candidates; confidence p50/p75/p90/p95/max was `0.031744 / 0.042617 / 0.115990 / 0.147000 / 0.547175`. Only 63/1,791 observations reached the fixed `0.40` strong entry gate. The first strong candidate occurred at frame sequence 3, but strong evidence did not remain within the configured 1-second entry evidence-gap policy, so simulated entry was delayed to frame sequence 665.
+
+### Asymmetric offline sweep
+- The same raw records were evaluated at support thresholds `0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40`; entry remained fixed at `0.40`. The occupied-state simulation yielded `62.9257%` correctness at 0.10-0.35 and `40.0893%` at 0.40. Support gaps were respectively `0.068, 0.068, 0.068, 1.468, 3.600, 14.000, 43.064` seconds. No threshold reached `>=95%` occupied correctness without a false-empty transition.
+- Simulated post-exit empty reached the empty state in `15.990, 15.722, 15.657, 15.590, 14.522, 14.522, 14.522` seconds for thresholds 0.10 through 0.40 respectively, so exit suppression was not the limiting failure. No support threshold qualified because the fixed strong-entry gate could not establish occupancy reliably in the labeled occupied segment.
+- Result: no asymmetric operating band was found. No Phase 3 production hold-threshold change and no fresh live A-D state qualification were authorized by the directive after this stop boundary.
+
+### Validation and boundaries
+- Automated suite after implementation: **32/32 PASSED**. Python compilation and `git diff --check`: PASSED. 0202 XML/BIN SHA-384 checksums: PASSED. OpenVINO CPU raw/strong smoke contract: PASSED.
+- Raw frames persisted: `NONE`; calibration files contain metadata only under ignored canonical `perception-data/runtime/`. Runtime perception Codex/Luna calls: `0`. Tracker/model/runtime/device/camera architecture was not replaced or tuned.
+- Recommendation: return to Architect with **ASYMMETRIC EVIDENCE FAILED — 0202 SOURCE INSUFFICIENT**. Preserve the prior Ubuntu occupied-state failure and this stronger raw-candidate evidence; do not increase absence grace, change the tracker, or begin M2.

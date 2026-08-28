@@ -26,6 +26,23 @@ class FakeDetector:
         return next(self.frames)
 
 
+class FakeRawDetector:
+    confidence_threshold = 0.40
+
+    def __init__(self, frames):
+        self.frames = iter(frames)
+        self.raw_calls = 0
+        self.detect_calls = 0
+
+    def detect_raw(self, image):
+        self.raw_calls += 1
+        return next(self.frames)
+
+    def detect(self, image):
+        self.detect_calls += 1
+        raise AssertionError("raw-capable detector must not infer twice")
+
+
 class PerceptionTests(unittest.TestCase):
     def test_config_requires_latest_frame_buffer(self):
         config = load_config(__import__("pathlib").Path("perception/config.example.json"))
@@ -120,6 +137,44 @@ class PerceptionTests(unittest.TestCase):
         self.assertEqual(second.as_dict()["room_state_transition"], "empty->occupied")
         self.assertTrue(second.as_dict()["detector_evidence"])
         self.assertIn("mean_luminance", second.as_dict()["image_quality"])
+
+    def test_engine_uses_one_raw_inference_for_strong_and_support_evidence(self):
+        detector = FakeRawDetector([
+            [Detection((1, 2, 20, 40), 0.42)],
+            [Detection((1, 2, 20, 40), 0.42)],
+            [Detection((1, 2, 20, 40), 0.25)],
+        ])
+        engine = PerceptionEngine(
+            detector,
+            IoUTracker(new_track_confidence_threshold=0.1),
+            PresenceStateMachine(PresenceStateConfig(entry_confirmation_seconds=1.0)),
+            entry_confidence_threshold=0.40,
+            hold_confidence_threshold=0.20,
+        )
+        import numpy as np
+
+        image = np.zeros((10, 10, 3), dtype=np.uint8)
+        first = engine.process(image, frame_sequence=1, captured_at=datetime(2026, 8, 27, tzinfo=timezone.utc))
+        second = engine.process(
+            image,
+            frame_sequence=2,
+            captured_at=datetime(2026, 8, 27, 0, 0, 1, 100000, tzinfo=timezone.utc),
+        )
+        third = engine.process(
+            image,
+            frame_sequence=3,
+            captured_at=datetime(2026, 8, 27, 0, 0, 2, 100000, tzinfo=timezone.utc),
+        )
+        self.assertEqual(detector.raw_calls, 3)
+        self.assertEqual(detector.detect_calls, 0)
+        self.assertEqual(first.as_dict()["strong_detector_evidence"], True)
+        self.assertEqual(first.as_dict()["support_detector_evidence"], True)
+        self.assertEqual(second.as_dict()["strong_detector_evidence"], True)
+        self.assertEqual(second.as_dict()["support_detector_evidence"], True)
+        self.assertEqual(second.as_dict()["room_state"], "occupied")
+        self.assertEqual(third.as_dict()["strong_detector_evidence"], False)
+        self.assertEqual(third.as_dict()["support_detector_evidence"], True)
+        self.assertEqual(third.as_dict()["room_state"], "occupied")
 
     def test_detector_output_contract(self):
         detector = OpenVINOPersonDetector({

@@ -110,6 +110,8 @@ class PresenceStateMachine:
         *,
         camera_state: Any,
         human_evidence: bool = False,
+        entry_evidence: bool | None = None,
+        support_evidence: bool | None = None,
         detector_usable: bool = True,
         visual_quality_usable: bool = True,
     ) -> PresenceStateSnapshot:
@@ -131,8 +133,13 @@ class PresenceStateMachine:
             transition = self._set_state(RoomState.DEGRADED)
             return self._snapshot(now, transition)
 
+        strong_evidence = human_evidence if entry_evidence is None else bool(entry_evidence)
+        hold_evidence = strong_evidence if support_evidence is None else bool(support_evidence)
         last_evidence_before_update = self._last_human_evidence_at
-        if human_evidence:
+        if self.state == RoomState.OCCUPIED:
+            if hold_evidence:
+                self._last_human_evidence_at = now
+        elif strong_evidence:
             self._last_human_evidence_at = now
             recently_confirmed = (
                 self._occupancy_was_confirmed
@@ -152,7 +159,7 @@ class PresenceStateMachine:
 
         transition: str | None = None
         if self.state == RoomState.EMPTY or self.state in {RoomState.DEGRADED, RoomState.OFFLINE}:
-            if not human_evidence and self._occupancy_was_confirmed:
+            if not strong_evidence and self._occupancy_was_confirmed:
                 if (
                     self._last_human_evidence_at is not None
                     and (now - self._last_human_evidence_at).total_seconds() < self.config.absence_grace_seconds

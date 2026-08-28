@@ -10,7 +10,7 @@ It makes zero SENTRY Codex/Luna calls. It does not perform identity recognition,
 
 The bounded state layer maintains only `empty`, `occupied`, `degraded`, or `offline`. It uses timestamp-based hysteresis: one second of bounded positive evidence for entry, a one-second evidence-gap tolerance, and a 15-second absence grace period for exit. Duplicate detections remain binary human evidence and do not become multiple authoritative occupants. These values are configuration, not frame-count rules.
 
-Each frame may also be reduced to metadata-only luminance/contrast measurements through `perception.presence_state.measure_image_quality`. No threshold is assumed for insufficient light until operator-labeled evidence establishes one; an explicit unusable-quality signal maps to `degraded`, never `empty`.
+Each frame may also be reduced to metadata-only luminance/contrast measurements through `perception.presence_state.measure_image_quality`. No threshold is assumed for insufficient light until operator-labeled evidence establishes one; an explicit unusable-quality signal maps to `degraded`, never `empty`. The detector can expose positive raw candidates for metadata-only calibration, but weak support evidence cannot initiate occupancy.
 
 ## Selected stack
 
@@ -19,7 +19,7 @@ The current working-tree candidate restores the previously verified Open Model Z
 - `openvino==2026.3.1`, Apache-2.0, used for local CPU inference of the externally downloaded IR model.
 - `opencv-python-headless==4.12.0.88`, used for camera and image handling.
 - `psutil==7.0.0`, BSD-3-Clause, used only for process metrics.
-- `person-detection-0202` is stored as ignored local Open Model Zoo FP32 XML/BIN under `perception-data/models/person-detection-0202/FP32/`; its recorded manifest checksums remain the authoritative provenance. It uses 512x512 BGR input and emits `[1,1,200,7]` detections. SENTRY uses confidence `0.40` and converts valid person rows to binary human evidence for the temporal room-state layer.
+- `person-detection-0202` is stored as ignored local Open Model Zoo FP32 XML/BIN under `perception-data/models/person-detection-0202/FP32/`; its recorded manifest checksums remain the authoritative provenance. It uses 512x512 BGR input and emits `[1,1,200,7]` detections. SENTRY currently uses `0.40` as both the strong entry gate and hold threshold because the Ubuntu asymmetric-evidence calibration found no safe lower hold threshold. Raw positive candidates are available for one-inference offline calibration only.
 - The tracker is original SENTRY code. It keeps a bounded track table, associates high-confidence detections before lower-confidence detections, and retains unmatched tracks for a configured short dropout window.
 
 YOLOX plus ByteTrack was evaluated first because YOLOX is Apache-2.0 and ByteTrack is MIT, and both are viable future options. It was not adopted for this first live attempt because the host had no Python/CV runtime, the YOLOX deployment path requires a separately sourced model artifact, and adding a PyTorch/ONNX stack before proving camera access would increase the installation and provenance surface. The detector interface is replaceable so a later benchmark can compare YOLOX-Nano or another permissive model on the same observation contract.
@@ -34,9 +34,13 @@ Install the pinned requirements into an isolated Linux Python environment, confi
 python -m perception.sentry_perception --config perception-data/runtime/ubuntu-config.json --duration-seconds 600 --observation-file perception-data/runtime/perception-observations.jsonl
 ```
 
-The observation file contains structured metadata only, including the current room state, binary detector-evidence flag, transition marker, and optional luminance/contrast measurements. It is not a video or image archive. Local observation files, logs, model weights, captures, and runtime data must stay outside Git.
+The observation file contains structured metadata only, including the current room state, strong/support detector-evidence flags, maximum candidate confidence, transition marker, and optional luminance/contrast measurements. It is not a video or image archive. Local observation files, logs, model weights, captures, and runtime data must stay outside Git.
 
 The service requests the configured resolution/FPS and FOURCC through V4L2, records the actual backend/camera values, uses a size-one latest-frame buffer, drops stale frames, releases the camera on shutdown, and emits `offline` or `degraded` health rather than treating camera failure as an empty room. Prefer a stable `/dev/v4l/by-id/` path because numeric `/dev/videoX` assignments can change.
+
+## Asymmetric-evidence calibration result
+
+The Ubuntu Phase 2 calibration used a 60-second operator-confirmed empty segment (889 observations) and a 120-second continuously operator-confirmed one-person segment (1,791 observations). The fixed `0.40` entry gate appeared in only 63/1,791 occupied observations. Support thresholds from `0.10` through `0.40` produced simulated occupied correctness from 62.9% (0.10–0.35) to 40.1% (0.40); none met the `>=95%` requirement and bounded post-exit-empty requirement. No production hold threshold was changed.
 
 ## Evidence boundary
 
