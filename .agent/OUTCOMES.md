@@ -692,3 +692,4 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 
 ### Boundary and next step
 - The Ubuntu platform baseline is qualified. This does not accept M1 presence behavior and does not reuse Windows Stage B. The next directive may restart M1 from fresh Ubuntu `CONFIRMED_EMPTY — START`; do not begin M2 in this record.
+- Commit/push: `e9977aa` (`chore: rebaseline SENTRY on Ubuntu`) pushed to `origin/main`; final checkout clean and local `main` matches `origin/main`.
