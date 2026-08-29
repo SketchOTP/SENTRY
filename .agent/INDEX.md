@@ -11,8 +11,8 @@
 - Active directive: `SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001` — local SQLite, Atlas snapshots, restart recovery, and localhost history
 - Active task packet: `.agent/tasks/active/SENTRY-M1-PERCEPTION-001/`
 - Last accepted outcome: Ubuntu/V4L2 platform baseline verified
-- Latest recorded outcome: local SQLite plus Atlas snapshot mirroring implemented; M2 qualification in progress
-- Last state sync: 2026-08-28T21:30:00-04:00
+- Latest recorded outcome: local SQLite plus Atlas snapshot mirroring qualified by deterministic and process-level evidence; awaiting Architect acceptance
+- Last state sync: 2026-08-28T22:30:00-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

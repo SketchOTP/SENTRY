@@ -836,3 +836,4 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - This outcome qualifies the local-SQLite/Atlas-mirror implementation and deterministic restart/API behavior. It does not claim physical camera recovery, detector improvement, unattended service deployment, or M3 identity.
 - Practical M1 remains accepted by explicit owner/operator direction; detector selection remains frozen and no detector qualification was resumed.
 - Recommendation: **M2 durable presence memory is ready for Architect acceptance**, subject to review of the pushed implementation and the explicit local-database/Atlas-snapshot topology.
+- GitHub: commit `8c1684014ed91d7317f2f0de060757f7d5e20262` (`feat: qualify local SQLite Atlas mirror persistence`) pushed to `origin/main`.

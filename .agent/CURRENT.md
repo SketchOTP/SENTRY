@@ -1,6 +1,6 @@
 # Current Project State
 
-Last updated: 2026-08-28T21:30:00-04:00
+Last updated: 2026-08-28T22:30:00-04:00
 
 ## Current stage
 M2 durable presence memory
@@ -22,7 +22,7 @@ SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001 — validate local SQLite, Atlas snapsho
 - Original YOLOX Stage A failure: **VERIFIED**.
 - Official YOLOX postprocess correction: **IMPLEMENTED_UNVERIFIED live**.
 - M1 practical presence: **ACCEPTED BY OWNER/OPERATOR**.
-- SQLite persistence, sessions, localhost API, and local-to-Atlas snapshot mirroring: **IMPLEMENTED / M2 QUALIFICATION IN PROGRESS**.
+- SQLite persistence, sessions, localhost API, and local-to-Atlas snapshot mirroring: **IMPLEMENTED / QUALIFICATION EVIDENCE PASSED; AWAITING ARCHITECT ACCEPTANCE**.
 - M2 milestone: **ACTIVE; LOCAL SQLITE + ATLAS MIRROR IMPLEMENTED**.
 
 ## Current qualification boundary
@@ -49,6 +49,7 @@ SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001 — validate local SQLite, Atlas snapsho
 - The asymmetric-evidence diagnostic path exposes positive 0202 candidates from the same single inference, but production semantics remain unchanged at entry/hold threshold `0.40` because calibration found no qualifying lower support threshold.
 - Official YOLOX-S integration is the frozen practical V0.1 backend by owner/operator direction: upstream tag `0.3.0` commit `419778480ab6ec0590e5d3831b3afb3b46ab2aa3`, official model-zoo checkpoint `0.1.1rc0/yolox_s.pth`, official ONNX-to-OpenVINO conversion, 640x640 input, 8400x85 output, COCO person filtering, upstream letterbox/grid decode, and NMS `0.45`. Local model artifacts remain ignored. Historical live edge cases remain an operational risk; no further detector qualification is authorized.
 - Ubuntu platform migration commit `e9977aa` (`chore: rebaseline SENTRY on Ubuntu`) is pushed to `origin/main`; the canonical checkout is clean after the push.
+- M2 local-SQLite/Atlas-mirror implementation and qualification evidence are pushed as `8c1684014ed91d7317f2f0de060757f7d5e20262` (`feat: qualify local SQLite Atlas mirror persistence`). Full regression is 53/53 in `/home/sketch/.venvs/sentry-ubuntu/bin/python`; deterministic/process-level M2 tests are green. Awaiting Architect acceptance of M2.
 
 ## Latest YOLOX-S qualification result (historical evidence)
 - Metadata-only labeled calibration used the existing YOLOX-S candidate records and selected `0.50` as the highest tested state-qualified threshold. Empty-state simulation qualified at `0.50`; the one-person simulation reached `99.0585%` authoritative occupied correctness with approximately `1.124s` simulated entry latency and no false-empty transition.
