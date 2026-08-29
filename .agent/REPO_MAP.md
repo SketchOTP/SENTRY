@@ -38,4 +38,4 @@ Last verified against: `main` and working-tree inspection on 2026-08-24.
 - Future DAWN integration — upstream behavior and GPLv3 licensing must be verified before dependency, derivation, or fork decisions.
 - Codex OAuth credentials and per-turn usage — keep credentials private; treat local OAuth proof as trusted-host evidence only.
 
-This map remains intentionally narrow; M2 persistence, identity, semantic events, API, and assistant integration are not implemented.
+The M2 persistence/session/API slice is implemented in `perception/presence_store.py` and `tools/sentry_state_api.py`; restart-aware qualification remains blocked until the Atlas SQLite storage topology is resolved under the active directive. Identity and assistant integration remain later milestones.

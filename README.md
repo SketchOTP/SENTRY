@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 ## Current status
 
-**M0 and the Ubuntu platform foundation are accepted. M1 normal-light presence remains open pending fresh live qualification of the corrected YOLOX-S path.** The SQLite persistence/session/API implementation is preserved as implemented-unverified and out-of-sequence; do not treat it as an accepted M2 milestone.
+**M0 and practical M1 presence are accepted by owner/operator direction. M2 durable presence memory is active.** Historical detector edge cases remain documented operational risk. SQLite/session/API qualification is currently blocked because the canonical Atlas runtime path is an `sshfs`/FUSE mount; no storage relocation is authorized.
 
 ## Project links
 
@@ -75,7 +75,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 
 1. **M0 — Bootstrap + DAWN feasibility**: reproduce assistant environment; prove a synthetic `person.entered` event can reach the assistant and optionally produce speech.
 2. **M1 — Camera + human presence**: stable Ubuntu V4L2 capture, person detection, tracking, diagnostics (accepted foundation).
-3. **M2 — Presence sessions + persistence**: temporal hysteresis, entry/exit events, SQLite history/API (implemented-unverified; gated on M1 acceptance).
+3. **M2 — Presence sessions + persistence**: temporal hysteresis, entry/exit events, SQLite history/API (active; topology qualification blocked on the current Atlas `sshfs` mount).
 4. **M3 — Primary-user identity**: local enrollment, conservative recognition, unknown fallback.
 5. **M4 — Conversational grounding**: assistant queries current and historical office state.
 6. **M5 — Proactive arrival behavior**: eligibility gate, dedupe/cooldowns/budget, spoken action audit trail.

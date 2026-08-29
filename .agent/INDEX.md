@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: M1 corrected YOLOX live qualification
-- Active directive: `SENTRY-UBUNTU-M1-YOLOX-CORRECTED-LIVE-001` — fresh A-D physical qualification
+- Current stage: M2 durable presence memory
+- Active directive: `SENTRY-M2-DURABLE-PRESENCE-MEMORY-001` — restart-aware persistence and localhost history
 - Active task packet: `.agent/tasks/active/SENTRY-M1-PERCEPTION-001/`
 - Last accepted outcome: Ubuntu/V4L2 platform baseline verified
-- Latest recorded outcome: persistence/API implementation preserved as implemented-unverified and out-of-sequence; corrected YOLOX live qualification open
-- Last state sync: 2026-08-28T19:05:00-04:00
+- Latest recorded outcome: owner/operator accepted practical M1 and authorized M2; storage topology is now the acceptance blocker
+- Last state sync: 2026-08-28T20:30:00-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

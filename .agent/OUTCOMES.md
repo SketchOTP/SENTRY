@@ -788,3 +788,13 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Ubuntu/V4L2 platform is **VERIFIED**. Original YOLOX Stage A failure is **VERIFIED**. Corrected official YOLOX postprocessing is **IMPLEMENTED_UNVERIFIED live**.
 - Active next gate: `SENTRY-UBUNTU-M1-YOLOX-CORRECTED-LIVE-001`, fresh operator-confirmed Stage A-D using threshold `0.50`, NMS `0.45`, and unchanged state timings.
 - No durable history will be written by qualification runs. No detector, tracker, threshold, timing, or M2 implementation changes are authorized.
+## OUTCOME-SENTRY-M2-DURABLE-PRESENCE-MEMORY-001 — 2026-08-28
+- **Primary disposition:** **M2 STORAGE TOPOLOGY BLOCKER**.
+- Owner/operator direction is recorded and reconciled: practical Ubuntu camera/human detection is accepted for V0.1 progression; detector selection is frozen and no further detector qualification is required. Prior negative detector evidence remains historical operational risk.
+- Starting repository: `0d14aa758220daaa5b02c6af585fbd6be82059d9`, clean before this record update; `230dafa` remains preserved history. Existing `PresenceStore`/localhost API implementation was inspected and not replaced.
+- Canonical SENTRY path: `/srv/ATLAS/100_ACTIVE/Projects/SENTRY`. The Atlas mount is `TARGET=/srv/ATLAS`, `SOURCE=atlas:/srv/ATLAS`, `FSTYPE=fuse.sshfs`, with read/write options. The configured database location `perception-data/runtime/sentry.db` resolves on that same SFTP/FUSE-backed filesystem; no database file currently exists at that path.
+- The active directive explicitly requires returning this blocker when SQLite operates across SFTP/FUSE/network storage. No storage relocation, old pool path, mergerfs, database migration, or alternate database service was attempted.
+- Existing code inspection found schema migration 1, metadata-only room state/session/event recording, one-open-session lookup logic, persistence exception capture, and localhost endpoints. Full restart provenance, schema evolution, API health/database truthfulness, and process-level reconciliation evidence remain unqualified; implementation changes were intentionally stopped at the topology boundary.
+- Repository integrity: local `HEAD` is `0d14aa758220daaa5b02c6af585fbd6be82059d9`; the checkout reported `main...origin/main` with no working-tree changes before this documentation update. `findmnt` and `git diff --check` were used; full test output was not relied upon as a qualification substitute for the topology blocker.
+- Raw frames remain prohibited and absent from the persistence design. Continuous perception Codex/Luna calls remain `0`.
+- Recommendation: return to Architect for a storage-topology decision. Do not claim M2 qualified or silently move SQLite off the canonical Atlas path.

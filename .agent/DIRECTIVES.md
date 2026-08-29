@@ -290,3 +290,11 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Persistence boundary: disable durable persistence or use an isolated ignored qualification database. Qualification runs must not enter household history.
 - Stop boundaries: camera ownership blocker; Stage A false occupancy/source rejection; precise Stage B/C state-evidence failure; no detector/tracker/timing changes; no M2 expansion.
 - Required status classification: Ubuntu platform **VERIFIED**; original YOLOX Stage A failure **VERIFIED**; postprocess correction **IMPLEMENTED_UNVERIFIED live**; M1 **OPEN / NOT ACCEPTED**; SQLite/session/API **IMPLEMENTED_UNVERIFIED / OUT-OF-SEQUENCE**; M2 **NOT ACCEPTED**.
+
+## SENTRY-M2-DURABLE-PRESENCE-MEMORY-001 — Durable presence memory and localhost history
+- Status: **ACTIVE; TOPOLOGY CHECK BLOCKED**
+- Owner/operator has accepted practical M1 camera/human detection for V0.1 progression and frozen detector selection. No further detector qualification is authorized.
+- Objective: qualify durable metadata-only presence sessions, restart reconciliation, failure truthfulness, SQLite invariants, and the localhost query API using the existing persistence slice.
+- Storage boundary: first measure the actual DB filesystem. If the DB operates on the Atlas SFTP/FUSE/network mount, return `M2 STORAGE TOPOLOGY BLOCKER`; do not relocate storage, use old pool paths, use mergerfs, or introduce another database service.
+- Exclusions: no detector, tracker, camera, low-light, identity, voice, M3, systemd, Home Assistant, Redis/Postgres, or whole-home work.
+- Source: owner/operator directive `SENTRY-M2-DURABLE-PRESENCE-MEMORY-001` and current SENTRY Notion/Authority records.
