@@ -288,3 +288,7 @@ Require a fresh deliberate enrollment, high-quality primary-user holdout, consen
 
 ### Learning
 When identity inference runs at a bounded cadence, the last identity annotation must be carried only to the same currently visible track between evaluations. Dropping it on intervening frames creates false unresolved flicker; transferring it to a new or ambiguous track would create false identity continuity. The correction preserved room-state independence and improved the live primary run to first recognition in 2.773 seconds.
+## LEARNING-SENTRY-020 — Ground conversational answers in a bounded API fact packet
+- A localhost API should be the only M4 retrieval boundary: health first, then a deterministic allow-list of current state, people, sessions, and selected semantic-event metadata.
+- Stable fact IDs plus response validation prevent a model from citing data it never received; `partial`/`unavailable` must remain valid outcomes when the live DB lacks an observation or history.
+- Room-session start and first primary-user identification are separate facts. A grounded assistant may report a lower bound or limitation rather than inventing personal arrival time.

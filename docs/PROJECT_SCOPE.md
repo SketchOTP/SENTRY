@@ -596,11 +596,14 @@ Deliverables:
 
 - Assistant tool/bridge for current state and history.
 - Natural-language queries grounded in SENTRY data.
+- A bounded localhost API retrieval and allow-listed fact-packet layer.
+- Structured `supported` / `partial` / `unavailable` responses with fact citations.
 
 Acceptance:
 
 - Assistant correctly answers the required office-state questions.
 - When perception is offline, assistant reports uncertainty/unavailability rather than inventing state.
+- Room occupancy is not conflated with primary-user arrival, and restart uncertainty remains explicit.
 
 ### M5 — Proactive arrival behavior
 

@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from perception.presence_store import PresenceStore
 
@@ -26,6 +31,11 @@ class _Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
         room_id = query.get("room_id", ["office"])[0]
+        try:
+            limit = min(100, max(1, int(query.get("limit", ["100"])[0])))
+        except (TypeError, ValueError):
+            self._send(400, {"error": "limit must be a positive integer"})
+            return
         store: PresenceStore = self.server.store  # type: ignore[attr-defined]
         if parsed.path == "/health":
             health = store.health()
@@ -42,11 +52,11 @@ class _Handler(BaseHTTPRequestHandler):
             state = store.current_state(room_id)
             self._send(200, state.__dict__ if state else {"state": "unknown", "room_id": room_id})
         elif parsed.path == "/v1/rooms/office/sessions":
-            self._send(200, {"sessions": store.sessions(room_id)})
+            self._send(200, {"sessions": store.sessions(room_id, limit=limit)})
         elif parsed.path == "/v1/persons":
             self._send(200, {"persons": store.persons()})
         elif parsed.path == "/v1/events":
-            self._send(200, {"events": store.events(room_id)})
+            self._send(200, {"events": store.events(room_id, limit=limit)})
         else:
             self._send(404, {"error": "not_found"})
 

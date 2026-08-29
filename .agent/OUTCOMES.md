@@ -890,3 +890,23 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Actual enrolled profile survived local DB reopen and Atlas restore with one active `persons` row, one `identity_profiles` row, threshold `0.55`, 16 samples, and unchanged model provenance. Full regression after final correction: **69/69 PASSED**; `py_compile` and `git diff --check` passed.
 - Raw frames persisted: **NONE**. Unknown/query embeddings persisted: **NONE**. Continuous perception Codex/Luna calls: **0**.
 - Recommendation: M3 is qualified for bounded one-primary-user V0.1 operation; keep simultaneous-person identity association as a later limitation and do not begin M4 until Architect accepts this record.
+## OUTCOME-SENTRY-M4-GROUNDED-CONVERSATION-001 — Bounded grounded conversation qualification
+- Completed: 2026-08-29
+- Verdict: **M4 GROUNDED CONVERSATION QUALIFIED — BOUNDED API/LUNA EVIDENCE**
+- Starting SHA: `f07d278d04f207b3e18518f2807e6a58ce8be488`
+
+### Implementation
+- Added `tools/sentry_grounding.py` as the deterministic localhost retrieval and allow-listed fact-packet layer. It queries `/health` first, then current state, sessions, persons, and events, and derives only bounded session/identity/last-empty facts with an explicit `as_of` timestamp.
+- Added `tools/sentry_ask.py` for one text question, with at most one OAuth-authenticated `gpt-5.6-luna` turn. Added `tools/sentry_grounded_response.schema.json`; SENTRY rejects malformed responses, unsupported grounding states, empty citations for supported/partial answers, and unknown `fact_id` citations.
+- Preserved the M0 synthetic-event bridge contract while factoring its bounded launcher. The state API remains localhost-only and gained bounded session/event `limit` parameters plus direct-entry import-path portability.
+
+### Validation
+- Local storage topology: live DB `/home/sketch/.local/share/sentry/sentry.db` on ext4; Atlas `/srv/ATLAS` remains `fuse.sshfs`. The query layer reads only localhost API data and never opens SQLite or Atlas directly.
+- Deterministic fixture/API regression: empty, occupied/recognized, occupied/unknown, occupied/unresolved, degraded, offline, completed-session, and restart-reconciled uncertainty cases passed. Sensitive fields such as boxes, raw frames, prototypes, and unrestricted payload keys were excluded.
+- Full Ubuntu regression: **77/77 passed**; Python compilation and `git diff --check` passed.
+- Real API/Luna proof: 13 successful low-effort `gpt-5.6-luna` turns across the six core concepts, adversarial unsupported-premise queries, and current-state checks. The real DB was healthy (schema 3, Atlas mirror `ok`) but currently had no room observation, sessions, or events; responses consistently returned `partial`/`unavailable` and did not invent occupancy, identity, arrival, activity, causality, or relationship history.
+- Unavailable-source proof: API connection failure returned the deterministic unavailable answer with **0 Luna invocations**. All successful query responses cited only supplied fact IDs; each question used one Luna invocation.
+- Perception remains separate and makes **0 Codex/Luna calls**. No raw frames, embeddings, biometric prototypes, secrets, or unrestricted DB rows were sent to Luna.
+
+### Boundary
+- M4 is qualified for bounded text queries grounded in the current localhost API and persisted metadata. Current real history is empty, so historical answers are correctly unavailable until SENTRY records relevant sessions/events. M5 proactive behavior, voice, and richer activity/memory claims remain out of scope and gated.

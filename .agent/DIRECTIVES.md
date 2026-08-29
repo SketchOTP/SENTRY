@@ -324,3 +324,8 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Held-out scoring: 425 genuine opportunities and 210 consenting non-primary opportunities. Selected threshold `0.55`; genuine acceptance 377/425 (`88.71%`), negative accepts 0/210, measured precision 100%.
 - Live verification: primary recognized in 2.773 seconds with 495/495 processed at 8.246 FPS and one stable track; non-primary produced 0 primary-user assignments with 498/498 processed at 8.291 FPS. Identity loss remained unresolved and did not affect presence.
 - Restart/Atlas profile recovery passed. Simultaneous two-person association was not run because both people were unavailable together; this remains a residual limitation.
+## SENTRY-M4-GROUNDED-CONVERSATION-001 — Resolution update — 2026-08-29
+- Status: **QUALIFIED WITH BOUNDED API/LUNA EVIDENCE**
+- Implemented a health-gated localhost retrieval layer, allow-listed fact packets, one-turn OAuth `gpt-5.6-luna` query CLI, structured response validation, deterministic fixture/adversarial coverage, and real-database proof.
+- The live database was healthy but empty of current observation/history during proof; responses correctly used `partial`/`unavailable`. API failure produced a deterministic unavailable answer without invoking Luna.
+- Full Ubuntu regression: **77/77 passed**. Perception Codex/Luna calls: `0`. M5 proactive behavior remains gated pending Architect acceptance.

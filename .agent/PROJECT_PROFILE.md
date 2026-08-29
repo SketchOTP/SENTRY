@@ -17,7 +17,7 @@
 - Frameworks: no application framework; OpenCV provides local V4L2 capture/frame handling and OpenVINO provides local 0202 inference.
 - Major dependencies: `opencv-python-headless==4.12.0.88`, `openvino==2026.3.1`, `psutil==7.0.0`.
 - Test command: `python -m unittest discover -s tests -v`.
-- Runtime environment: Ubuntu Linux x86_64 host on the canonical Atlas share. The Linux NexiGo N60 V4L2 path and pinned local runtime are being established; fresh Ubuntu M1 ground truth is not yet run.
+- Runtime environment: Ubuntu Linux x86_64 host on the canonical Atlas share. The Linux NexiGo N60 V4L2 path and pinned local runtime are established; M1 practical presence and M2/M3 are accepted within recorded boundaries, and M4 grounded conversation is now qualified within bounded evidence.
 
 ## Important integrations
 - Direct OAuth-authenticated Codex/Luna invocation through the bounded SENTRY bridge is the accepted V0.1 reasoning layer. DAWN feasibility work is historical evidence/reference only; integration is not implemented.
@@ -31,7 +31,7 @@
 - Do not treat the suggested repository shape in the project scope as permission to create unneeded empty runtime modules.
 
 ## Safety / operational constraints
-- M1 practical presence is accepted by explicit owner/operator direction; detector edge cases, low-light boundaries, and physical camera recovery remain known operational risks. M2 durable presence memory is accepted, using a local metadata-only SQLite database, integrity-checked Atlas snapshots, and a localhost read API. The Atlas mount is `fuse.sshfs`; SQLite never opens the Atlas copy as the live database. M3 primary-user identity is qualified within bounded evidence; simultaneous-person association remains a residual limitation and conversational grounding remains gated. Windows/DirectShow evidence is historical.
+- M1 practical presence is accepted by explicit owner/operator direction; detector edge cases, low-light boundaries, and physical camera recovery remain known operational risks. M2 durable presence memory is accepted, using a local metadata-only SQLite database, integrity-checked Atlas snapshots, and a localhost read API. The Atlas mount is `fuse.sshfs`; SQLite never opens the Atlas copy as the live database. M3 primary-user identity and M4 grounded conversation are qualified within bounded evidence; simultaneous-person association remains a residual limitation. Windows/DirectShow evidence is historical.
 - Preserve private recordings, enrollment images, biometric profiles, secrets, generated databases, caches, and large model weights outside Git.
 - Do not expose local state beyond localhost without deliberate authorization and appropriate authentication.
 - Do not silently derive from or fork DAWN, upload continuous video, add hardware, or expand to whole-home scope.

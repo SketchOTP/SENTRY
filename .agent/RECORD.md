@@ -264,3 +264,16 @@ Sixteen enrollment samples were accepted, with two no-face retries rejected. Hel
 
 ### Boundary
 Identity remains an annotation on presence. Face loss remains `unresolved`, non-match remains `unknown`, and neither can create departure or alter room state. No raw frames or query embeddings were persisted; continuous perception Luna/Codex calls remained zero.
+## RECORD-SENTRY-016 — M4 grounded conversation qualified within bounded evidence
+- Date: 2026-08-29
+- Type: MILESTONE / GROUNDED-CONVERSATION QUALIFICATION
+- Related directive/outcome: `SENTRY-M4-GROUNDED-CONVERSATION-001` / `OUTCOME-SENTRY-M4-GROUNDED-CONVERSATION-001`
+
+### Decision / event
+The bounded text conversation path is qualified for M4. SENTRY retrieves authoritative metadata from its localhost API, converts it to an allow-listed fact packet, and permits one OAuth-authenticated `gpt-5.6-luna` turn to phrase only those facts. M5 remains gated.
+
+### Evidence
+The implementation passed 77/77 Ubuntu regression tests and deterministic API fixtures for all required room/identity/availability states plus restart uncertainty. Thirteen real API queries used one low-effort Luna turn each; the actual healthy database had no current room observation, sessions, or events, and Luna returned explicit partial/unavailable answers without inventing physical facts. An unavailable API proof made zero Luna calls.
+
+### Boundary
+Room occupancy is not conflated with primary-user arrival. Restart-reconciled uncertainty remains explicit. The fact packet contains no raw frames, embeddings, biometric prototype, or unrestricted DB payload. Continuous perception remains at zero Luna calls.

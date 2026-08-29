@@ -17,7 +17,7 @@ Last verified against: `main` and working-tree inspection on 2026-08-29.
 - `tools/sentry_codex_bridge.py` — bounded one-event OAuth Codex/Luna adapter; no background worker or persistence.
 - `tools/sentry_identity_evaluate.py` and `tools/sentry_identity_live_verify.py` — metadata-only held-out and live identity qualification runners; no frames or embeddings are written.
 - `tools/sentry_codex_response.schema.json` — structured output contract for the bounded bridge.
-- `tools/sentry_codex_bridge.py` — one bounded OAuth/Luna event adapter; runtime calls execute from a temporary non-repository cwd and copy the schema to an absolute local path.
+- `tools/sentry_codex_bridge.py` — bounded OAuth/Luna launcher reused by the event proof and grounded query path; runtime calls execute from a temporary non-repository cwd and copy the selected schema to an absolute local path.
 
 ## Important interfaces / contracts
 - `AGENTS.md` — Authority repository router.
@@ -41,4 +41,4 @@ Last verified against: `main` and working-tree inspection on 2026-08-29.
 - Future DAWN integration — upstream behavior and GPLv3 licensing must be verified before dependency, derivation, or fork decisions.
 - Codex OAuth credentials and per-turn usage — keep credentials private; treat local OAuth proof as trusted-host evidence only.
 
-The M2 persistence/session/API slice is implemented in `perception/presence_store.py` and `tools/sentry_state_api.py`; active SQLite operations are local to the Ubuntu host and complete snapshots are mirrored to Atlas by `perception/storage_mirror.py`. M3 identity is implemented in `perception/identity.py` and the enrollment/admin tools; assistant integration remains later.
+The M2 persistence/session/API slice is implemented in `perception/presence_store.py` and `tools/sentry_state_api.py`; active SQLite operations are local to the Ubuntu host and complete snapshots are mirrored to Atlas by `perception/storage_mirror.py`. M3 identity is implemented in `perception/identity.py` and the enrollment/admin tools. M4 grounded conversation is implemented in `tools/sentry_grounding.py` and `tools/sentry_ask.py`; M5 proactive behavior remains later.
