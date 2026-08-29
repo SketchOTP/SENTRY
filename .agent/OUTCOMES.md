@@ -798,3 +798,41 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Repository integrity: local `HEAD` is `0d14aa758220daaa5b02c6af585fbd6be82059d9`; the checkout reported `main...origin/main` with no working-tree changes before this documentation update. `findmnt` and `git diff --check` were used; full test output was not relied upon as a qualification substitute for the topology blocker.
 - Raw frames remain prohibited and absent from the persistence design. Continuous perception Codex/Luna calls remain `0`.
 - Recommendation: return to Architect for a storage-topology decision. Do not claim M2 qualified or silently move SQLite off the canonical Atlas path.
+
+## OUTCOME-SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001 — Local live database and Atlas snapshot mirror
+- Date: 2026-08-28
+- Directive: `SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001`
+- Verdict: **COMPLETE IMPLEMENTATION / QUALIFICATION EVIDENCE PASSED**
+- Retrieval confidence: **ADEQUATE** for the canonical checkout, M2 implementation, local SQLite topology, Atlas mount, deterministic persistence behavior, and process-level recovery scenarios.
+- Evidence level: **E4_REGRESSION_PROTECTED** for the implementation and tests; physical unattended deployment was not claimed.
+
+### Storage topology
+- Execution host: Ubuntu SENTRY host. Local active database example: `~/.local/share/sentry/sentry.db`; `findmnt`/`df` identify the local root filesystem as `/dev/nvme1n1p2`/`ext4`.
+- Atlas mirror: canonical project path `/srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/backups/sentry.db`, on `atlas:/srv/ATLAS` via `fuse.sshfs`.
+- `PresenceStore` rejects network/FUSE filesystems for the active SQLite path. The Atlas copy is never opened as the live database; it is only copied/published and validated as a complete snapshot.
+- Generated databases, snapshots, manifests, quarantine files, and runtime artifacts remain under ignored/local paths and are not committed.
+
+### Implementation
+- Added `perception/storage_mirror.py` with local-filesystem enforcement, SQLite `Connection.backup()` snapshots, local integrity checks, checksum verification, atomic Atlas temporary-file publication, manifest diagnostics, Atlas outage tolerance, missing-local restore, and corrupt-local quarantine/restore.
+- Extended `PresenceStore` to schema version 2 with `start_reason`, `end_reason`, `recovered_after_restart`, `end_time_uncertain`, a unique one-open-session index, lifecycle events, restart reconciliation, mirror health, and truthful uncertainty provenance.
+- Updated `PerceptionService` to use the local DB plus Atlas mirror configuration, record lifecycle events, reconcile the first post-start observation, and retain mirror status in bounded summaries.
+- Enhanced `/health` to report DB availability, schema version, mirror state, last successful mirror/checksum, and last persistence/mirror error while all other API endpoints read the local live DB.
+
+### Validation
+- Schema migration v1->v2 and idempotent reopen: **PASSED**.
+- Snapshot integrity/checksum and Atlas publication: **PASSED**.
+- Failed publication preserves prior Atlas snapshot while local writes continue: **PASSED**.
+- Missing local DB restores from Atlas: **PASSED**.
+- Corrupt local DB is preserved under a timestamped quarantine name before Atlas restore: **PASSED**.
+- Restart occupied->occupied preserves one session and emits restart provenance without duplicate start: **PASSED**.
+- Restart occupied->empty closes the same session with `restart_reconciled`, `recovered_after_restart=1`, and `end_time_uncertain=1`: **PASSED**.
+- Restart degraded/offline leaves the open session unresolved and emits no exit: **PASSED**.
+- Clean and abrupt process-level restart/restore scenarios: **PASSED**.
+- Localhost API state/session/history and health readback: **PASSED**.
+- Full regression suite: **PASSED — 52/52** using `/home/sketch/.venvs/sentry-ubuntu/bin/python` with NumPy 2.2.6, OpenCV 4.12.0, and OpenVINO 2026.3.1. System Python was not used for acceptance because it lacks the project runtime dependencies.
+- Raw frames persisted: **NONE**. Continuous Codex/Luna perception calls: **0**.
+
+### Boundary
+- This outcome qualifies the local-SQLite/Atlas-mirror implementation and deterministic restart/API behavior. It does not claim physical camera recovery, detector improvement, unattended service deployment, or M3 identity.
+- Practical M1 remains accepted by explicit owner/operator direction; detector selection remains frozen and no detector qualification was resumed.
+- Recommendation: **M2 durable presence memory is ready for Architect acceptance**, subject to review of the pushed implementation and the explicit local-database/Atlas-snapshot topology.

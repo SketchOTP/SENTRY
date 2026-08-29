@@ -64,7 +64,8 @@ class PerceptionTests(unittest.TestCase):
 
     def test_config_accepts_ignored_presence_database_path(self):
         config = load_config(Path("perception/config.example.json"))
-        self.assertEqual(config["storage"]["database_path"], "perception-data/runtime/sentry.db")
+        self.assertEqual(config["storage"]["database_path"], "~/.local/share/sentry/sentry.db")
+        self.assertEqual(config["storage"]["atlas_mirror_path"], "perception-data/runtime/backups/sentry.db")
         validate_config(config)
 
     def test_config_rejects_non_string_presence_database_path(self):

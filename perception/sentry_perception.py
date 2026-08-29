@@ -732,6 +732,10 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("storage must be an object")
     if storage.get("database_path") is not None and not isinstance(storage.get("database_path"), str):
         raise ValueError("storage.database_path must be a string when provided")
+    if storage.get("atlas_mirror_path") is not None and not isinstance(storage.get("atlas_mirror_path"), str):
+        raise ValueError("storage.atlas_mirror_path must be a string when provided")
+    if float(storage.get("mirror_interval_seconds", 60.0)) <= 0:
+        raise ValueError("storage.mirror_interval_seconds must be positive")
     if int(tracker.get("max_missing_frames", 0)) < 0:
         raise ValueError("tracker.max_missing_frames must be non-negative")
     presence = config.get("presence", {})
@@ -872,7 +876,21 @@ class PerceptionService:
         self.observation_callback = observation_callback
         storage = config.get("storage", {})
         database_path = storage.get("database_path") if isinstance(storage, dict) else None
-        self.presence_store = PresenceStore(database_path) if database_path else None
+        atlas_mirror_path = storage.get("atlas_mirror_path") if isinstance(storage, dict) else None
+        mirror_interval = float(storage.get("mirror_interval_seconds", 60.0)) if isinstance(storage, dict) else 60.0
+        self.presence_store = (
+            PresenceStore(
+                database_path,
+                atlas_mirror_path=atlas_mirror_path,
+                mirror_interval_seconds=mirror_interval,
+            )
+            if database_path
+            else None
+        )
+        if self.presence_store is not None:
+            self.presence_store.start()
+        self._restart_reconciliation_pending = self.presence_store is not None
+        self._last_mirror_status: dict[str, Any] | None = None
         self.last_persistence_error: str | None = None
         self.worker = _CameraWorker(config, self.buffer)
         self._stop = threading.Event()
@@ -884,14 +902,22 @@ class PerceptionService:
         self._stop.set()
         self.worker.stop()
         if self.presence_store is not None:
-            self.presence_store.close()
-            self.presence_store = None
+            try:
+                self.presence_store.stop()
+            finally:
+                self._last_mirror_status = self.presence_store.mirror_status()
+                self.presence_store.close()
+                self.presence_store = None
 
     def _record_observation(self, observation: Observation) -> None:
         if self.presence_store is None:
             return
         try:
-            self.presence_store.record_observation(observation)
+            if self._restart_reconciliation_pending:
+                self.presence_store.reconcile_after_restart(observation)
+                self._restart_reconciliation_pending = False
+            else:
+                self.presence_store.record_observation(observation)
         except Exception as exc:  # pragma: no cover - exercised by filesystem faults
             # A history outage is explicit diagnostic state. It must never
             # turn a missing observation into authoritative empty-room truth.
@@ -1007,6 +1033,7 @@ class PerceptionService:
             "dropped_frames": self.buffer.dropped_frames,
             "codex_luna_calls": 0,
             "persistence_error": self.last_persistence_error,
+            "mirror": self._last_mirror_status,
         }
 
 

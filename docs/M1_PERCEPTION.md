@@ -52,7 +52,7 @@ Metadata-only calibration of fresh empty and one-person candidate records select
 
 ## M2 persistence slice
 
-`perception.presence_store.PresenceStore` records the current office state, state-derived room/session events, and open/completed presence sessions in a versioned SQLite database. The default ignored path is `perception-data/runtime/sentry.db`. The store consumes structured observations only, uses UTC timestamps, supports reopen/restart reads, and stores no raw image or video data. `tools/sentry_state_api.py` exposes localhost-only health, current-state, sessions, and event queries.
+`perception.presence_store.PresenceStore` records the current office state, state-derived room/session events, and open/completed presence sessions in a versioned SQLite database. The active database is configured at a local per-user path (`~/.local/share/sentry/sentry.db` in the example); the Atlas path is a complete snapshot mirror under ignored `perception-data/runtime/backups/`. The store consumes structured observations only, uses UTC timestamps, supports restart reconciliation, and stores no raw image or video data. `tools/sentry_state_api.py` exposes localhost-only health, current-state, sessions, and event queries from the local live database.
 
 ## Evidence boundary
 

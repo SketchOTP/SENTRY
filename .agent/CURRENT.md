@@ -1,6 +1,6 @@
 # Current Project State
 
-Last updated: 2026-08-28T20:30:00-04:00
+Last updated: 2026-08-28T21:30:00-04:00
 
 ## Current stage
 M2 durable presence memory
@@ -9,7 +9,7 @@ M2 durable presence memory
 Qualify restart-aware metadata-only presence persistence and localhost history without relocating Atlas storage.
 
 ## Active directive
-SENTRY-M2-DURABLE-PRESENCE-MEMORY-001 — validate durable sessions, restart reconciliation, API truthfulness, and SQLite topology.
+SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001 — validate local SQLite, Atlas snapshots, restart reconciliation, API truthfulness, and recovery.
 
 ## Owner/operator acceptance — 2026-08-28
 - Practical Ubuntu camera/human-detection behavior is **ACCEPTED BY OWNER/OPERATOR DIRECTION** for V0.1 progression.
@@ -22,18 +22,19 @@ SENTRY-M2-DURABLE-PRESENCE-MEMORY-001 — validate durable sessions, restart rec
 - Original YOLOX Stage A failure: **VERIFIED**.
 - Official YOLOX postprocess correction: **IMPLEMENTED_UNVERIFIED live**.
 - M1 practical presence: **ACCEPTED BY OWNER/OPERATOR**.
-- SQLite persistence, sessions, and localhost API: **IMPLEMENTED / M2 QUALIFICATION IN PROGRESS**.
-- M2 milestone: **ACTIVE; STORAGE TOPOLOGY BLOCKED**.
+- SQLite persistence, sessions, localhost API, and local-to-Atlas snapshot mirroring: **IMPLEMENTED / M2 QUALIFICATION IN PROGRESS**.
+- M2 milestone: **ACTIVE; LOCAL SQLITE + ATLAS MIRROR IMPLEMENTED**.
 
 ## Current qualification boundary
-- Use the active corrected YOLOX-S path at threshold `0.50`, NMS `0.45`, with state timings entry confirmation `1.0s`, entry evidence-gap `1.0s`, and absence grace `15.0s`.
-- Run a fresh operator-confirmed Stage A-D only. Do not tune thresholds/timings, change the detector/tracker, expand M2, or allow qualification data into the durable history database.
-- If the camera is held by an unrelated process, do not terminate it; return **M1 LIVE QUALIFICATION BLOCKED — CAMERA OWNERSHIP**.
+- M1 practical presence is accepted by owner/operator direction; detector selection is frozen at corrected YOLOX-S and no fresh detector/camera qualification is required for this M2 directive.
+- Qualify only metadata-only local SQLite, Atlas snapshot, restart/session, failure-truthfulness, and localhost API behavior. Do not place the live database on the Atlas mount.
+- If local filesystem proof or recovery is unavailable, stop with the precise M2 storage/recovery blocker; do not relocate the project or introduce another database service.
 
-## M2 persistence slice — active, topology blocked
-- `perception.presence_store.PresenceStore` is the metadata-only SQLite store. It applies schema migration 1, records current room state, emits state-derived room/session events, and closes open sessions on `occupied->empty`.
-- `tools/sentry_state_api.py` provides localhost-only `/health`, `/v1/rooms/office/state`, `/v1/rooms/office/sessions`, and `/v1/events` reads. The default database is ignored at `perception-data/runtime/sentry.db`.
-- The implementation is active for deterministic validation. Full M2 acceptance is blocked because `/srv/ATLAS` is an `sshfs`/FUSE network mount and the directive forbids qualifying SQLite across SFTP/FUSE/network storage or silently relocating the database.
+## M2 persistence slice — active, local SQLite plus Atlas mirror
+- `perception.presence_store.PresenceStore` is the metadata-only SQLite store. It applies schema migration 2, records current room state, emits state-derived room/session events, records lifecycle/restart provenance, and closes open sessions on observed or restart-reconciled `occupied->empty`.
+- `perception/storage_mirror.py` guards the active DB to a local filesystem, creates SQLite Online Backup snapshots, validates them, publishes complete snapshots atomically to Atlas, and preserves/quarantines local files during restore.
+- `tools/sentry_state_api.py` provides localhost-only `/health`, `/v1/rooms/office/state`, `/v1/rooms/office/sessions`, and `/v1/events` reads from the local live DB. The example active DB is `~/.local/share/sentry/sentry.db`; Atlas snapshots are ignored under `perception-data/runtime/backups/`.
+- M2 qualification is now testing the resolved topology: `/srv/ATLAS` remains `fuse.sshfs`, but SQLite never opens the Atlas copy as its live database.
 - Raw frames, embeddings, and continuous Codex/Luna calls remain outside this slice.
 
 ## Platform migration status
@@ -78,7 +79,7 @@ SENTRY-M2-DURABLE-PRESENCE-MEMORY-001 — validate durable sessions, restart rec
 - Human-visible Windows Camera preview confirmed one real seated person in the office scene. A 30-second live run produced person records in 238/271 observations (87.8%), but up to 3 simultaneous tracks and IDs 1–14 in a one-person scene. A 90-second run produced up to 6 tracks and 29 unique IDs, materially failing stable office-presence behavior.
 - A synchronized occlusion attempt produced one track with two detector-visible observations followed by bounded predicted misses through miss count 12, but the physical timing/box correspondence was not sufficient to accept controlled dropout continuity.
 - The existing service remained online during a 90-second run. An authorized PnP disable attempt returned `Generic failure`, and a restart attempt returned `Access is denied`; controlled offline/reopen recovery was not executed.
-- M0, the Ubuntu platform foundation, and practical M1 presence are accepted for progression. M2 persistence/sessions/API is active but its SQLite qualification is blocked on the current Atlas `sshfs`/FUSE topology. Identity, broader events, conversational grounding, proactive behavior, and embodiment remain ahead.
+- M0, the Ubuntu platform foundation, and practical M1 presence are accepted for progression. M2 persistence/sessions/API is active on local SQLite with Atlas snapshot mirroring. Identity, broader events, conversational grounding, proactive behavior, and embodiment remain ahead.
 - Architect-authorized FP32 `person-detection-0202` XML/BIN artifacts were downloaded under ignored canonical `perception-data/models/person-detection-0202/FP32/`; both match the Open Model Zoo manifest SHA-384 checksums.
 - The pinned generic `opencv-python-headless==4.12.0.88` failed both `cv2.dnn.readNet` and `cv2.dnn.readNetFromModelOptimizer` with `Backend (plugin) is not available: 'openvino'`. The detector experiment was reverted; no alternate runtime was introduced.
 - Architect has now authorized exactly one additional runtime. Isolated `.venv` installation passed with `openvino==2026.3.1`, `opencv-python-headless==4.12.0.88`, `psutil==7.0.0`, and transitive `numpy==2.2.6` / `openvino-telemetry==2025.2.0`.
@@ -109,12 +110,11 @@ SENTRY-M2-DURABLE-PRESENCE-MEMORY-001 — validate durable sessions, restart rec
 - Stage A of `SENTRY-CONVERGENCE-RTDETR-PRESENCE-STATE-001` failed decisively: during the fresh operator-confirmed-empty run, the RT-DETR path produced 8 positive candidate observations and the authoritative state transitioned `empty->occupied` for approximately 15.8 seconds. Stop at the false-human-evidence boundary; do not request Stage B-D markers or commit RT-DETR as accepted production capability.
 - Fresh Ubuntu room-state qualification has Stage A passed and Stage B stopped after the one authorized retry. The retry produced brief evidence and an occupied transition, then falsely returned to `empty` while the operator remained in frame; classify as `STATE FAILURE — UBUNTU OCCUPIED EVIDENCE INSUFFICIENT`, not an operator-protocol failure. Do not reuse earlier detector-specific markers or per-frame calibration results as this directive's state evidence.
 - Low-light health thresholds are unresolved until labeled dim/insufficient-light evidence is collected; the implementation supports explicit degraded quality but does not invent a luminance cutoff.
-- M1 strict live qualification evidence remains historical and incomplete. The current gate is the corrected YOLOX fresh A-D run; no M2 milestone claim is authorized until that gate passes.
-- The current detector quality is inadequate for ordinary confirmed office presence sensing; the unchanged tracker cannot be evaluated as a separate bottleneck from this failed detector input.
-- A human-confirmed one-person segment was completed; the current OpenVINO detector produced a confirmed quality failure and telemetry-only runs remain non-acceptance evidence.
-- Controlled camera failure/recovery remains blocked pending an authorized physical disconnect/reconnect or administrative device-interruption path.
+- Historical M1 strict live-qualification evidence remains incomplete, but practical M1 is accepted by owner/operator direction and no further detector qualification is required.
+- Historical detector and tracker-quality limitations remain known operational risks; detector selection is frozen on corrected YOLOX-S for V0.1.
+- Controlled camera failure/recovery remains a downstream operational risk and is outside this M2 directive.
 - The original Atlas incident has no proven low-level root cause; no broad storage repair or migration was attempted.
-- RT-DETR remains rejected for this host. The prior 0202 per-frame and Ubuntu occupied-state failures are preserved as historical evidence; the authorized asymmetric reuse test also found no qualifying support threshold. Do not change the tracker, increase absence grace, model-shop, or begin M2.
+- RT-DETR remains rejected for this host. The prior 0202 per-frame and Ubuntu occupied-state failures are preserved as historical evidence; the authorized asymmetric reuse test also found no qualifying support threshold. No detector work is authorized in this M2 directive.
 - Fresh asymmetric calibration stopped after Phase 2: confirmed-empty raw candidates were low-confidence, while the continuously confirmed one-person segment had only 63/1791 observations at or above the fixed `0.40` entry threshold. No support threshold from `0.10` through `0.40` achieved simulated occupied correctness of `>=95%` with a valid bounded exit.
 
 ## Latest recorded evidence

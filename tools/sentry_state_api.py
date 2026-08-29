@@ -28,7 +28,16 @@ class _Handler(BaseHTTPRequestHandler):
         room_id = query.get("room_id", ["office"])[0]
         store: PresenceStore = self.server.store  # type: ignore[attr-defined]
         if parsed.path == "/health":
-            self._send(200, {"ok": True, "service": "sentry-state", "room_id": room_id})
+            health = store.health()
+            self._send(
+                200,
+                {
+                    "ok": bool(health["db_available"]),
+                    "service": "sentry-state",
+                    "room_id": room_id,
+                    **health,
+                },
+            )
         elif parsed.path == "/v1/rooms/office/state":
             state = store.current_state(room_id)
             self._send(200, state.__dict__ if state else {"state": "unknown", "room_id": room_id})
@@ -43,8 +52,14 @@ class _Handler(BaseHTTPRequestHandler):
         return
 
 
-def serve(database_path: Path, host: str = "127.0.0.1", port: int = 48174) -> None:
-    with PresenceStore(database_path) as store:
+def serve(
+    database_path: Path,
+    host: str = "127.0.0.1",
+    port: int = 48174,
+    *,
+    atlas_mirror_path: Path | None = None,
+) -> None:
+    with PresenceStore(database_path, atlas_mirror_path=atlas_mirror_path) as store:
         server = ThreadingHTTPServer((host, port), _Handler)
         server.store = store  # type: ignore[attr-defined]
         try:
@@ -55,13 +70,14 @@ def serve(database_path: Path, host: str = "127.0.0.1", port: int = 48174) -> No
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--database", type=Path, default=Path("perception-data/runtime/sentry.db"))
+    parser.add_argument("--database", type=Path, default=Path("~/.local/share/sentry/sentry.db"))
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=48174)
+    parser.add_argument("--atlas-mirror", type=Path, default=Path("perception-data/runtime/backups/sentry.db"))
     args = parser.parse_args()
     if args.host not in {"127.0.0.1", "localhost", "::1"}:
         parser.error("the state API must remain localhost-only")
-    serve(args.database, args.host, args.port)
+    serve(args.database, args.host, args.port, atlas_mirror_path=args.atlas_mirror)
     return 0
 
 

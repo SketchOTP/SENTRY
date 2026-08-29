@@ -298,3 +298,12 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Storage boundary: first measure the actual DB filesystem. If the DB operates on the Atlas SFTP/FUSE/network mount, return `M2 STORAGE TOPOLOGY BLOCKER`; do not relocate storage, use old pool paths, use mergerfs, or introduce another database service.
 - Exclusions: no detector, tracker, camera, low-light, identity, voice, M3, systemd, Home Assistant, Redis/Postgres, or whole-home work.
 - Source: owner/operator directive `SENTRY-M2-DURABLE-PRESENCE-MEMORY-001` and current SENTRY Notion/Authority records.
+
+## SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001 — Local live SQLite with Atlas snapshots
+- Status: **IMPLEMENTED / VALIDATION IN PROGRESS**
+- Owner/operator/Architect decision: the live SQLite database must operate on a local Ubuntu filesystem; Atlas remains the durable shared mirror through complete SQLite Online Backup snapshots. SQLite must never use the Atlas SSHFS copy as its active database.
+- Objective: qualify snapshot publication, outage tolerance, local recovery, restart/session reconciliation, lifecycle provenance, one-open-session enforcement, and the localhost API.
+- Scope: local database-path guard, schema v2 restart provenance, atomic Atlas snapshot and manifest publication, missing/corrupt-local recovery, deterministic/process-level tests, API health truthfulness, and Authority documentation.
+- Mirror policy: publish after meaningful durable changes and clean lifecycle stop, with a configurable 60-second periodic cadence. A failed Atlas mirror must not stop local perception or local history writes.
+- Exclusions: no detector, tracker, camera, low-light qualification, identity, M3, systemd, Home Assistant, PostgreSQL, Redis, alternate database, storage migration, old pool paths, mergerfs, or raw-frame persistence.
+- Source: Architect directive `SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001`, SQLite backup/topology decision, and current SENTRY Notion/Authority records.

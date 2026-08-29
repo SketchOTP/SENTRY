@@ -31,6 +31,8 @@
     "absence_grace_seconds": 15.0
   },
   "storage": {
-    "database_path": "perception-data/runtime/sentry.db"
+    "database_path": "~/.local/share/sentry/sentry.db",
+    "atlas_mirror_path": "perception-data/runtime/backups/sentry.db",
+    "mirror_interval_seconds": 60
   }
 }
