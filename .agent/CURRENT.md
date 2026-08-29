@@ -3,13 +3,13 @@
 Last updated: 2026-08-29T17:56:00-04:00
 
 ## Current stage
-M4 grounded conversation — qualified within bounded API/Luna evidence
+M5 restrained proactivity — implemented; physical qualification in progress
 
 ## Current objective
-Answer bounded text questions from authoritative localhost SENTRY state/history using one OAuth Codex/Luna turn, with explicit partial/unavailable boundaries; M5 is not active.
+Process one persisted primary-user identity event through deterministic eligibility, bounded Luna judgment, local speech or silence, and durable action provenance; M6 remains gated.
 
 ## Active directive
-SENTRY-M4-GROUNDED-CONVERSATION-001 — localhost retrieval, deterministic fact packets, bounded Luna answers, and grounded regression proof.
+SENTRY-M5-RESTRAINED-PROACTIVITY-001 — persisted-event eligibility, dedupe/cooldown/budget, bounded Luna judgment, local Speech Dispatcher delivery, and qualification evidence.
 
 ## Owner/operator acceptance — 2026-08-28
 - Practical Ubuntu camera/human-detection behavior is **ACCEPTED BY OWNER/OPERATOR DIRECTION** for V0.1 progression.
@@ -29,7 +29,14 @@ SENTRY-M4-GROUNDED-CONVERSATION-001 — localhost retrieval, deterministic fact 
 - M1 practical presence is accepted by owner/operator direction; detector selection is frozen at corrected YOLOX-S and no fresh detector/camera qualification is required.
 - M2 durable memory is accepted with metadata-only local SQLite, Atlas snapshots, restart/session, failure-truthfulness, and localhost API behavior. Do not place the live database on the Atlas mount.
 - M3 live enrollment and bounded identity qualification passed; M4 conversational grounding is now qualified within bounded API/Luna evidence.
-- M4 bounded grounded conversation is implemented and qualified; M5 proactive behavior remains gated pending Architect acceptance.
+- M4 bounded grounded conversation is implemented and qualified; M5 restrained proactivity is implemented and undergoing bounded physical-event qualification. M6 remains gated.
+
+## M5 restrained proactivity — implemented/unverified
+- Schema migration 4 adds metadata-only `proactive_actions` with durable source-event/candidate keys, eligibility/suppression reason, judge, citation, utterance, and delivery provenance.
+- `perception/proactive.py` evaluates only `person.identified` for `primary_user` in the current occupied session. Deterministic failures make zero Luna calls; eligible candidates reserve an action before one bounded `gpt-5.6-luna` judgment.
+- `tools/sentry_proactive.py` processes persisted events; `tools/sentry_m5_live.py` runs an isolated local-DB physical proof with Atlas snapshots. `SpeechDispatcher` uses local `spd-say` with cancellation.
+- Example defaults: TTL 30s, one action per session, 30-minute person cooldown, two delivered actions/hour, 30-second startup suppression, low-effort judge, 20 words/160 characters.
+- Automated M5 policy suite is 12/12. Full Ubuntu regression is 89/89 after schema-4 migration. A bounded real Luna candidate proof returned valid `silent` and persisted it. Two physical harness runs were clean but produced no `person.identified` event; physical event qualification remains unresolved and must not be called a pass.
 
 ## M4 grounded conversation — qualified within bounded evidence
 - `tools/sentry_grounding.py` retrieves `/health`, current room state, sessions, persons, and events from localhost, then allow-lists them into stable fact IDs with an explicit `as_of` timestamp and deterministic derived session/identity/last-empty facts.
@@ -37,7 +44,7 @@ SENTRY-M4-GROUNDED-CONVERSATION-001 — localhost retrieval, deterministic fact 
 - `tools/sentry_state_api.py` remains localhost-only and now accepts bounded history `limit` parameters. The live DB remains `/home/sketch/.local/share/sentry/sentry.db` on local ext4; no SQLite access is routed through Atlas.
 - Deterministic fixtures cover empty, occupied/recognized, occupied/unknown, occupied/unresolved, degraded, offline, completed sessions, and restart-reconciled uncertainty. Full Ubuntu regression is 77/77.
 - Real API/Luna proof completed 13 successful low-effort `gpt-5.6-luna` turns across six core and five adversarial concepts plus two additional current-state checks. The actual DB currently has healthy schema 3/mirror `ok` but no current room observation, sessions, or events, so answers correctly returned partial/unavailable rather than inventing state. A no-server proof invoked Luna 0 times.
-- Raw frames, embeddings, biometric prototypes, and unrestricted DB rows were not sent to Luna. Continuous perception Luna calls remain 0. M4 is qualified within bounded text/API evidence; M5 is not started.
+- Raw frames, embeddings, biometric prototypes, and unrestricted DB rows were not sent to Luna. Continuous perception Luna calls remain 0. M4 is qualified within bounded text/API evidence; M5 implementation is complete but physical qualification is pending.
 
 ## M2 persistence slice — accepted, local SQLite plus Atlas mirror
 - `perception.presence_store.PresenceStore` is the metadata-only SQLite store. It applies schema migration 3, records current room state, emits state-derived room/session events, records lifecycle/restart provenance, and closes open sessions on observed or restart-reconciled `occupied->empty`.

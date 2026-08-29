@@ -31,6 +31,7 @@ from .presence_state import (
 )
 from .presence_store import PresenceStore
 from .identity import IdentityResolver, OpenCVFaceBackend, identity_config_from_mapping
+from .proactive import ProactivePolicyConfig
 
 
 class CameraState(str, Enum):
@@ -804,6 +805,7 @@ def validate_config(config: dict[str, Any]) -> None:
     if not isinstance(presence, dict):
         raise ValueError("presence must be an object")
     PresenceStateConfig.from_mapping(presence)
+    ProactivePolicyConfig.from_mapping(config.get("proactivity"))
 
 
 def load_config(path: Path) -> dict[str, Any]:

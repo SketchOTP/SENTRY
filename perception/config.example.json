@@ -55,5 +55,17 @@
     "database_path": "~/.local/share/sentry/sentry.db",
     "atlas_mirror_path": "perception-data/runtime/backups/sentry.db",
     "mirror_interval_seconds": 60
+  },
+  "proactivity": {
+    "enabled": false,
+    "event_ttl_seconds": 30,
+    "same_session_max_actions": 1,
+    "person_cooldown_minutes": 30,
+    "global_max_spoken_actions_per_hour": 2,
+    "startup_suppression_seconds": 30,
+    "judge_effort": "low",
+    "judge_timeout_seconds": 120,
+    "max_utterance_words": 20,
+    "max_utterance_chars": 160
   }
 }

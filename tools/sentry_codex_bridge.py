@@ -240,6 +240,43 @@ def invoke_grounded_query(
     }
 
 
+def invoke_proactive_judgment(
+    fact_packet: dict[str, Any],
+    *,
+    effort: str = "low",
+    timeout_seconds: int = 120,
+) -> dict[str, Any]:
+    """Ask one bounded Luna turn whether an eligible event merits speech."""
+
+    prompt = (
+        "You are SENTRY's restrained proactive judgment layer. "
+        "Decide whether this already-eligible physical event merits one short utterance. "
+        "Silence is a fully successful outcome. Do not speak merely because an event occurred. "
+        "Do not announce technical perception facts or say 'I detected you'. "
+        "Avoid repetitive greetings. Use only supplied facts; missing context must not be invented. "
+        "If speaking, write one natural sentence of at most 20 words and 160 characters. "
+        "Return only JSON matching the supplied schema and cite only supplied fact_id values. "
+        f"Use model effort {effort}. Fact packet: {json.dumps(fact_packet, ensure_ascii=True, sort_keys=True)}"
+    )
+    result, thread_id, usage, error = _invoke_prompt(
+        prompt,
+        schema_filename="sentry_proactive_response.schema.json",
+        effort=effort,
+        timeout_seconds=timeout_seconds,
+    )
+    if error:
+        code = "codex_timeout" if "timeout" in error else "codex_unavailable" if "not found" in error else "codex_failed"
+        return _error(code, error, effort=effort)
+    return {
+        "ok": True,
+        "model": MODEL,
+        "reasoning_effort": effort,
+        "thread_id": thread_id,
+        "result": result,
+        "usage": usage or {},
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--event-file", type=Path, required=True)

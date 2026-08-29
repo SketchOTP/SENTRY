@@ -910,3 +910,23 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 
 ### Boundary
 - M4 is qualified for bounded text queries grounded in the current localhost API and persisted metadata. Current real history is empty, so historical answers are correctly unavailable until SENTRY records relevant sessions/events. M5 proactive behavior, voice, and richer activity/memory claims remain out of scope and gated.
+
+## OUTCOME-SENTRY-M5-RESTRAINED-PROACTIVITY-001 — Implementation with physical qualification pending
+- Completed: 2026-08-29
+- Verdict: **PARTIAL — M5 IMPLEMENTED / PHYSICAL EVENT UNRESOLVED**
+- Starting SHA: `a46351b02105fcd4c48ca3965d225b9de4d6fada`
+
+### Implementation
+- Schema migration 4 adds `proactive_actions` with source-event uniqueness, semantic candidate/session key, eligibility/suppression reason, Luna decision/citations, utterance, delivery status, and timestamps. Atlas mirroring includes the new metadata-only records through the existing SQLite backup path.
+- `perception/proactive.py` processes only persisted `person.identified` events for `primary_user` in the current occupied office session. Defaults are TTL 30s, one action/session, 30-minute person cooldown, two delivered actions/hour, 30-second startup suppression, low-effort `gpt-5.6-luna`, and 20 words/160 characters.
+- `tools/sentry_proactive.py` provides the bounded processor CLI. `tools/sentry_m5_live.py` provides an isolated local SQLite physical harness with Atlas snapshot mirroring and in-memory profile seeding. `SpeechDispatcher` uses local `spd-say` and cancellation only.
+
+### Validation
+- Focused M5 suite: **12/12 passed**. Full Ubuntu regression: **89/89 passed**. Coverage includes deterministic zero-Luna suppressions, eligible one-call behavior, valid speak/silent decisions, malformed output fail-silent behavior, dedupe, same-session suppression, cooldown, hourly budget, speech busy/failure, restart, Atlas restore, and biometric privacy.
+- Real bounded Luna judge proof: one eligible metadata event invoked one low-effort `gpt-5.6-luna` turn; Luna returned a valid grounded `silent` decision, which was persisted. No continuous perception Luna calls occurred.
+- Local speech delivery proof: `spd-say --wait` succeeded in 2.30s. Active speech cancellation returned true and the worker stopped.
+- Physical harness attempt 1: V4L2/MJPEG/1280x720/15 FPS, 7.935 processed FPS, 392 processed frames, clean mirror; no identity event.
+- Physical harness attempt 2: V4L2/MJPEG/1280x720/15 FPS, 7.783 processed FPS, 385 processed frames, clean mirror; no identity event.
+
+### Boundary
+- Neither physical attempt produced a session or `person.identified` candidate, so the real event-to-proactive path is **UNRESOLVED**, not passed or failed. No detector, identity, or tracker conclusion is drawn. M5 remains implemented-unverified; M6 is still gated.

@@ -292,3 +292,8 @@ When identity inference runs at a bounded cadence, the last identity annotation 
 - A localhost API should be the only M4 retrieval boundary: health first, then a deterministic allow-list of current state, people, sessions, and selected semantic-event metadata.
 - Stable fact IDs plus response validation prevent a model from citing data it never received; `partial`/`unavailable` must remain valid outcomes when the live DB lacks an observation or history.
 - Room-session start and first primary-user identification are separate facts. A grounded assistant may report a lower bound or limitation rather than inventing personal arrival time.
+
+## LEARNING-SENTRY-021 — Proactivity must consume persisted events outside perception
+- M5 is safest when the proactive processor reads committed metadata events through a separate SQLite connection. This preserves zero Luna calls inside continuous perception while still allowing one bounded judge call for an eligible event.
+- Reserve an action before Luna/TTS. The durable reservation prevents a process restart after delivery from redelivering the same source event; final judge/delivery fields then record the outcome.
+- A clean camera run with no `person.identified` event is unresolved physical integration evidence. It must not be converted into detector failure or proactive-policy success; the live event path remains unqualified until a real candidate reaches the processor.

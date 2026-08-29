@@ -25,7 +25,7 @@ from .storage_mirror import (
 )
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def _utc_iso(value: datetime | str) -> str:
@@ -197,6 +197,42 @@ class PresenceStore:
                 self._connection.execute(
                     "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                     (3, datetime.now(timezone.utc).isoformat()),
+                )
+                applied.add(3)
+            if 4 not in applied:
+                self._connection.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS proactive_actions (
+                        action_id TEXT PRIMARY KEY,
+                        source_event_id TEXT NOT NULL UNIQUE,
+                        candidate_key TEXT NOT NULL,
+                        event_type TEXT NOT NULL,
+                        person_id TEXT,
+                        session_id INTEGER,
+                        event_timestamp TEXT NOT NULL,
+                        evaluated_at TEXT NOT NULL,
+                        eligibility_result TEXT NOT NULL CHECK (eligibility_result IN ('eligible', 'suppressed')),
+                        suppression_reason TEXT,
+                        judge_invoked INTEGER NOT NULL DEFAULT 0 CHECK (judge_invoked IN (0, 1)),
+                        judge_model TEXT,
+                        judge_effort TEXT,
+                        judge_decision TEXT CHECK (judge_decision IS NULL OR judge_decision IN ('speak', 'silent')),
+                        cited_fact_ids_json TEXT NOT NULL DEFAULT '[]',
+                        utterance TEXT,
+                        delivery_status TEXT NOT NULL DEFAULT 'not_attempted'
+                            CHECK (delivery_status IN ('not_attempted', 'delivered', 'failed', 'suppressed')),
+                        delivered_at TEXT,
+                        FOREIGN KEY (session_id) REFERENCES presence_sessions(session_id)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_proactive_actions_candidate
+                        ON proactive_actions(candidate_key, evaluated_at);
+                    CREATE INDEX IF NOT EXISTS idx_proactive_actions_person_time
+                        ON proactive_actions(person_id, evaluated_at);
+                    """
+                )
+                self._connection.execute(
+                    "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+                    (4, datetime.now(timezone.utc).isoformat()),
                 )
 
     @staticmethod
@@ -628,3 +664,111 @@ class PresenceStore:
             value["payload"] = json.loads(value.pop("payload_json"))
             values.append(value)
         return values
+
+    def proactive_actions(self, room_id: str = "office", limit: int = 100) -> list[dict[str, Any]]:
+        """Return metadata-only proactive decisions for diagnostics and API-free policy use."""
+
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT a.action_id, a.source_event_id, a.candidate_key, a.event_type, a.person_id, "
+                "a.session_id, a.event_timestamp, a.evaluated_at, a.eligibility_result, a.suppression_reason, "
+                "a.judge_invoked, a.judge_model, a.judge_effort, a.judge_decision, a.cited_fact_ids_json, "
+                "a.utterance, a.delivery_status, a.delivered_at "
+                "FROM proactive_actions a LEFT JOIN events e ON e.event_id = a.source_event_id "
+                "WHERE COALESCE(e.room_id, 'office') = ? ORDER BY a.evaluated_at DESC LIMIT ?",
+                (room_id, limit),
+            ).fetchall()
+        values = []
+        for row in rows:
+            value = dict(row)
+            value["judge_invoked"] = bool(value["judge_invoked"])
+            value["cited_fact_ids"] = json.loads(value.pop("cited_fact_ids_json") or "[]")
+            values.append(value)
+        return values
+
+    def proactive_action_for_event(self, event_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT action_id, source_event_id, candidate_key, event_type, person_id, session_id, "
+                "event_timestamp, evaluated_at, eligibility_result, suppression_reason, judge_invoked, "
+                "judge_model, judge_effort, judge_decision, cited_fact_ids_json, utterance, delivery_status, delivered_at "
+                "FROM proactive_actions WHERE source_event_id = ?", (event_id,)
+            ).fetchone()
+        if row is None:
+            return None
+        value = dict(row)
+        value["judge_invoked"] = bool(value["judge_invoked"])
+        value["cited_fact_ids"] = json.loads(value.pop("cited_fact_ids_json") or "[]")
+        return value
+
+    def proactive_actions_for_candidate(self, candidate_key: str) -> list[dict[str, Any]]:
+        return [item for item in self.proactive_actions(limit=1000) if item["candidate_key"] == candidate_key]
+
+    def claim_proactive_action(
+        self, *, action_id: str, source_event_id: str, candidate_key: str, event_type: str,
+        person_id: str | None, session_id: int | None, event_timestamp: str, evaluated_at: str,
+        eligibility_result: str, suppression_reason: str | None,
+    ) -> bool:
+        """Atomically reserve one event for proactive evaluation.
+
+        Reserving before Luna/TTS prevents a crash after delivery from causing a
+        duplicate utterance after restart.  The reservation itself is a durable
+        decision record and is finalized by ``update_proactive_action``.
+        """
+
+        if eligibility_result not in {"eligible", "suppressed"}:
+            raise ValueError("invalid proactive eligibility result")
+        with self._lock, self._connection:
+            try:
+                self._connection.execute(
+                    "INSERT INTO proactive_actions("
+                    "action_id, source_event_id, candidate_key, event_type, person_id, session_id, "
+                    "event_timestamp, evaluated_at, eligibility_result, suppression_reason, delivery_status"
+                    ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        action_id, source_event_id, candidate_key, event_type, person_id, session_id,
+                        event_timestamp, evaluated_at, eligibility_result, suppression_reason,
+                        "suppressed" if eligibility_result == "suppressed" else "not_attempted",
+                    ),
+                )
+                return True
+            except sqlite3.IntegrityError:
+                return False
+
+    def update_proactive_action(
+        self, action_id: str, *, judge_invoked: bool | None = None, judge_model: str | None = None,
+        judge_effort: str | None = None, judge_decision: str | None = None,
+        cited_fact_ids: list[str] | None = None, utterance: str | None = None,
+        delivery_status: str | None = None, delivered_at: str | None = None,
+        eligibility_result: str | None = None, suppression_reason: str | None = None,
+    ) -> None:
+        updates: list[str] = []
+        values: list[Any] = []
+        fields = {
+            "judge_invoked": (int(bool(judge_invoked)) if judge_invoked is not None else None),
+            "judge_model": judge_model,
+            "judge_effort": judge_effort,
+            "judge_decision": judge_decision,
+            "cited_fact_ids_json": json.dumps(cited_fact_ids, sort_keys=True) if cited_fact_ids is not None else None,
+            "utterance": utterance,
+            "delivery_status": delivery_status,
+            "delivered_at": delivered_at,
+            "eligibility_result": eligibility_result,
+            "suppression_reason": suppression_reason,
+        }
+        for column, value in fields.items():
+            if value is not None:
+                updates.append(f"{column} = ?")
+                values.append(value)
+        if not updates:
+            return
+        values.append(action_id)
+        with self._lock, self._connection:
+            updated = self._connection.execute(
+                f"UPDATE proactive_actions SET {', '.join(updates)} WHERE action_id = ?", values
+            ).rowcount
+        if updated != 1:
+            raise ValueError(f"proactive action not found: {action_id}")
+        self._maybe_mirror(force=True)

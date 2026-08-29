@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "message", "fact_ids", "reason_code"],
+  "properties": {
+    "decision": {"type": "string", "enum": ["speak", "silent"]},
+    "message": {"type": ["string", "null"]},
+    "fact_ids": {"type": "array", "items": {"type": "string"}},
+    "reason_code": {"type": "string", "minLength": 1}
+  }
+}

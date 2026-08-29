@@ -236,6 +236,89 @@ def build_fact_packet(
     return {"as_of": as_of_value, "facts": facts}
 
 
+def build_proactive_fact_packet(
+    store: Any,
+    event: dict[str, Any],
+    policy: dict[str, Any],
+    *,
+    as_of: str | None = None,
+) -> dict[str, Any]:
+    """Build a bounded M5 packet from the same allow-list as M4.
+
+    This deliberately consumes structured store records rather than exposing
+    the SQLite connection or arbitrary event payloads to the reasoning layer.
+    """
+
+    evaluated_at = _parse_time(as_of) if as_of else None
+    if evaluated_at is None:
+        evaluated_at = datetime.now(timezone.utc)
+    state_record = store.current_state(event.get("room_id", "office"))
+    sessions = store.sessions(event.get("room_id", "office"), limit=20)
+    persons = store.persons()
+    events = store.events(event.get("room_id", "office"), limit=100)
+    responses = {
+        "health": {"ok": True, "db_available": True, "schema_version": getattr(store, "health", lambda: {})().get("schema_version")},
+        "state": state_record.__dict__ if state_record else {"room_id": event.get("room_id", "office"), "state": "unknown"},
+        "sessions": {"sessions": sessions},
+        "persons": {"persons": persons},
+        "events": {"events": events},
+    }
+    packet = build_fact_packet(responses, as_of=evaluated_at.isoformat())
+    event_payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+    facts = packet["facts"]
+    facts.append(
+        {
+            "fact_id": "proactive-candidate",
+            "kind": "proactive_candidate",
+            "as_of": evaluated_at.isoformat(),
+            "data": {
+                "event_id": event.get("event_id"),
+                "event_type": event.get("event_type"),
+                "room_id": event.get("room_id", "office"),
+                "session_id": event.get("session_id"),
+                "person_id": event_payload.get("person_id"),
+                "occurred_at": event.get("occurred_at"),
+                "event_age_seconds": max(0.0, (evaluated_at - (_parse_time(event.get("occurred_at")) or evaluated_at)).total_seconds()),
+            },
+        }
+    )
+    facts.append(
+        {
+            "fact_id": "proactive-policy",
+            "kind": "proactive_policy_context",
+            "as_of": evaluated_at.isoformat(),
+            "data": {
+                "candidate_key": policy.get("candidate_key"),
+                "cooldown_active": bool(policy.get("cooldown_active")),
+                "hourly_spoken_count": int(policy.get("hourly_spoken_count", 0)),
+                "hourly_spoken_limit": int(policy.get("hourly_spoken_limit", 0)),
+                "same_session_action_count": int(policy.get("same_session_action_count", 0)),
+                "same_session_action_limit": int(policy.get("same_session_action_limit", 0)),
+            },
+        }
+    )
+    recent_actions = []
+    for action in store.proactive_actions(event.get("room_id", "office"), limit=20):
+        recent_actions.append({
+            key: action.get(key)
+            for key in (
+                "action_id", "source_event_id", "candidate_key", "event_type", "person_id", "session_id",
+                "event_timestamp", "evaluated_at", "eligibility_result", "suppression_reason", "judge_decision",
+                "delivery_status",
+            )
+            if action.get(key) is not None
+        })
+    facts.append(
+        {
+            "fact_id": "recent-proactive-decisions",
+            "kind": "recent_proactive_decisions",
+            "as_of": evaluated_at.isoformat(),
+            "data": {"actions": recent_actions},
+        }
+    )
+    return packet
+
+
 @dataclass(frozen=True)
 class Retrieval:
     query_id: str

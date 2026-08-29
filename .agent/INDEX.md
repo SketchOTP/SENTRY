@@ -7,11 +7,11 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: M4 grounded conversation — qualified within bounded evidence
-- Active directive: `SENTRY-M4-GROUNDED-CONVERSATION-001` — API retrieval, fact packets, bounded Luna responses, and regression proof
+- Current stage: M5 restrained proactivity — implemented, physical qualification in progress
+- Active directive: `SENTRY-M5-RESTRAINED-PROACTIVITY-001` — persisted-event gate, bounded Luna judgment, local speech, and action audit
 - Active task packet: none; M3 implementation is being validated from the directive and current working tree
 - Last accepted outcome: Ubuntu/V4L2 platform baseline verified
-- Latest recorded outcome: M4 grounded conversation qualified within bounded API/Luna evidence; M5 remains gated
+- Latest recorded outcome: M4 grounded conversation qualified within bounded API/Luna evidence; M5 implementation is under qualification
 - Last state sync: 2026-08-29T00:00:00-04:00
 
 ## Mandatory kernel

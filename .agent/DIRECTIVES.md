@@ -329,3 +329,11 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Implemented a health-gated localhost retrieval layer, allow-listed fact packets, one-turn OAuth `gpt-5.6-luna` query CLI, structured response validation, deterministic fixture/adversarial coverage, and real-database proof.
 - The live database was healthy but empty of current observation/history during proof; responses correctly used `partial`/`unavailable`. API failure produced a deterministic unavailable answer without invoking Luna.
 - Full Ubuntu regression: **77/77 passed**. Perception Codex/Luna calls: `0`. M5 proactive behavior remains gated pending Architect acceptance.
+
+## SENTRY-M5-RESTRAINED-PROACTIVITY-001 — Implementation and bounded proof update — 2026-08-29
+- Status: **IMPLEMENTED / PHYSICAL QUALIFICATION PENDING**
+- Scope implemented: schema-4 `proactive_actions`, persisted-event eligibility/dedupe/cooldown/hourly budget/startup/TTL gate, bounded allow-listed M4 fact reuse, one low-effort OAuth `gpt-5.6-luna` judgment for eligible survivors, fail-silent validation, and local `spd-say` delivery/cancellation.
+- Deterministic M5 suite: **12/12 passed**; full Ubuntu regression: **89/89 passed**. Real bounded Luna candidate proof used one call and persisted a valid `silent` decision. Perception remains at zero Luna calls.
+- Speech proof: local `spd-say` completed a bounded message in 2.30s; active speech cancellation returned true and the worker stopped.
+- Physical attempts: two isolated local-DB/V4L2 harness runs completed at 7.935 and 7.783 FPS with clean Atlas mirrors and zero persistence errors, but neither produced a persisted `person.identified` event. No physical-event M5 qualification claim is made; no detector conclusion is drawn.
+- Boundary: commit implementation as **IMPLEMENTED_UNVERIFIED** only; M5 acceptance and M6 remain gated until a real primary-user event reaches the proactive processor.

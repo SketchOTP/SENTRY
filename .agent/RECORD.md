@@ -277,3 +277,17 @@ The implementation passed 77/77 Ubuntu regression tests and deterministic API fi
 
 ### Boundary
 Room occupancy is not conflated with primary-user arrival. Restart-reconciled uncertainty remains explicit. The fact packet contains no raw frames, embeddings, biometric prototype, or unrestricted DB payload. Continuous perception remains at zero Luna calls.
+
+## RECORD-SENTRY-017 — M5 restrained proactivity implemented; physical qualification pending
+- Date: 2026-08-29
+- Type: MILESTONE / IMPLEMENTED-UNVERIFIED / QUALIFICATION PENDING
+- Related directive/outcome: `SENTRY-M5-RESTRAINED-PROACTIVITY-001` / `OUTCOME-SENTRY-M5-RESTRAINED-PROACTIVITY-001`
+
+### Decision / event
+The M5 bounded proactive policy is implemented around persisted `person.identified` events for `primary_user`. It is not yet accepted because two bounded physical harness attempts produced no persisted identity event.
+
+### Evidence
+Schema-4 action logging, deterministic eligibility, dedupe, cooldown, hourly budget, fail-silent Luna validation, local Speech Dispatcher, cancellation, restart/Atlas restore, and privacy tests pass. Focused M5 coverage is 12/12; full Ubuntu regression is 89/89. One real low-effort Luna judge proof returned and persisted `silent`. Two isolated V4L2 runs were clean at 7.935 and 7.783 FPS with zero perception Luna calls, but no physical candidate reached the processor.
+
+### Boundary
+M5 remains `IMPLEMENTED_UNVERIFIED / PHYSICAL EVENT UNRESOLVED`. M6 unattended soak is not active. No detector, identity, tracker, or presence qualification claim is changed.
