@@ -281,3 +281,12 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Objective: Carry the existing `empty/occupied/degraded/offline` state into durable, restart-safe metadata-only presence sessions and queryable local history.
 - Scope: Versioned SQLite store, state-derived room/session events, current-state readback, and localhost-only query API. No identity, raw-frame persistence, proactive behavior, new detector, tracker replacement, or broad M2 framework.
 - Source: Architect/user authorization in the active Codex task, reconciled with the SENTRY Notion goal and `docs/PROJECT_SCOPE.md` M2 deliverables.
+
+## SENTRY-UBUNTU-M1-YOLOX-CORRECTED-LIVE-001 — Corrected YOLOX fresh live qualification
+- Issued: 2026-08-28
+- Status: **ACTIVE / M1 OPEN**
+- Architect correction: the prior `230dafa` M1→M2 transition claim is superseded. Preserve that commit and its useful implementation, but do not treat M1 or M2 as accepted.
+- Required path: corrected official YOLOX winning-class postprocess, threshold `0.50`, NMS `0.45`, unchanged state timings, fresh operator-confirmed Ubuntu Stage A-D.
+- Persistence boundary: disable durable persistence or use an isolated ignored qualification database. Qualification runs must not enter household history.
+- Stop boundaries: camera ownership blocker; Stage A false occupancy/source rejection; precise Stage B/C state-evidence failure; no detector/tracker/timing changes; no M2 expansion.
+- Required status classification: Ubuntu platform **VERIFIED**; original YOLOX Stage A failure **VERIFIED**; postprocess correction **IMPLEMENTED_UNVERIFIED live**; M1 **OPEN / NOT ACCEPTED**; SQLite/session/API **IMPLEMENTED_UNVERIFIED / OUT-OF-SEQUENCE**; M2 **NOT ACCEPTED**.

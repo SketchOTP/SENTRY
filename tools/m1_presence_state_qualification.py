@@ -32,11 +32,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--segment", choices=tuple(MARKERS), required=True)
     parser.add_argument("--duration-seconds", type=float, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--no-persistence",
+        action="store_true",
+        help="disable the configured SQLite store so qualification cannot contaminate durable history",
+    )
     args = parser.parse_args(argv)
     if args.duration_seconds <= 0:
         parser.error("--duration-seconds must be positive")
 
     config = load_config(args.config)
+    if args.no_persistence:
+        config["storage"] = {}
     records: list[dict[str, object]] = []
     marker = MARKERS[args.segment]
 

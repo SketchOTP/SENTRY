@@ -782,3 +782,9 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - The API smoke initially exposed SQLite's default cross-thread guard; the store now uses a serialized connection lock, matching Python's documented requirement when a connection is shared across handler threads.
 - External discovery: Python standard-library `sqlite3` and `http.server` were used; no new dependency was added. The database remains under ignored canonical `perception-data/runtime/` storage.
 - Working tree review: `git diff --check` **PASSED**; raw frames and runtime Codex/Luna calls remain **NONE/0**. This outcome is the implementation handoff for M2 continuation, not full V0.1 acceptance.
+
+## OUTCOME-SENTRY-ARCHITECT-CORRECTION-AND-YOLOX-LIVE-REOPEN — 2026-08-28
+- **Disposition:** prior practical M1 acceptance and M2 milestone transition claims are superseded; `230dafa` is preserved, M1 is reopened, and M2 persistence/API remains implemented-unverified and out-of-sequence.
+- Ubuntu/V4L2 platform is **VERIFIED**. Original YOLOX Stage A failure is **VERIFIED**. Corrected official YOLOX postprocessing is **IMPLEMENTED_UNVERIFIED live**.
+- Active next gate: `SENTRY-UBUNTU-M1-YOLOX-CORRECTED-LIVE-001`, fresh operator-confirmed Stage A-D using threshold `0.50`, NMS `0.45`, and unchanged state timings.
+- No durable history will be written by qualification runs. No detector, tracker, threshold, timing, or M2 implementation changes are authorized.

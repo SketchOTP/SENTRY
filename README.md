@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 ## Current status
 
-**M0 and the Ubuntu camera/perception foundation are accepted for V0.1 progression. Current milestone: M2 presence sessions and persistence.** The practical camera/human-detection behavior is good enough to move forward; remaining detector edge cases and physical recovery are tracked risks, not a reason to reopen detector selection.
+**M0 and the Ubuntu platform foundation are accepted. M1 normal-light presence remains open pending fresh live qualification of the corrected YOLOX-S path.** The SQLite persistence/session/API implementation is preserved as implemented-unverified and out-of-sequence; do not treat it as an accepted M2 milestone.
 
 ## Project links
 
@@ -75,7 +75,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 
 1. **M0 — Bootstrap + DAWN feasibility**: reproduce assistant environment; prove a synthetic `person.entered` event can reach the assistant and optionally produce speech.
 2. **M1 — Camera + human presence**: stable Ubuntu V4L2 capture, person detection, tracking, diagnostics (accepted foundation).
-3. **M2 — Presence sessions + persistence**: temporal hysteresis, entry/exit events, SQLite history/API (active).
+3. **M2 — Presence sessions + persistence**: temporal hysteresis, entry/exit events, SQLite history/API (implemented-unverified; gated on M1 acceptance).
 4. **M3 — Primary-user identity**: local enrollment, conservative recognition, unknown fallback.
 5. **M4 — Conversational grounding**: assistant queries current and historical office state.
 6. **M5 — Proactive arrival behavior**: eligibility gate, dedupe/cooldowns/budget, spoken action audit trail.

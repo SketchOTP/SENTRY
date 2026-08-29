@@ -7,11 +7,11 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: M2 presence sessions and persistence
-- Active directive: Architect authorization to proceed past M1 — freeze practical camera/human detection and implement the smallest durable metadata-only presence history slice
+- Current stage: M1 corrected YOLOX live qualification
+- Active directive: `SENTRY-UBUNTU-M1-YOLOX-CORRECTED-LIVE-001` — fresh A-D physical qualification
 - Active task packet: `.agent/tasks/active/SENTRY-M1-PERCEPTION-001/`
-- Last accepted outcome: M1 practical camera foundation accepted for progression; M2 persistence slice active
-- Latest recorded outcome: M1 practical camera foundation accepted for progression; M2 persistence slice implemented
+- Last accepted outcome: Ubuntu/V4L2 platform baseline verified
+- Latest recorded outcome: persistence/API implementation preserved as implemented-unverified and out-of-sequence; corrected YOLOX live qualification open
 - Last state sync: 2026-08-28T19:05:00-04:00
 
 ## Mandatory kernel
