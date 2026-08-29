@@ -82,7 +82,6 @@ class LocalMirrorTests(unittest.TestCase):
             with PresenceStore(local, atlas_mirror_path=atlas) as store:
                 store.start("2026-08-28T12:00:00+00:00")
                 store.record_observation(observation("empty", "2026-08-28T12:00:01+00:00"))
-                store.stop("2026-08-28T12:00:02+00:00")
                 original = atlas.read_bytes()
                 with patch("perception.storage_mirror.shutil.copyfile", side_effect=OSError("Atlas unavailable")):
                     store.record_observation(
@@ -91,6 +90,9 @@ class LocalMirrorTests(unittest.TestCase):
                 self.assertEqual(store.current_state().state, "occupied")
                 self.assertEqual(atlas.read_bytes(), original)
                 self.assertEqual(store.health()["atlas_mirror"]["status"], "degraded")
+                store.stop("2026-08-28T12:00:04+00:00")
+            self.assertNotEqual(atlas.read_bytes(), original)
+            validate_sqlite_file(atlas)
 
     def test_missing_local_database_restores_from_atlas(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -212,6 +214,47 @@ class LocalMirrorTests(unittest.TestCase):
                     server.shutdown()
                     server.server_close()
                     thread.join(timeout=5)
+
+    def test_localhost_reads_remain_safe_during_local_writes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sentry.db"
+            with PresenceStore(path) as store:
+                store.record_observation(observation("empty", "2026-08-28T12:00:00+00:00"))
+                store.record_observation(
+                    observation("occupied", "2026-08-28T12:00:01+00:00", "empty->occupied")
+                )
+                server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+                server.store = store
+                server_thread = Thread(target=server.serve_forever, daemon=True)
+                server_thread.start()
+                errors: list[Exception] = []
+
+                def write_observations() -> None:
+                    try:
+                        for index in range(20):
+                            store.record_observation(
+                                observation("occupied", f"2026-08-28T12:00:{2 + index:02d}+00:00")
+                            )
+                    except Exception as exc:  # pragma: no cover - assertion below reports any race
+                        errors.append(exc)
+
+                writer = Thread(target=write_observations)
+                writer.start()
+                try:
+                    for _ in range(20):
+                        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+                        connection.request("GET", "/v1/rooms/office/state")
+                        response = connection.getresponse()
+                        self.assertEqual(response.status, 200)
+                        json.loads(response.read())
+                        connection.close()
+                    writer.join(timeout=10)
+                    self.assertFalse(writer.is_alive())
+                    self.assertEqual(errors, [])
+                finally:
+                    server.shutdown()
+                    server.server_close()
+                    server_thread.join(timeout=5)
 
     def test_process_level_clean_abrupt_and_restore_scenarios(self):
         with tempfile.TemporaryDirectory() as directory:

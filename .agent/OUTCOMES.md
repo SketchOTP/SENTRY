@@ -837,3 +837,8 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Practical M1 remains accepted by explicit owner/operator direction; detector selection remains frozen and no detector qualification was resumed.
 - Recommendation: **M2 durable presence memory is ready for Architect acceptance**, subject to review of the pushed implementation and the explicit local-database/Atlas-snapshot topology.
 - GitHub: commit `8c1684014ed91d7317f2f0de060757f7d5e20262` (`feat: qualify local SQLite Atlas mirror persistence`) pushed to `origin/main`.
+
+## OUTCOME-SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001-CORRECTION — 2026-08-28
+- The prior M2 outcome's `52/52` count is superseded by the final post-review regression count of **54/54 PASSED** in the pinned Ubuntu environment.
+- Added and passed explicit coverage for Atlas mirror catch-up after a transient publication failure and concurrent localhost API reads during local SQLite writes.
+- No production behavior, storage topology, detector, or scope changed; this is an evidence/test-record correction.
