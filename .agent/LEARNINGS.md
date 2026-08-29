@@ -297,3 +297,8 @@ When identity inference runs at a bounded cadence, the last identity annotation 
 - M5 is safest when the proactive processor reads committed metadata events through a separate SQLite connection. This preserves zero Luna calls inside continuous perception while still allowing one bounded judge call for an eligible event.
 - Reserve an action before Luna/TTS. The durable reservation prevents a process restart after delivery from redelivering the same source event; final judge/delivery fields then record the outcome.
 - A clean camera run with no `person.identified` event is unresolved physical integration evidence. It must not be converted into detector failure or proactive-policy success; the live event path remains unqualified until a real candidate reaches the processor.
+
+## LEARNING-SENTRY-022 — Physical proactive qualification requires a live empty baseline before entry
+- The physical M5 harness must start perception before operator confirmation. A startup sleep followed by an entry prompt can never establish whether the later event came from a real transition.
+- Require both operator ground truth and persisted state evidence: `CONFIRMED_EMPTY`, online camera, authoritative `empty`, no open session, and a bounded stability interval. Startup suppression must elapse while perception is running, then the harness may prompt `PRIMARY_USER_ENTER_NOW`.
+- A real event may validly result in persisted `judge_silent`; silence is successful restrained behavior. Replay must return `duplicate` with zero additional Luna calls and no second delivery.

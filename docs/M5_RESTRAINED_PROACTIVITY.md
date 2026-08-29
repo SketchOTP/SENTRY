@@ -61,9 +61,13 @@ snapshot:
 /home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_m5_live.py \
   --database /home/sketch/.local/share/sentry/m5-qualification/sentry.db \
   --mirror /srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/m5-qualification/sentry.db \
-  --duration 80 --wait-before 31
+  --duration 150
 ```
 
+Perception starts before any operator prompt. The operator must type
+`CONFIRMED_EMPTY`; the harness then requires a persisted online/empty,
+session-free baseline for a bounded stable interval, waits out startup
+suppression while perception continues, and prints `PRIMARY_USER_ENTER_NOW`.
 The physical event must be produced by the real perception/identity path. The
 separate processor observes committed events, so continuous perception remains
 at zero Luna calls.
@@ -78,6 +82,7 @@ not add cloud TTS, a voice server, a queue, VAD, or barge-in infrastructure.
 
 Automated policy, privacy, restart, dedupe, cooldown, budget, and fail-silent
 tests are required before physical qualification. A physical run must show a
-real persisted `person.identified` event reaching the processor. A missing
-event is unresolved evidence, not a detector verdict. M6 unattended soak
-remains gated until Architect review accepts M5.
+real persisted `person.identified` event reaching the processor. The corrected
+handoff run now establishes that chain and the replay dedupe proof; M5 remains
+bounded to one primary-user event class. M6 unattended soak remains gated
+until Architect review accepts this result.

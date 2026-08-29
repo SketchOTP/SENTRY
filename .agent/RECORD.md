@@ -291,3 +291,17 @@ Schema-4 action logging, deterministic eligibility, dedupe, cooldown, hourly bud
 
 ### Boundary
 M5 remains `IMPLEMENTED_UNVERIFIED / PHYSICAL EVENT UNRESOLVED`. M6 unattended soak is not active. No detector, identity, tracker, or presence qualification claim is changed.
+
+## RECORD-SENTRY-018 — M5 restrained proactivity qualified through physical handoff
+- Date: 2026-08-29
+- Type: MILESTONE / M5 QUALIFIED / M6 GATED
+- Related directive/outcome: `SENTRY-M5-PHYSICAL-HANDOFF-QUALIFICATION-001` / `OUTCOME-SENTRY-M5-PHYSICAL-HANDOFF-QUALIFICATION-001`
+
+### Decision / event
+The corrected operator-gated harness proved one real primary-user physical entry traverses the accepted presence/identity pipeline into the existing restrained proactive processor. The action was grounded and persisted as valid `silent`; M5 is qualified within its one-event bounded scope.
+
+### Evidence
+Perception started before the `CONFIRMED_EMPTY` marker. A persisted empty/online/session-free baseline stabilized for 7 seconds, startup suppression elapsed while perception continued, and `PRIMARY_USER_ENTER_NOW` was issued. The run then persisted occupied/session-start events at `21:54:16.643081Z`, `person.identified` event `1cb6e1b2-749a-4dfe-8a66-0c7bb3390ef3` at `21:54:17.711178Z`, and proactive action `d542857b-9bb2-4831-9ec6-85e1071594fc`.
+
+### Boundary
+The action invoked one low-effort `gpt-5.6-luna` turn and persisted a valid `judge_silent` outcome with no delivery. Replay returned `duplicate` with zero additional Luna calls and one action row. Full regression passed 92/92. M6 72-hour unattended soak remains gated; no new detector or identity claim is made.

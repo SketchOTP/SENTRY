@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 ## Current status
 
-**M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, and M4 grounded conversation are accepted within their recorded evidence boundaries.** M5 restrained proactivity is implemented and under bounded physical qualification. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror.
+**M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, and M5 restrained proactivity are accepted within their recorded evidence boundaries.** Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. M6 unattended soak remains gated.
 
 ## Project links
 
@@ -78,7 +78,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 3. **M2 — Presence sessions + persistence**: temporal hysteresis, entry/exit events, local SQLite history/API, and Atlas snapshot mirroring (accepted).
 4. **M3 — Primary-user identity**: local enrollment, conservative recognition, unknown/unresolved fallback (accepted within bounded evidence).
 5. **M4 — Conversational grounding**: assistant queries current and historical office state.
-6. **M5 — Restrained proactive behavior**: persisted-event eligibility, dedupe/cooldowns/budget, bounded Luna judgment, local speech audit trail (implemented; qualification in progress).
+6. **M5 — Restrained proactive behavior**: persisted-event eligibility, dedupe/cooldowns/budget, bounded Luna judgment, local speech audit trail (qualified within bounded physical-event evidence).
 7. **M6 — Soak + acceptance**: at least 72 hours unattended with documented results.
 
 Only after M6 passes should routine learning or multi-room hardware work begin.

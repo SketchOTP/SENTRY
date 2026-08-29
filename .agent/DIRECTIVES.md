@@ -337,3 +337,11 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Speech proof: local `spd-say` completed a bounded message in 2.30s; active speech cancellation returned true and the worker stopped.
 - Physical attempts: two isolated local-DB/V4L2 harness runs completed at 7.935 and 7.783 FPS with clean Atlas mirrors and zero persistence errors, but neither produced a persisted `person.identified` event. No physical-event M5 qualification claim is made; no detector conclusion is drawn.
 - Boundary: commit implementation as **IMPLEMENTED_UNVERIFIED** only; M5 acceptance and M6 remain gated until a real primary-user event reaches the proactive processor.
+
+## SENTRY-M5-PHYSICAL-HANDOFF-QUALIFICATION-001 — Resolution update — 2026-08-29
+- Status: **QUALIFIED / RETURNED TO ARCHITECT**
+- Scope executed: corrected only the physical harness sequencing and added focused sequencing tests. Production detector, tracker, identity, presence timing, M5 policy, speech, and Luna prompt were unchanged.
+- Physical proof: perception started before `CONFIRMED_EMPTY`; a persisted empty/online/session-free baseline stabilized for 7 seconds; startup suppression elapsed; a real entry produced persisted occupied/session-start and `person.identified` records; the existing M5 processor created one eligible action and one valid low-effort Luna `silent` decision.
+- Replay proof: a fresh processor against the same isolated DB returned `duplicate`, made 0 additional Luna calls, and left one action row.
+- Validation: focused harness/M5 tests 15/15; full Ubuntu regression 92/92; physical performance 8.618 FPS with V4L2/MJPEG/1280x720/15 FPS; continuous perception Luna calls 0; raw frames/embeddings none.
+- Boundary: M5 is qualified within the bounded primary-user/current-session event class. M6 unattended soak remains gated pending Architect review.

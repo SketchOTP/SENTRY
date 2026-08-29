@@ -930,3 +930,27 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 
 ### Boundary
 - Neither physical attempt produced a session or `person.identified` candidate, so the real event-to-proactive path is **UNRESOLVED**, not passed or failed. No detector, identity, or tracker conclusion is drawn. M5 remains implemented-unverified; M6 is still gated.
+
+## OUTCOME-SENTRY-M5-PHYSICAL-HANDOFF-QUALIFICATION-001 — Corrected physical event handoff
+- Completed: 2026-08-29
+- Verdict: **M5 RESTRAINED PROACTIVITY QUALIFIED**
+- Starting SHA: `180711d5f866e1018c4f282060b9c26ed8f48cb7`
+- Retrieval confidence: **ADEQUATE**
+
+### Harness correction
+- `tools/sentry_m5_live.py` now starts `PerceptionService` before requesting operator confirmation, requires a persisted online/empty/session-free baseline for 7 seconds, waits out the 30-second startup suppression while perception remains active, and only then prints `PRIMARY_USER_ENTER_NOW`.
+- Regression coverage proves baseline requirements and source ordering. The initial corrected-harness attempt expired while awaiting operator input and is retained as non-qualifying diagnostic evidence; it did not produce an entry event.
+
+### Physical event chain
+- Fresh isolated DB: `/home/sketch/.local/share/sentry/m5-qualification/handoff-20260829T215316Z.sentry.db`; Atlas snapshot: `/srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/m5-qualification/handoff-20260829T215316Z.sentry.db`.
+- Operator marker `CONFIRMED_EMPTY` was accepted at `2026-08-29T21:53:32.047036Z`; persisted empty/online/session-free baseline completed at `21:53:39.050306Z`. Entry prompt was issued at `21:53:57.362266Z` after startup suppression elapsed.
+- The actual pipeline persisted `room.became_occupied` and `presence.session_started` at `21:54:16.643081Z` for session `1`, then `person.identified` at `21:54:17.711178Z` for `primary_user`, track `1`, confidence `0.6749`. Source event ID: `1cb6e1b2-749a-4dfe-8a66-0c7bb3390ef3`.
+- M5 created action `d542857b-9bb2-4831-9ec6-85e1071594fc` with `eligible`; it invoked exactly one low-effort OAuth `gpt-5.6-luna` turn, cited only `proactive-candidate` and `proactive-policy`, and persisted a valid `silent` / `judge_silent` decision. No speech was delivered because silence is a valid result.
+
+### Validation
+- Physical runtime: 840 captured / 489 processed, `8.618 FPS`, median `102.746 ms`, p95 `120.063 ms`, 350 dropped frames; V4L2/MJPEG/1280x720/15 FPS, camera online, persistence error null, Atlas mirror `ok`.
+- Replay through a new processor against the exact DB returned `duplicate`, produced zero additional Luna calls, left one action row, and produced no second delivery.
+- Focused harness/M5 tests: **15/15 PASSED**. Full Ubuntu regression after the harness correction: **92/92 PASSED**. `py_compile`, `git diff --check`, and privacy review passed. Raw frames and embeddings were not persisted; continuous perception Luna calls remained `0`.
+
+### Boundary
+- M5 is qualified for the bounded `primary_user` / current-session `person.identified` proactive event path. M6 unattended soak remains gated pending Architect review. Historical detector and simultaneous-person limitations remain unchanged.
