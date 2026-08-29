@@ -867,3 +867,26 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - No live enrollment, genuine holdout, consenting non-primary negative segment, threshold calibration, simultaneous-person test, or unattended performance measurement was run. M3 is not accepted from static evidence.
 - Raw frames persisted: **NONE**. Unknown embeddings persisted: **NONE**. Continuous perception Codex/Luna calls: **0**. Model files are ignored and not committed.
 - Recommendation: run explicit enrollment and the required primary/negative identity qualification before Architect acceptance; do not begin M4 yet.
+
+## OUTCOME-SENTRY-M3-LIVE-IDENTITY-QUALIFICATION-001 — 2026-08-29
+- Directive: `SENTRY-M3-LIVE-IDENTITY-QUALIFICATION-001`
+- Verdict: **M3 PRIMARY IDENTITY QUALIFIED — BOUNDED EVIDENCE**
+- Retrieval confidence: **ADEQUATE**
+- Starting implementation commit: `b0d2d55020a31b858acb8b56e80c3d0bd1c01b45`; final record commit follows after regression and review.
+
+### Enrollment and calibration
+- `primary_user` enrolled as `Sketch`: 16 accepted samples; 2 no-face retries rejected. Prototype remains local SQLite/Atlas-mirror data only.
+- Held-out primary scoring: 425 quality-qualified opportunities; min `0.336972`, p05 `0.523064`, median `0.647479`, p95 `0.851604`, max `0.892053`.
+- Consenting non-primary scoring: 210 quality-qualified opportunities; min `0.112480`, p05 `0.164561`, median `0.243036`, p95 `0.332199`, max `0.383385`.
+- Selected threshold: `0.55`, the highest tested value retaining >=80% genuine acceptance. Genuine `377/425` (`88.71%`), negative accepts `0/210`, measured accepted-ID precision `100%`.
+
+### Live evidence
+- Corrected primary segment: 495/495 processed, 8.246 FPS, median 114.942 ms, p95 140.233 ms, 0 read failures, 0 detector errors, first recognition 2.773 s, one stable track, room remained occupied after entry. Identity states: recognized 277, unknown 20, unresolved 198; unresolved represented intermittent face evidence loss and did not alter presence.
+- Non-primary segment: 498/498 processed, 8.291 FPS, median 114.676 ms, p95 137.871 ms, 0 read failures, 0 detector errors, recognized 0, unknown 316, unresolved 182; room remained occupied.
+- RSS during identity-enabled runs was approximately 280 MB start, 452 MB peak, and 442–445 MB end; process CPU was approximately 368–371% of one core. The >=5 FPS floor held.
+- Simultaneous two-person association: **NOT RUN — both consenting people unavailable together**.
+
+### Recovery and privacy
+- Actual enrolled profile survived local DB reopen and Atlas restore with one active `persons` row, one `identity_profiles` row, threshold `0.55`, 16 samples, and unchanged model provenance. Full regression after final correction: **69/69 PASSED**; `py_compile` and `git diff --check` passed.
+- Raw frames persisted: **NONE**. Unknown/query embeddings persisted: **NONE**. Continuous perception Codex/Luna calls: **0**.
+- Recommendation: M3 is qualified for bounded one-primary-user V0.1 operation; keep simultaneous-person identity association as a later limitation and do not begin M4 until Architect accepts this record.

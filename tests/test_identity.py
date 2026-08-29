@@ -20,6 +20,7 @@ from perception.identity import (
 from perception.presence_store import PresenceStore
 from perception.sentry_perception import CameraState, Detection, IoUTracker, PerceptionEngine
 from perception.presence_state import PresenceStateConfig, PresenceStateMachine
+from tools.sentry_identity_evaluate import score_statistics
 from tools.sentry_state_api import _Handler
 
 
@@ -110,6 +111,13 @@ class IdentityTests(unittest.TestCase):
         self.assertAlmostEqual(float(np.linalg.norm(prototype)), 1.0, places=6)
         self.assertAlmostEqual(float(prototype[0]), float(prototype[1]), places=6)
 
+    def test_score_statistics_are_deterministic_metadata(self):
+        result = score_statistics([0.2, 0.4, 0.8, 0.6, 1.0])
+        self.assertEqual(result["count"], 5)
+        self.assertEqual(result["min"], 0.2)
+        self.assertEqual(result["median"], 0.6)
+        self.assertEqual(score_statistics([])["count"], 0)
+
     def test_config_is_explicit_and_validated(self):
         config = identity_config_from_mapping({"enabled": False, "match_threshold": 0.45})
         self.assertEqual(config["confirmation_count"], 3)
@@ -143,6 +151,8 @@ class IdentityTests(unittest.TestCase):
                 profile = store.identity_profile()
                 self.assertEqual(profile["sample_count"], 16)
                 self.assertAlmostEqual(float(np.linalg.norm(profile["prototype"])), 1.0, places=6)
+                store.set_identity_threshold(0.55)
+                self.assertEqual(store.identity_profile()["calibrated_threshold"], 0.55)
                 server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
                 server.store = store
                 thread = Thread(target=server.serve_forever, daemon=True)
@@ -219,6 +229,28 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(observation.room_state, "occupied")
         self.assertEqual(observation.people[0]["identity_state"], "unresolved")
         self.assertIn("face backend unavailable", observation.identity_error)
+
+    def test_identity_annotation_carries_between_bounded_evaluations(self):
+        class FakeDetector:
+            confidence_threshold = 0.8
+
+            def detect(self, image):
+                return [Detection((0, 0, 100, 200), 0.9)]
+
+        class FakeResolver:
+            def resolve(self, image, people, evaluated_at):
+                return [{**people[0], "person_id": "primary_user", "identity_state": "recognized", "identity_confidence": 0.9}]
+
+        engine = PerceptionEngine(
+            FakeDetector(), IoUTracker(new_track_confidence_threshold=0.1),
+            PresenceStateMachine(PresenceStateConfig(entry_confirmation_seconds=0.1)),
+            identity_resolver=FakeResolver(), identity_cadence_seconds=10.0,
+        )
+        engine.process(object(), frame_sequence=1, captured_at=self.when)
+        first_occupied = engine.process(object(), frame_sequence=2, captured_at=self.when + timedelta(seconds=1))
+        carried = engine.process(object(), frame_sequence=3, captured_at=self.when + timedelta(seconds=2))
+        self.assertEqual(first_occupied.people[0]["identity_state"], "recognized")
+        self.assertEqual(carried.people[0]["identity_state"], "recognized")
 
     def test_profile_survives_atlas_snapshot_restore(self):
         with tempfile.TemporaryDirectory() as directory:

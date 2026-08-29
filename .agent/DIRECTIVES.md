@@ -317,3 +317,10 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Current result: static implementation and model-load smoke are target-tested; live enrollment, held-out genuine/negative calibration, live primary/non-primary qualification, and identity restart qualification remain unrun. M3 is not accepted.
 - Exclusions: no M1 reopening, detector/tracker changes, additional enrolled identities, cloud face service, M4 conversation, or continuous Codex/Luna perception calls.
 - Source: Architect directive `SENTRY-M3-PRIMARY-IDENTITY-001`, current Notion SENTRY page, OpenCV Zoo provenance, and accepted M2 persistence architecture.
+
+### Resolution update — 2026-08-29
+- Status: **QUALIFIED WITH BOUNDED EVIDENCE**
+- Enrollment: 16 accepted samples for `primary_user` / `Sketch`; 2 no-face retries rejected.
+- Held-out scoring: 425 genuine opportunities and 210 consenting non-primary opportunities. Selected threshold `0.55`; genuine acceptance 377/425 (`88.71%`), negative accepts 0/210, measured precision 100%.
+- Live verification: primary recognized in 2.773 seconds with 495/495 processed at 8.246 FPS and one stable track; non-primary produced 0 primary-user assignments with 498/498 processed at 8.291 FPS. Identity loss remained unresolved and did not affect presence.
+- Restart/Atlas profile recovery passed. Simultaneous two-person association was not run because both people were unavailable together; this remains a residual limitation.

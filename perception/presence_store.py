@@ -586,6 +586,21 @@ class PresenceStore:
             self._connection.execute("DELETE FROM persons WHERE person_id = ?", (person_id,))
         self._maybe_mirror(force=True)
 
+    def set_identity_threshold(self, threshold: float, person_id: str = "primary_user") -> None:
+        if not 0 <= float(threshold) <= 1:
+            raise ValueError("identity threshold must be between 0 and 1")
+        with self._lock, self._connection:
+            updated = self._connection.execute(
+                "UPDATE identity_profiles SET calibrated_threshold = ? "
+                "WHERE person_id = ? AND EXISTS ("
+                "SELECT 1 FROM persons WHERE persons.person_id = identity_profiles.person_id "
+                "AND enrollment_status = 'active')",
+                (float(threshold), person_id),
+            ).rowcount
+        if updated != 1:
+            raise ValueError(f"active identity profile not found: {person_id}")
+        self._maybe_mirror(force=True)
+
     def sessions(self, room_id: str = "office", limit: int = 100) -> list[dict[str, Any]]:
         if limit <= 0:
             raise ValueError("limit must be positive")

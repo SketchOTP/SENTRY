@@ -1,20 +1,20 @@
 # Current Project State
 
-Last updated: 2026-08-29T00:00:00-04:00
+Last updated: 2026-08-29T12:15:18-04:00
 
 ## Current stage
-M3 primary-user identity
+M3 primary-user identity — qualified within bounded evidence
 
 ## Current objective
-Implement and conservatively qualify one enrolled primary-user identity while preserving truthful unknown/unresolved and room-presence semantics.
+Maintain the qualified one-enrolled-primary-user identity while preserving truthful unknown/unresolved and room-presence semantics; M4 is not started.
 
 ## Active directive
-SENTRY-M3-PRIMARY-IDENTITY-001 — implement explicit local YuNet/SFace enrollment, conservative matching, identity metadata/events, and M2-backed recovery.
+SENTRY-M3-LIVE-IDENTITY-QUALIFICATION-001 — bounded enrollment, threshold calibration, live primary/non-primary verification, and profile recovery.
 
 ## Owner/operator acceptance — 2026-08-28
 - Practical Ubuntu camera/human-detection behavior is **ACCEPTED BY OWNER/OPERATOR DIRECTION** for V0.1 progression.
 - Detector edge cases, low-light boundaries, individual tracking, and physical camera recovery remain documented operational risks; no further detector qualification is required.
-- Detector selection is frozen on corrected YOLOX-S. M2 is accepted; M3 is active.
+- Detector selection is frozen on corrected YOLOX-S. M2 and M3 are accepted within their recorded evidence boundaries.
 
 ## Architect correction — 2026-08-28
 - The prior `230dafa` transition claim is preserved as history. The later explicit owner/operator decision now supersedes the temporary correction that reopened detector qualification; do not rewrite `230dafa`.
@@ -28,7 +28,7 @@ SENTRY-M3-PRIMARY-IDENTITY-001 — implement explicit local YuNet/SFace enrollme
 ## Current qualification boundary
 - M1 practical presence is accepted by owner/operator direction; detector selection is frozen at corrected YOLOX-S and no fresh detector/camera qualification is required.
 - M2 durable memory is accepted with metadata-only local SQLite, Atlas snapshots, restart/session, failure-truthfulness, and localhost API behavior. Do not place the live database on the Atlas mount.
-- M3 identity is the active scope; live enrollment and identity qualification are the remaining gate before M4.
+- M3 live enrollment and bounded identity qualification passed; M4 conversational grounding remains the next gated scope.
 
 ## M2 persistence slice — accepted, local SQLite plus Atlas mirror
 - `perception.presence_store.PresenceStore` is the metadata-only SQLite store. It applies schema migration 3, records current room state, emits state-derived room/session events, records lifecycle/restart provenance, and closes open sessions on observed or restart-reconciled `occupied->empty`.
@@ -37,13 +37,15 @@ SENTRY-M3-PRIMARY-IDENTITY-001 — implement explicit local YuNet/SFace enrollme
 - M2 qualification is now testing the resolved topology: `/srv/ATLAS` remains `fuse.sshfs`, but SQLite never opens the Atlas copy as its live database.
 - Raw frames, embeddings, and continuous Codex/Luna calls remain outside this slice.
 
-## M3 identity slice — active, local-only biometric profile
+## M3 identity slice — qualified within bounded evidence, local-only biometric profile
 - `perception/identity.py` loads exact OpenCV Zoo YuNet/SFace models, verifies SHA-256, performs face quality gating, unique face-to-existing-track association, SFace cosine matching, and three-observation temporal confirmation.
 - `tools/sentry_enroll_identity.py` deliberately captures 16 accepted samples by default, discards frames and individual embeddings after in-memory feature extraction, and stores only a normalized prototype through `PresenceStore`. `tools/sentry_identity_admin.py delete` explicitly removes the active profile.
 - SQLite schema version 3 adds `persons`, `identity_profiles`, and metadata-only current people. Prototypes are local DB data included only in validated Atlas snapshots; they are not exposed by API/events/logs and are not committed.
 - `/v1/persons` returns enrolled metadata only. Current room state may expose track identity annotations, never embeddings. Identity errors do not alter room state.
 - Exact model provenance and checksums are documented in `docs/M3_IDENTITY.md`; model artifacts are ignored under canonical `perception-data/models/opencv-zoo/`.
-- M3 live enrollment, held-out genuine/negative evaluation, threshold calibration, and acceptance remain unrun; the current implementation is **IMPLEMENTED_UNVERIFIED**.
+- Enrollment accepted 16 samples for `primary_user` / `Sketch`; two attempts were rejected because no face was detected. Held-out genuine scoring produced 425 quality-qualified opportunities; the consenting non-primary segment produced 210. Threshold `0.55` yielded 377/425 (`88.71%`) genuine acceptance, 0/210 negative accepts, and 100% measured accepted-ID precision.
+- Corrected live primary verification processed 495/495 frames at 8.246 FPS, recognized within 2.773 seconds, and used one stable track. Live non-primary verification processed 498/498 frames at 8.291 FPS with zero primary-user assignments. Identity loss remained unresolved and did not affect room state.
+- Local DB reopen and Atlas restore preserved the profile, threshold, model provenance, and one-person/one-profile invariant. Simultaneous two-person association was not run because both people were not available together; this is a residual limitation. M3 is **QUALIFIED WITH BOUNDED EVIDENCE**.
 
 ## Platform migration status
 - Ubuntu 24.04.4 LTS / Linux 7.0.0-30-generic / x86_64 is now authoritative for future V0.1 work. The canonical project remains `/srv/ATLAS/100_ACTIVE/Projects/SENTRY` on the Atlas share; the Ubuntu desktop currently reaches that exact checkout through its authenticated user SFTP mount.
@@ -57,7 +59,7 @@ SENTRY-M3-PRIMARY-IDENTITY-001 — implement explicit local YuNet/SFace enrollme
 - The asymmetric-evidence diagnostic path exposes positive 0202 candidates from the same single inference, but production semantics remain unchanged at entry/hold threshold `0.40` because calibration found no qualifying lower support threshold.
 - Official YOLOX-S integration is the frozen practical V0.1 backend by owner/operator direction: upstream tag `0.3.0` commit `419778480ab6ec0590e5d3831b3afb3b46ab2aa3`, official model-zoo checkpoint `0.1.1rc0/yolox_s.pth`, official ONNX-to-OpenVINO conversion, 640x640 input, 8400x85 output, COCO person filtering, upstream letterbox/grid decode, and NMS `0.45`. Local model artifacts remain ignored. Historical live edge cases remain an operational risk; no further detector qualification is authorized.
 - Ubuntu platform migration commit `e9977aa` (`chore: rebaseline SENTRY on Ubuntu`) is pushed to `origin/main`; the canonical checkout is clean after the push.
-- M2 local-SQLite/Atlas-mirror implementation and qualification evidence are pushed as `8c1684014ed91d7317f2f0de060757f7d5e20262` (`feat: qualify local SQLite Atlas mirror persistence`). Full regression is 54/54 in `/home/sketch/.venvs/sentry-ubuntu/bin/python`, including concurrent localhost reads during local writes; deterministic/process-level M2 tests are green. Awaiting Architect acceptance of M2.
+- M2 local-SQLite/Atlas-mirror implementation and qualification evidence are pushed as `8c1684014ed91d7317f2f0de060757f7d5e20262` (`feat: qualify local SQLite Atlas mirror persistence`). Full regression was 54/54 in the pinned Ubuntu environment, including concurrent localhost reads during local writes; M2 is accepted.
 
 ## Latest YOLOX-S qualification result (historical evidence)
 - Metadata-only labeled calibration used the existing YOLOX-S candidate records and selected `0.50` as the highest tested state-qualified threshold. Empty-state simulation qualified at `0.50`; the one-person simulation reached `99.0585%` authoritative occupied correctness with approximately `1.124s` simulated entry latency and no false-empty transition.
@@ -88,7 +90,7 @@ SENTRY-M3-PRIMARY-IDENTITY-001 — implement explicit local YuNet/SFace enrollme
 - Human-visible Windows Camera preview confirmed one real seated person in the office scene. A 30-second live run produced person records in 238/271 observations (87.8%), but up to 3 simultaneous tracks and IDs 1–14 in a one-person scene. A 90-second run produced up to 6 tracks and 29 unique IDs, materially failing stable office-presence behavior.
 - A synchronized occlusion attempt produced one track with two detector-visible observations followed by bounded predicted misses through miss count 12, but the physical timing/box correspondence was not sufficient to accept controlled dropout continuity.
 - The existing service remained online during a 90-second run. An authorized PnP disable attempt returned `Generic failure`, and a restart attempt returned `Access is denied`; controlled offline/reopen recovery was not executed.
-- M0, the Ubuntu platform foundation, practical M1 presence, and M2 durable memory are accepted. M2 uses local SQLite with Atlas snapshot mirroring. M3 identity is active; conversational grounding, proactive behavior, and embodiment remain ahead.
+- M0, the Ubuntu platform foundation, practical M1 presence, M2 durable memory, and bounded M3 primary-user identity are accepted. M2 uses local SQLite with Atlas snapshot mirroring. M4 conversational grounding, proactive behavior, and embodiment remain ahead.
 - Architect-authorized FP32 `person-detection-0202` XML/BIN artifacts were downloaded under ignored canonical `perception-data/models/person-detection-0202/FP32/`; both match the Open Model Zoo manifest SHA-384 checksums.
 - The pinned generic `opencv-python-headless==4.12.0.88` failed both `cv2.dnn.readNet` and `cv2.dnn.readNetFromModelOptimizer` with `Backend (plugin) is not available: 'openvino'`. The detector experiment was reverted; no alternate runtime was introduced.
 - Architect has now authorized exactly one additional runtime. Isolated `.venv` installation passed with `openvino==2026.3.1`, `opencv-python-headless==4.12.0.88`, `psutil==7.0.0`, and transitive `numpy==2.2.6` / `openvino-telemetry==2025.2.0`.

@@ -69,6 +69,18 @@ To explicitly remove the active profile:
 python tools/sentry_identity_admin.py delete
 ```
 
+The held-out and live qualification runners write metadata-only JSON under
+ignored `perception-data/runtime/identity-qualification/` when explicitly
+invoked:
+
+```text
+python tools/sentry_identity_evaluate.py genuine --duration 60 --output perception-data/runtime/identity-qualification/genuine.json
+python tools/sentry_identity_evaluate.py negative --consent-confirmed --duration 60 --output perception-data/runtime/identity-qualification/negative.json
+python tools/sentry_identity_live_verify.py primary --duration 60 --output perception-data/runtime/identity-qualification/live-primary.json
+```
+
+The negative and live non-primary commands require explicit operator consent.
+
 The profile is stored in schema version 3 of the local SQLite database and is
 included only in SQLite-consistent Atlas snapshots. Its metadata records the
 YuNet and SFace model hashes together as the profile provenance. API persons
@@ -79,8 +91,37 @@ Codex/Luna.
 ## Qualification boundary
 
 Static model loading and deterministic identity contracts are regression
-evidence. M3 is not qualified until the owner/operator supplies a fresh
-high-quality primary-user holdout and a consenting non-primary negative
-segment. The required decision is conservative: at least 98% accepted-ID
+evidence. M3 qualification requires deliberate enrollment, a fresh
+high-quality primary-user holdout, and a consenting non-primary negative
+segment. The conservative decision target is at least 98% accepted-ID
 precision and at least 80% high-quality genuine recognition, with no false
-primary-user assignment in the controlled negative segment.
+primary-user assignment in the controlled negative segment. Those bounded
+criteria passed on 2026-08-29; the simultaneous-person association test remains
+unrun.
+
+## Qualification result — 2026-08-29
+
+Deliberate enrollment accepted 16 samples for `primary_user` / `Sketch`; two
+additional attempts were rejected because YuNet found no face. The normalized
+prototype is stored in local SQLite schema version 3 and mirrored through the
+existing Atlas snapshot path.
+
+Held-out metadata-only scoring produced 425 quality-qualified primary-user
+opportunities and 210 quality-qualified consenting non-primary opportunities.
+At cosine threshold `0.55`, primary-user acceptance was 377/425 (`88.71%`),
+non-primary accepted matches were `0/210`, and measured accepted-ID precision
+was `100%`. Threshold `0.55` was the highest tested threshold retaining at
+least 80% genuine acceptance.
+
+The corrected live primary segment processed 495/495 frames at 8.246 FPS,
+recognized the primary user within 2.773 seconds, and retained one track. The
+live non-primary segment processed 498/498 frames at 8.291 FPS and produced
+zero `primary_user` assignments. Both segments retained room occupancy
+normally; identity did not control presence. Intermittent face loss remained
+`unresolved`.
+
+Local DB reopen and Atlas profile restore passed with one active person/profile
+row and no re-enrollment. The simultaneous two-person test was not run because
+both people were not available together; this remains a residual limitation
+for later multi-person work. M3 primary identity is qualified within this
+bounded evidence.

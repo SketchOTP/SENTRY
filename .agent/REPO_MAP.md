@@ -15,6 +15,7 @@ Last verified against: `main` and working-tree inspection on 2026-08-29.
 - `perception/config.example.json` — configurable camera, detector, and tracker settings.
 - `tests/test_sentry_perception.py` — deterministic M1 contract tests.
 - `tools/sentry_codex_bridge.py` — bounded one-event OAuth Codex/Luna adapter; no background worker or persistence.
+- `tools/sentry_identity_evaluate.py` and `tools/sentry_identity_live_verify.py` — metadata-only held-out and live identity qualification runners; no frames or embeddings are written.
 - `tools/sentry_codex_response.schema.json` — structured output contract for the bounded bridge.
 - `tools/sentry_codex_bridge.py` — one bounded OAuth/Luna event adapter; runtime calls execute from a temporary non-repository cwd and copy the schema to an absolute local path.
 

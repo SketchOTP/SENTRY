@@ -280,3 +280,11 @@ Enrollment frames and individual query embeddings are transient. Only one normal
 
 ### Recheck trigger
 Require a fresh deliberate enrollment, high-quality primary-user holdout, consenting non-primary negative segment, threshold calibration, and restart/Atlas recovery proof before calling M3 qualified.
+
+## LEARNING-SENTRY-019 — Carry identity annotations across bounded cadence only for the same visible track
+- Date: 2026-08-29
+- Evidence source: corrected live primary verification and 69-test regression
+- Confidence: VERIFIED IMPLEMENTATION
+
+### Learning
+When identity inference runs at a bounded cadence, the last identity annotation must be carried only to the same currently visible track between evaluations. Dropping it on intervening frames creates false unresolved flicker; transferring it to a new or ambiguous track would create false identity continuity. The correction preserved room-state independence and improved the live primary run to first recognition in 2.773 seconds.

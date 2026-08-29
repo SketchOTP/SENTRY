@@ -31,7 +31,7 @@
 - Do not treat the suggested repository shape in the project scope as permission to create unneeded empty runtime modules.
 
 ## Safety / operational constraints
-- M1 practical presence is accepted by explicit owner/operator direction; detector edge cases, low-light boundaries, and physical camera recovery remain known operational risks. M2 durable presence memory is accepted, using a local metadata-only SQLite database, integrity-checked Atlas snapshots, and a localhost read API. The Atlas mount is `fuse.sshfs`; SQLite never opens the Atlas copy as the live database. M3 primary-user identity is active but implemented-unverified; conversational grounding and proactive behavior remain gated. Windows/DirectShow evidence is historical.
+- M1 practical presence is accepted by explicit owner/operator direction; detector edge cases, low-light boundaries, and physical camera recovery remain known operational risks. M2 durable presence memory is accepted, using a local metadata-only SQLite database, integrity-checked Atlas snapshots, and a localhost read API. The Atlas mount is `fuse.sshfs`; SQLite never opens the Atlas copy as the live database. M3 primary-user identity is qualified within bounded evidence; simultaneous-person association remains a residual limitation and conversational grounding remains gated. Windows/DirectShow evidence is historical.
 - Preserve private recordings, enrollment images, biometric profiles, secrets, generated databases, caches, and large model weights outside Git.
 - Do not expose local state beyond localhost without deliberate authorization and appropriate authentication.
 - Do not silently derive from or fork DAWN, upload continuous video, add hardware, or expand to whole-home scope.

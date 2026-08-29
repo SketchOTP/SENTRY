@@ -627,6 +627,7 @@ class PerceptionEngine:
         self.identity_resolver = identity_resolver
         self.identity_cadence_seconds = identity_cadence_seconds
         self._last_identity_at: datetime | None = None
+        self._identity_annotations: dict[int, dict[str, Any]] = {}
 
     def update_room_state(
         self,
@@ -685,18 +686,54 @@ class PerceptionEngine:
             support_evidence=support_evidence,
         )
         identity_error = None
-        if (
+        identity_due = (
             self.identity_resolver is not None
             and room_state.state != RoomState.EMPTY
             and people
             and (self._last_identity_at is None or (captured_at - self._last_identity_at).total_seconds() >= self.identity_cadence_seconds)
-        ):
+        )
+        if identity_due:
             try:
                 people = self.identity_resolver.resolve(image, people, captured_at)
                 self._last_identity_at = captured_at
+                self._identity_annotations = {
+                    int(person["track_id"]): {
+                        key: value
+                        for key, value in person.items()
+                        if key in {"person_id", "identity_state", "identity_confidence", "face_quality"}
+                    }
+                    for person in people
+                    if person.get("track_id") is not None and person.get("visible", True)
+                }
             except Exception as exc:
                 identity_error = f"{type(exc).__name__}: {exc}"
                 people = self.identity_resolver._unresolved(people)
+                self._identity_annotations = {
+                    int(person["track_id"]): {
+                        "person_id": None,
+                        "identity_state": "unresolved",
+                        "identity_confidence": None,
+                    }
+                    for person in people
+                    if person.get("track_id") is not None and person.get("visible", True)
+                }
+        elif self.identity_resolver is not None and people:
+            carried: list[dict[str, Any]] = []
+            for person in people:
+                annotation = self._identity_annotations.get(int(person["track_id"])) if person.get("track_id") is not None else None
+                carried.append({**person, **(annotation or {"person_id": None, "identity_state": "unresolved", "identity_confidence": None})})
+            people = carried
+        if self.identity_resolver is not None:
+            active_track_ids = {
+                int(person["track_id"])
+                for person in people
+                if person.get("track_id") is not None and person.get("visible", True)
+            }
+            self._identity_annotations = {
+                track_id: annotation
+                for track_id, annotation in self._identity_annotations.items()
+                if track_id in active_track_ids
+            }
         return Observation(
             camera_state=CameraState.ONLINE,
             captured_at=captured_at.astimezone(timezone.utc).isoformat(),

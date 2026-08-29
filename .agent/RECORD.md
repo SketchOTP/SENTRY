@@ -250,3 +250,17 @@ The exact MIT YuNet and Apache-2.0 SFace artifacts were verified and loaded thro
 
 ### Boundary
 M3 remains `IMPLEMENTED_UNVERIFIED` until deliberate enrollment, held-out primary-user evaluation, consenting non-primary negative evidence, threshold calibration, and live restart/Atlas identity recovery are completed. Identity uncertainty cannot change authoritative room presence.
+
+## RECORD-SENTRY-015 — M3 primary identity qualified within bounded evidence
+- Date: 2026-08-29
+- Type: MILESTONE / M3 QUALIFIED / RESIDUAL LIMITATION
+- Related directive: `SENTRY-M3-PRIMARY-IDENTITY-001`
+
+### Decision / event
+M3 primary-user identity is qualified for the one-enrolled-user V0.1 boundary. The calibrated profile is `primary_user` / `Sketch` at cosine threshold `0.55`; simultaneous two-person association was not run because both consenting people were unavailable together.
+
+### Evidence
+Sixteen enrollment samples were accepted, with two no-face retries rejected. Held-out metadata-only scoring yielded 377/425 (`88.71%`) genuine acceptance and 0/210 non-primary accepts, for 100% measured accepted-ID precision. Live primary recognition occurred within 2.773 seconds at 8.246 FPS; the live non-primary segment produced zero primary-user assignments at 8.291 FPS. Local reopen and Atlas restore preserved the single profile and threshold.
+
+### Boundary
+Identity remains an annotation on presence. Face loss remains `unresolved`, non-match remains `unknown`, and neither can create departure or alter room state. No raw frames or query embeddings were persisted; continuous perception Luna/Codex calls remained zero.

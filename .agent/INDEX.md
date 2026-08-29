@@ -7,11 +7,11 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: M3 primary-user identity
-- Active directive: `SENTRY-M3-PRIMARY-IDENTITY-001` — local YuNet/SFace enrollment and conservative identity annotation
+- Current stage: M3 primary-user identity — qualified
+- Active directive: `SENTRY-M3-LIVE-IDENTITY-QUALIFICATION-001` — bounded enrollment, calibration, live verification, and profile recovery
 - Active task packet: none; M3 implementation is being validated from the directive and current working tree
 - Last accepted outcome: Ubuntu/V4L2 platform baseline verified
-- Latest recorded outcome: M3 identity implementation is target-tested; live enrollment/negative identity qualification remains pending
+- Latest recorded outcome: M3 identity qualified within bounded live evidence; simultaneous-person association remains a residual limitation
 - Last state sync: 2026-08-29T00:00:00-04:00
 
 ## Mandatory kernel

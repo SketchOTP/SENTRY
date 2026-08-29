@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 ## Current status
 
-**M0, practical M1 presence, and M2 durable presence memory are accepted. M3 primary-user identity is active.** Historical detector edge cases remain documented operational risk. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror.
+**M0, practical M1 presence, M2 durable presence memory, and M3 primary-user identity are accepted.** Historical detector edge cases remain documented operational risk. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror.
 
 ## Project links
 
@@ -76,7 +76,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 1. **M0 — Bootstrap + DAWN feasibility**: reproduce assistant environment; prove a synthetic `person.entered` event can reach the assistant and optionally produce speech.
 2. **M1 — Camera + human presence**: stable Ubuntu V4L2 capture, person detection, tracking, diagnostics (accepted foundation).
 3. **M2 — Presence sessions + persistence**: temporal hysteresis, entry/exit events, local SQLite history/API, and Atlas snapshot mirroring (accepted).
-4. **M3 — Primary-user identity**: local enrollment, conservative recognition, unknown/unresolved fallback (active).
+4. **M3 — Primary-user identity**: local enrollment, conservative recognition, unknown/unresolved fallback (accepted within bounded evidence).
 5. **M4 — Conversational grounding**: assistant queries current and historical office state.
 6. **M5 — Proactive arrival behavior**: eligibility gate, dedupe/cooldowns/budget, spoken action audit trail.
 7. **M6 — Soak + acceptance**: at least 72 hours unattended with documented results.
