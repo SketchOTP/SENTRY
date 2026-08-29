@@ -1,4 +1,4 @@
-"""Small localhost-only read API for the SENTRY M2 history slice."""
+"""Small localhost-only read API for SENTRY state, history, and identity metadata."""
 
 from __future__ import annotations
 
@@ -43,6 +43,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(200, state.__dict__ if state else {"state": "unknown", "room_id": room_id})
         elif parsed.path == "/v1/rooms/office/sessions":
             self._send(200, {"sessions": store.sessions(room_id)})
+        elif parsed.path == "/v1/persons":
+            self._send(200, {"persons": store.persons()})
         elif parsed.path == "/v1/events":
             self._send(200, {"events": store.events(room_id)})
         else:

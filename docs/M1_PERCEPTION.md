@@ -54,9 +54,11 @@ Metadata-only calibration of fresh empty and one-person candidate records select
 
 `perception.presence_store.PresenceStore` records the current office state, state-derived room/session events, and open/completed presence sessions in a versioned SQLite database. The active database is configured at a local per-user path (`~/.local/share/sentry/sentry.db` in the example); the Atlas path is a complete snapshot mirror under ignored `perception-data/runtime/backups/`. The store consumes structured observations only, uses UTC timestamps, supports restart reconciliation, and stores no raw image or video data. `tools/sentry_state_api.py` exposes localhost-only health, current-state, sessions, and event queries from the local live database.
 
+M3 identity is documented in [`docs/M3_IDENTITY.md`](M3_IDENTITY.md). It adds optional, explicitly enabled OpenCV Zoo YuNet/SFace annotation at a bounded cadence. Face evidence is associated only with existing person tracks; identity loss is `unresolved` and never changes room presence.
+
 ## Evidence boundary
 
-Automated tracker/configuration/contract tests can establish deterministic behavior. M1 acceptance additionally requires fresh live Ubuntu evidence from the actual office webcam, including visible-person detection, multiple people, short dropout, recovery, useful processed FPS, latency, resource measurements, and a ten-minute run. If the device cannot be opened, the live portion is `BLOCKED/NOT RUN`; synthetic frames must not be substituted for that claim. Historical Windows evidence remains labeled as such and is not reused for Ubuntu acceptance.
+Automated tracker/configuration/contract tests establish deterministic behavior. The owner/operator accepted practical M1 presence for V0.1 progression; historical strict live-gate limitations remain recorded as operational risk and are not reopened by M3. Historical Windows evidence remains labeled as such and is not reused for new Linux claims.
 
 ## External sources reviewed
 

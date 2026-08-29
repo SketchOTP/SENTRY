@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 ## Current status
 
-**M0 and practical M1 presence are accepted by owner/operator direction. M2 durable presence memory is active.** Historical detector edge cases remain documented operational risk. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror.
+**M0, practical M1 presence, and M2 durable presence memory are accepted. M3 primary-user identity is active.** Historical detector edge cases remain documented operational risk. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror.
 
 ## Project links
 
@@ -53,7 +53,7 @@ SENTRY must be able to:
 
 ## M1 implementation
 
-The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](docs/M1_PERCEPTION.md). It uses a bounded latest-frame buffer, the current locally hosted YOLOX-S detector through OpenVINO, a replaceable two-stage IoU tracker, and a timestamp-based `empty`/`occupied`/`degraded`/`offline` state aggregator. Structured metadata is now recorded by the first M2 SQLite history slice; raw frames remain local-only and are never persisted. Identity, conversational grounding, and proactive behavior remain later milestones.
+The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](docs/M1_PERCEPTION.md). It uses a bounded latest-frame buffer, the current locally hosted YOLOX-S detector through OpenVINO, a replaceable two-stage IoU tracker, and a timestamp-based `empty`/`occupied`/`degraded`/`offline` state aggregator. Structured metadata is recorded by the M2 SQLite history slice; M3 adds conservative YuNet/SFace identity annotations. Raw frames and biometric prototypes remain local-only and are never source-controlled.
 
 ## Explicitly out of V0.1
 
@@ -75,8 +75,8 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 
 1. **M0 — Bootstrap + DAWN feasibility**: reproduce assistant environment; prove a synthetic `person.entered` event can reach the assistant and optionally produce speech.
 2. **M1 — Camera + human presence**: stable Ubuntu V4L2 capture, person detection, tracking, diagnostics (accepted foundation).
-3. **M2 — Presence sessions + persistence**: temporal hysteresis, entry/exit events, local SQLite history/API, and Atlas snapshot mirroring (active).
-4. **M3 — Primary-user identity**: local enrollment, conservative recognition, unknown fallback.
+3. **M2 — Presence sessions + persistence**: temporal hysteresis, entry/exit events, local SQLite history/API, and Atlas snapshot mirroring (accepted).
+4. **M3 — Primary-user identity**: local enrollment, conservative recognition, unknown/unresolved fallback (active).
 5. **M4 — Conversational grounding**: assistant queries current and historical office state.
 6. **M5 — Proactive arrival behavior**: eligibility gate, dedupe/cooldowns/budget, spoken action audit trail.
 7. **M6 — Soak + acceptance**: at least 72 hours unattended with documented results.

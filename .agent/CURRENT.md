@@ -1,20 +1,20 @@
 # Current Project State
 
-Last updated: 2026-08-28T22:30:00-04:00
+Last updated: 2026-08-29T00:00:00-04:00
 
 ## Current stage
-M2 durable presence memory
+M3 primary-user identity
 
 ## Current objective
-Qualify restart-aware metadata-only presence persistence and localhost history without relocating Atlas storage.
+Implement and conservatively qualify one enrolled primary-user identity while preserving truthful unknown/unresolved and room-presence semantics.
 
 ## Active directive
-SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001 — validate local SQLite, Atlas snapshots, restart reconciliation, API truthfulness, and recovery.
+SENTRY-M3-PRIMARY-IDENTITY-001 — implement explicit local YuNet/SFace enrollment, conservative matching, identity metadata/events, and M2-backed recovery.
 
 ## Owner/operator acceptance — 2026-08-28
 - Practical Ubuntu camera/human-detection behavior is **ACCEPTED BY OWNER/OPERATOR DIRECTION** for V0.1 progression.
 - Detector edge cases, low-light boundaries, individual tracking, and physical camera recovery remain documented operational risks; no further detector qualification is required.
-- Detector selection is frozen on corrected YOLOX-S. M2 is active.
+- Detector selection is frozen on corrected YOLOX-S. M2 is accepted; M3 is active.
 
 ## Architect correction — 2026-08-28
 - The prior `230dafa` transition claim is preserved as history. The later explicit owner/operator decision now supersedes the temporary correction that reopened detector qualification; do not rewrite `230dafa`.
@@ -22,20 +22,28 @@ SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001 — validate local SQLite, Atlas snapsho
 - Original YOLOX Stage A failure: **VERIFIED**.
 - Official YOLOX postprocess correction: **IMPLEMENTED_UNVERIFIED live**.
 - M1 practical presence: **ACCEPTED BY OWNER/OPERATOR**.
-- SQLite persistence, sessions, localhost API, and local-to-Atlas snapshot mirroring: **IMPLEMENTED / QUALIFICATION EVIDENCE PASSED; AWAITING ARCHITECT ACCEPTANCE**.
-- M2 milestone: **ACTIVE; LOCAL SQLITE + ATLAS MIRROR IMPLEMENTED**.
+- SQLite persistence, sessions, localhost API, and local-to-Atlas snapshot mirroring: **ACCEPTED**.
+- M2 milestone: **ACCEPTED; LOCAL SQLITE + ATLAS MIRROR**.
 
 ## Current qualification boundary
-- M1 practical presence is accepted by owner/operator direction; detector selection is frozen at corrected YOLOX-S and no fresh detector/camera qualification is required for this M2 directive.
-- Qualify only metadata-only local SQLite, Atlas snapshot, restart/session, failure-truthfulness, and localhost API behavior. Do not place the live database on the Atlas mount.
-- If local filesystem proof or recovery is unavailable, stop with the precise M2 storage/recovery blocker; do not relocate the project or introduce another database service.
+- M1 practical presence is accepted by owner/operator direction; detector selection is frozen at corrected YOLOX-S and no fresh detector/camera qualification is required.
+- M2 durable memory is accepted with metadata-only local SQLite, Atlas snapshots, restart/session, failure-truthfulness, and localhost API behavior. Do not place the live database on the Atlas mount.
+- M3 identity is the active scope; live enrollment and identity qualification are the remaining gate before M4.
 
-## M2 persistence slice — active, local SQLite plus Atlas mirror
-- `perception.presence_store.PresenceStore` is the metadata-only SQLite store. It applies schema migration 2, records current room state, emits state-derived room/session events, records lifecycle/restart provenance, and closes open sessions on observed or restart-reconciled `occupied->empty`.
+## M2 persistence slice — accepted, local SQLite plus Atlas mirror
+- `perception.presence_store.PresenceStore` is the metadata-only SQLite store. It applies schema migration 3, records current room state, emits state-derived room/session events, records lifecycle/restart provenance, and closes open sessions on observed or restart-reconciled `occupied->empty`.
 - `perception/storage_mirror.py` guards the active DB to a local filesystem, creates SQLite Online Backup snapshots, validates them, publishes complete snapshots atomically to Atlas, and preserves/quarantines local files during restore.
 - `tools/sentry_state_api.py` provides localhost-only `/health`, `/v1/rooms/office/state`, `/v1/rooms/office/sessions`, and `/v1/events` reads from the local live DB. The example active DB is `~/.local/share/sentry/sentry.db`; Atlas snapshots are ignored under `perception-data/runtime/backups/`.
 - M2 qualification is now testing the resolved topology: `/srv/ATLAS` remains `fuse.sshfs`, but SQLite never opens the Atlas copy as its live database.
 - Raw frames, embeddings, and continuous Codex/Luna calls remain outside this slice.
+
+## M3 identity slice — active, local-only biometric profile
+- `perception/identity.py` loads exact OpenCV Zoo YuNet/SFace models, verifies SHA-256, performs face quality gating, unique face-to-existing-track association, SFace cosine matching, and three-observation temporal confirmation.
+- `tools/sentry_enroll_identity.py` deliberately captures 16 accepted samples by default, discards frames and individual embeddings after in-memory feature extraction, and stores only a normalized prototype through `PresenceStore`. `tools/sentry_identity_admin.py delete` explicitly removes the active profile.
+- SQLite schema version 3 adds `persons`, `identity_profiles`, and metadata-only current people. Prototypes are local DB data included only in validated Atlas snapshots; they are not exposed by API/events/logs and are not committed.
+- `/v1/persons` returns enrolled metadata only. Current room state may expose track identity annotations, never embeddings. Identity errors do not alter room state.
+- Exact model provenance and checksums are documented in `docs/M3_IDENTITY.md`; model artifacts are ignored under canonical `perception-data/models/opencv-zoo/`.
+- M3 live enrollment, held-out genuine/negative evaluation, threshold calibration, and acceptance remain unrun; the current implementation is **IMPLEMENTED_UNVERIFIED**.
 
 ## Platform migration status
 - Ubuntu 24.04.4 LTS / Linux 7.0.0-30-generic / x86_64 is now authoritative for future V0.1 work. The canonical project remains `/srv/ATLAS/100_ACTIVE/Projects/SENTRY` on the Atlas share; the Ubuntu desktop currently reaches that exact checkout through its authenticated user SFTP mount.
@@ -80,7 +88,7 @@ SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001 — validate local SQLite, Atlas snapsho
 - Human-visible Windows Camera preview confirmed one real seated person in the office scene. A 30-second live run produced person records in 238/271 observations (87.8%), but up to 3 simultaneous tracks and IDs 1–14 in a one-person scene. A 90-second run produced up to 6 tracks and 29 unique IDs, materially failing stable office-presence behavior.
 - A synchronized occlusion attempt produced one track with two detector-visible observations followed by bounded predicted misses through miss count 12, but the physical timing/box correspondence was not sufficient to accept controlled dropout continuity.
 - The existing service remained online during a 90-second run. An authorized PnP disable attempt returned `Generic failure`, and a restart attempt returned `Access is denied`; controlled offline/reopen recovery was not executed.
-- M0, the Ubuntu platform foundation, and practical M1 presence are accepted for progression. M2 persistence/sessions/API is active on local SQLite with Atlas snapshot mirroring. Identity, broader events, conversational grounding, proactive behavior, and embodiment remain ahead.
+- M0, the Ubuntu platform foundation, practical M1 presence, and M2 durable memory are accepted. M2 uses local SQLite with Atlas snapshot mirroring. M3 identity is active; conversational grounding, proactive behavior, and embodiment remain ahead.
 - Architect-authorized FP32 `person-detection-0202` XML/BIN artifacts were downloaded under ignored canonical `perception-data/models/person-detection-0202/FP32/`; both match the Open Model Zoo manifest SHA-384 checksums.
 - The pinned generic `opencv-python-headless==4.12.0.88` failed both `cv2.dnn.readNet` and `cv2.dnn.readNetFromModelOptimizer` with `Backend (plugin) is not available: 'openvino'`. The detector experiment was reverted; no alternate runtime was introduced.
 - Architect has now authorized exactly one additional runtime. Isolated `.venv` installation passed with `openvino==2026.3.1`, `opencv-python-headless==4.12.0.88`, `psutil==7.0.0`, and transitive `numpy==2.2.6` / `openvino-telemetry==2025.2.0`.

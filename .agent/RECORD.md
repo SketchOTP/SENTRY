@@ -236,3 +236,17 @@ The raw confirmed-one-person run contained 1,474 positive-confidence rows, inclu
 
 ### Consequence
 The decoder bug is confirmed, but 0303 remains unsuitable for the tested office scene. Tracker qualification, dropout, soak, and camera recovery remain gated. The next detector decision must come from the Architect.
+
+## RECORD-SENTRY-014 — M3 primary-user identity implementation activated
+- Date: 2026-08-29
+- Type: MILESTONE / IMPLEMENTATION-UNVERIFIED / M3 ACTIVE
+- Related directive/outcome: `SENTRY-M3-PRIMARY-IDENTITY-001` / `OUTCOME-SENTRY-M3-PRIMARY-IDENTITY-001`
+
+### Decision / event
+M2 durable presence memory is accepted. M3 is active with OpenCV Zoo YuNet plus SFace as the authorized local identity backend. M1 presence and the YOLOX-S detector remain frozen; no detector requalification was reopened.
+
+### Evidence
+The exact MIT YuNet and Apache-2.0 SFace artifacts were verified and loaded through OpenCV 4.12. Schema version 3 stores one active local identity prototype, `/v1/persons` exposes metadata only, and identity annotations are bounded, track-associated, and conservative. The deterministic/full regression suite passes 65/65.
+
+### Boundary
+M3 remains `IMPLEMENTED_UNVERIFIED` until deliberate enrollment, held-out primary-user evaluation, consenting non-primary negative evidence, threshold calibration, and live restart/Atlas identity recovery are completed. Identity uncertainty cannot change authoritative room presence.

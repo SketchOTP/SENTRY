@@ -12,7 +12,7 @@ import json
 import sqlite3
 import threading
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -25,7 +25,7 @@ from .storage_mirror import (
 )
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def _utc_iso(value: datetime | str) -> str:
@@ -43,6 +43,7 @@ class RoomStateRecord:
     updated_at: str
     camera_state: str | None
     person_count: int
+    people: list[dict[str, Any]] = field(default_factory=list)
 
 
 class PresenceStore:
@@ -164,6 +165,39 @@ class PresenceStore:
                     "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                     (2, datetime.now(timezone.utc).isoformat()),
                 )
+            if 3 not in applied:
+                columns = {row[1] for row in self._connection.execute("PRAGMA table_info(room_state)")}
+                if "people_json" not in columns:
+                    self._connection.execute(
+                        "ALTER TABLE room_state ADD COLUMN people_json TEXT NOT NULL DEFAULT '[]'"
+                    )
+                self._connection.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS persons (
+                        person_id TEXT PRIMARY KEY,
+                        display_name TEXT NOT NULL,
+                        enrollment_status TEXT NOT NULL CHECK (enrollment_status IN ('active', 'removed')),
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS identity_profiles (
+                        person_id TEXT PRIMARY KEY,
+                        backend TEXT NOT NULL,
+                        model_version TEXT NOT NULL,
+                        model_checksum TEXT NOT NULL,
+                        prototype BLOB NOT NULL,
+                        embedding_dim INTEGER NOT NULL,
+                        calibrated_threshold REAL NOT NULL,
+                        sample_count INTEGER NOT NULL,
+                        created_at TEXT NOT NULL,
+                        FOREIGN KEY (person_id) REFERENCES persons(person_id) ON DELETE CASCADE
+                    );
+                    """
+                )
+                self._connection.execute(
+                    "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+                    (3, datetime.now(timezone.utc).isoformat()),
+                )
 
     @staticmethod
     def _observation_value(observation: Any, name: str, default: Any = None) -> Any:
@@ -189,6 +223,7 @@ class PresenceStore:
         people = self._observation_value(observation, "people", []) or []
         transition = self._observation_value(observation, "room_state_transition")
         confidence = self._observation_value(observation, "max_person_confidence")
+        people_payload = self._people_payload(people)
         payload = {
             "frame_sequence": self._observation_value(observation, "frame_sequence"),
             "detector_evidence": bool(self._observation_value(observation, "detector_evidence", False)),
@@ -202,12 +237,12 @@ class PresenceStore:
             ).fetchone()
             previous_state = previous[0] if previous else None
             self._connection.execute(
-                "INSERT INTO room_state(room_id, state, updated_at, camera_state, person_count) "
-                "VALUES (?, ?, ?, ?, ?) "
+                "INSERT INTO room_state(room_id, state, updated_at, camera_state, person_count, people_json) "
+                "VALUES (?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(room_id) DO UPDATE SET state=excluded.state, "
                 "updated_at=excluded.updated_at, camera_state=excluded.camera_state, "
-                "person_count=excluded.person_count",
-                (room_id, state_value, occurred_at, camera_state, payload["people_visible"]),
+                "person_count=excluded.person_count, people_json=excluded.people_json",
+                (room_id, state_value, occurred_at, camera_state, payload["people_visible"], json.dumps(people_payload, sort_keys=True)),
             )
             if transition and transition != f"{previous_state}->{state_value}":
                 # A transition from a fresh process may be supplied by the
@@ -256,6 +291,7 @@ class PresenceStore:
             }:
                 self._insert_event("room.camera_online", occurred_at, room_id, None, confidence, payload)
                 mirror_required = True
+            self._record_identity_events(people_payload, room_id, occurred_at, confidence)
         self._maybe_mirror(force=mirror_required)
 
     def start(self, started_at: datetime | str | None = None) -> None:
@@ -350,6 +386,47 @@ class PresenceStore:
             "people_visible": sum(1 for person in people if person.get("visible", True)),
         }
 
+    @staticmethod
+    def _people_payload(people: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Allow-list track/identity metadata; never persist pixels or embeddings."""
+
+        allowed = {
+            "track_id", "bbox", "confidence", "visible", "missed_frames",
+            "person_id", "identity_state", "identity_confidence", "face_quality",
+        }
+        return [{key: value for key, value in person.items() if key in allowed} for person in people]
+
+    def _record_identity_events(
+        self, people: list[dict[str, Any]], room_id: str, occurred_at: str, confidence: float | None
+    ) -> None:
+        for person in people:
+            if person.get("identity_state") != "recognized" or not person.get("person_id"):
+                continue
+            session = self._connection.execute(
+                "SELECT session_id FROM presence_sessions WHERE room_id = ? AND status = 'open' "
+                "ORDER BY session_id DESC LIMIT 1", (room_id,)
+            ).fetchone()
+            session_id = session[0] if session else None
+            duplicate = self._connection.execute(
+                "SELECT 1 FROM events WHERE event_type = 'person.identified' AND room_id = ? "
+                "AND COALESCE(session_id, -1) = COALESCE(?, -1) "
+                "AND json_extract(payload_json, '$.track_id') = ? "
+                "AND json_extract(payload_json, '$.person_id') = ? LIMIT 1",
+                (room_id, session_id, person.get("track_id"), str(person["person_id"])),
+            ).fetchone()
+            if duplicate:
+                continue
+            self._insert_event(
+                "person.identified", occurred_at, room_id, session_id,
+                person.get("identity_confidence", confidence),
+                {
+                    "track_id": person.get("track_id"),
+                    "person_id": person["person_id"],
+                    "identity_state": "recognized",
+                    "identity_confidence": person.get("identity_confidence"),
+                },
+            )
+
     def _upsert_room_state(self, observation: Any, room_id: str) -> None:
         state_value = self._observation_value(observation, "room_state", RoomState.EMPTY)
         state_value = str(getattr(state_value, "value", state_value))
@@ -357,11 +434,12 @@ class PresenceStore:
         camera_state = self._observation_value(observation, "camera_state")
         camera_state = str(getattr(camera_state, "value", camera_state)) if camera_state is not None else None
         payload = self._observation_payload(observation)
+        people = self._observation_value(observation, "people", []) or []
         self._connection.execute(
-            "INSERT INTO room_state(room_id, state, updated_at, camera_state, person_count) VALUES (?, ?, ?, ?, ?) "
+            "INSERT INTO room_state(room_id, state, updated_at, camera_state, person_count, people_json) VALUES (?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(room_id) DO UPDATE SET state=excluded.state, updated_at=excluded.updated_at, "
-            "camera_state=excluded.camera_state, person_count=excluded.person_count",
-            (room_id, state_value, occurred_at, camera_state, payload["people_visible"]),
+            "camera_state=excluded.camera_state, person_count=excluded.person_count, people_json=excluded.people_json",
+            (room_id, state_value, occurred_at, camera_state, payload["people_visible"], json.dumps(self._people_payload(people), sort_keys=True)),
         )
 
     def _maybe_mirror(self, *, force: bool = False) -> None:
@@ -427,10 +505,86 @@ class PresenceStore:
     def current_state(self, room_id: str = "office") -> RoomStateRecord | None:
         with self._lock:
             row = self._connection.execute(
-                "SELECT room_id, state, updated_at, camera_state, person_count FROM room_state WHERE room_id = ?",
+                "SELECT room_id, state, updated_at, camera_state, person_count, people_json FROM room_state WHERE room_id = ?",
                 (room_id,),
             ).fetchone()
-        return RoomStateRecord(**dict(row)) if row else None
+        if not row:
+            return None
+        value = dict(row)
+        value["people"] = json.loads(value.pop("people_json") or "[]")
+        return RoomStateRecord(**value)
+
+    def persons(self) -> list[dict[str, Any]]:
+        """Return enrolled metadata without biometric prototype bytes."""
+
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT person_id, display_name, enrollment_status, created_at, updated_at "
+                "FROM persons WHERE enrollment_status = 'active' ORDER BY person_id"
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def identity_profile(self, person_id: str = "primary_user") -> dict[str, Any] | None:
+        """Load a profile for in-memory matching; it is never an API/event field."""
+
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT p.person_id, p.display_name, i.backend, i.model_version, i.model_checksum, "
+                "i.prototype, i.embedding_dim, i.calibrated_threshold, i.sample_count, i.created_at "
+                "FROM persons p JOIN identity_profiles i ON i.person_id = p.person_id "
+                "WHERE p.person_id = ? AND p.enrollment_status = 'active'", (person_id,)
+            ).fetchone()
+        if not row:
+            return None
+        import numpy as np
+        value = dict(row)
+        prototype = np.frombuffer(value.pop("prototype"), dtype=np.float32).copy()
+        if prototype.size != int(value["embedding_dim"]):
+            raise RuntimeError("stored identity prototype dimension mismatch")
+        value["prototype"] = prototype
+        return value
+
+    def enroll_identity(
+        self, *, person_id: str, display_name: str, backend: str, model_version: str,
+        model_checksum: str, prototype: Any, calibrated_threshold: float,
+        sample_count: int, created_at: datetime | str | None = None,
+    ) -> None:
+        import numpy as np
+        values = np.asarray(prototype, dtype=np.float32).reshape(-1)
+        if not person_id or not display_name or not backend or not model_version or not model_checksum:
+            raise ValueError("identity profile metadata is required")
+        if values.size == 0 or not np.all(np.isfinite(values)) or sample_count <= 0:
+            raise ValueError("identity prototype and sample_count are invalid")
+        norm = float(np.linalg.norm(values))
+        if norm <= 0:
+            raise ValueError("identity prototype and sample_count are invalid")
+        values = (values / norm).astype(np.float32)
+        if not 0 <= float(calibrated_threshold) <= 1:
+            raise ValueError("identity threshold must be between 0 and 1")
+        timestamp = _utc_iso(created_at or datetime.now(timezone.utc))
+        with self._lock, self._connection:
+            other = self._connection.execute(
+                "SELECT person_id FROM persons WHERE person_id != ? AND enrollment_status = 'active' LIMIT 1", (person_id,)
+            ).fetchone()
+            if other:
+                raise ValueError("V0.1 supports exactly one active enrolled identity")
+            self._connection.execute(
+                "INSERT INTO persons(person_id, display_name, enrollment_status, created_at, updated_at) VALUES (?, ?, 'active', ?, ?) "
+                "ON CONFLICT(person_id) DO UPDATE SET display_name=excluded.display_name, enrollment_status='active', updated_at=excluded.updated_at",
+                (person_id, display_name, timestamp, timestamp),
+            )
+            self._connection.execute("DELETE FROM identity_profiles WHERE person_id = ?", (person_id,))
+            self._connection.execute(
+                "INSERT INTO identity_profiles(person_id, backend, model_version, model_checksum, prototype, embedding_dim, calibrated_threshold, sample_count, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (person_id, backend, model_version, model_checksum, sqlite3.Binary(values.tobytes()), int(values.size), float(calibrated_threshold), int(sample_count), timestamp),
+            )
+        self._maybe_mirror(force=True)
+
+    def delete_identity(self, person_id: str = "primary_user") -> None:
+        with self._lock, self._connection:
+            self._connection.execute("DELETE FROM persons WHERE person_id = ?", (person_id,))
+        self._maybe_mirror(force=True)
 
     def sessions(self, room_id: str = "office", limit: int = 100) -> list[dict[str, Any]]:
         if limit <= 0:

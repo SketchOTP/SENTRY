@@ -266,3 +266,17 @@ The NexiGo N60 is stable through `/dev/v4l/by-id/`, OpenCV 4.12.0.88 exposes V4L
 
 ### Safety boundary
 Telemetry-only smoke is not occupancy ground truth. Fresh Ubuntu operator markers are required before M1 acceptance; no Windows marker may be reused. Camera failure/recovery remains a later physical test, and no raw frames, identity, persistence, sessions, API, voice implementation, or M2 behavior were introduced.
+
+## LEARNING-SENTRY-018 — Identity must annotate presence, never replace it
+- Date: 2026-08-29
+- Evidence source: `SENTRY-M3-PRIMARY-IDENTITY-001`; OpenCV Zoo model loading and 67-test Ubuntu regression
+- Confidence: VERIFIED IMPLEMENTATION
+
+### Learning
+YuNet/SFace identity is safest as a bounded annotation on an existing person track. No face, poor quality, clipped face, ambiguous association, or model failure produces `unresolved`; a usable non-match produces `unknown`; only a temporally confirmed enrolled match produces `recognized`. None of those outcomes changes the authoritative room state.
+
+### Privacy boundary
+Enrollment frames and individual query embeddings are transient. Only one normalized enrolled prototype is stored in local SQLite schema version 3 and included in the existing validated Atlas snapshot path. API responses and semantic event payloads expose identity metadata but never prototype bytes.
+
+### Recheck trigger
+Require a fresh deliberate enrollment, high-quality primary-user holdout, consenting non-primary negative segment, threshold calibration, and restart/Atlas recovery proof before calling M3 qualified.

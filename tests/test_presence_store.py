@@ -32,7 +32,7 @@ class PresenceStoreTests(unittest.TestCase):
                 store.record_observation(observation("empty", "2026-08-28T12:00:00+00:00"))
                 state = store.current_state()
                 self.assertEqual(state.state, "empty")
-                self.assertEqual(store._connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0], 2)
+                self.assertEqual(store._connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0], 3)
             with PresenceStore(path) as reopened:
                 self.assertEqual(reopened.current_state().state, "empty")
 

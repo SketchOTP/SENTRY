@@ -307,3 +307,13 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Mirror policy: publish after meaningful durable changes and clean lifecycle stop, with a configurable 60-second periodic cadence. A failed Atlas mirror must not stop local perception or local history writes.
 - Exclusions: no detector, tracker, camera, low-light qualification, identity, M3, systemd, Home Assistant, PostgreSQL, Redis, alternate database, storage migration, old pool paths, mergerfs, or raw-frame persistence.
 - Source: Architect directive `SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001`, SQLite backup/topology decision, and current SENTRY Notion/Authority records.
+
+## SENTRY-M3-PRIMARY-IDENTITY-001 — Conservative primary-user identity
+- Issued: 2026-08-29
+- Status: **IMPLEMENTED / LIVE QUALIFICATION PENDING**
+- Objective: add one deliberately enrolled local `primary_user` using OpenCV Zoo YuNet + SFace, with `recognized`, `unknown`, and `unresolved` identity outcomes that never control room presence.
+- Scope: provenance-verified ignored model artifacts, transient face processing, quality and person-track association gates, conservative temporal cosine matching, M2-backed biometric profile storage, deduplicated metadata-only identity events, enrollment/admin tools, `/v1/persons`, and regression tests.
+- Privacy boundary: no raw frames, individual embeddings, unknown embeddings, or biometric prototypes enter Git, Notion, logs, events, or Codex/Luna; the active normalized prototype is local SQLite data mirrored only through the qualified Atlas snapshot path.
+- Current result: static implementation and model-load smoke are target-tested; live enrollment, held-out genuine/negative calibration, live primary/non-primary qualification, and identity restart qualification remain unrun. M3 is not accepted.
+- Exclusions: no M1 reopening, detector/tracker changes, additional enrolled identities, cloud face service, M4 conversation, or continuous Codex/Luna perception calls.
+- Source: Architect directive `SENTRY-M3-PRIMARY-IDENTITY-001`, current Notion SENTRY page, OpenCV Zoo provenance, and accepted M2 persistence architecture.

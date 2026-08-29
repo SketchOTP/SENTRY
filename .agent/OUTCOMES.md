@@ -842,3 +842,28 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - The prior M2 outcome's `52/52` count is superseded by the final post-review regression count of **54/54 PASSED** in the pinned Ubuntu environment.
 - Added and passed explicit coverage for Atlas mirror catch-up after a transient publication failure and concurrent localhost API reads during local SQLite writes.
 - No production behavior, storage topology, detector, or scope changed; this is an evidence/test-record correction.
+
+## OUTCOME-SENTRY-M3-PRIMARY-IDENTITY-001 — Static identity implementation and provenance gate
+- Date: 2026-08-29
+- Directive: `SENTRY-M3-PRIMARY-IDENTITY-001`
+- Verdict: **PARTIAL — IMPLEMENTED / LIVE QUALIFICATION PENDING**
+- Retrieval confidence: **ADEQUATE** for the accepted M2 baseline, current repository boundaries, OpenCV APIs, model artifacts, and deterministic implementation tests.
+- M2 remains accepted at `0b11695980cea680c5092a34d0049471a541d021`; M3 is now active. M1 practical presence remains accepted by owner/operator direction and detector selection remains frozen.
+
+### Provenance and runtime
+- OpenCV Zoo revision `47534e27c9851bb1128ccc0102f1145e27f23f98` was verified through official repository model directories and licenses. YuNet `face_detection_yunet_2023mar.onnx` is MIT; SFace `face_recognition_sface_2021dec.onnx` is Apache-2.0.
+- Exact artifacts were downloaded from the official GitHub media paths into ignored canonical `perception-data/models/opencv-zoo/`: YuNet size `232589` bytes, SHA-256 `8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4`; SFace size `38696353` bytes, SHA-256 `0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79`.
+- OpenCV 4.12.0 provides `FaceDetectorYN` and `FaceRecognizerSF`; zero-array model smoke loaded both artifacts and produced no face detections.
+
+### Implementation
+- Added `perception/identity.py` for checksum-verified YuNet/SFace loading, face landmarks/quality metadata, unique association to existing tracks, in-memory normalized prototype construction, cosine matching, and three-observation confirmation within two seconds.
+- Extended `PresenceStore` to schema version 3 with `persons`, `identity_profiles`, metadata-only current people, profile replacement/deletion, profile snapshot recovery, and deduplicated `person.identified` events. Embeddings are never in API/events/logs.
+- Integrated optional bounded identity annotation into `PerceptionEngine` and added `/v1/persons`. Identity failures yield `unresolved` and do not change room presence.
+- Added deliberate `tools/sentry_enroll_identity.py` and explicit `tools/sentry_identity_admin.py delete`. Enrollment defaults to 16 accepted samples and never persists frames or individual embeddings.
+
+### Validation and boundary
+- Focused identity tests: **13/13 PASSED**. Full Ubuntu regression: **67/67 PASSED**. `py_compile` and `git diff --check`: **PASSED**. OpenCV SFace alignment/feature smoke and identity-enabled service construction also passed.
+- Deterministic coverage includes conservative state semantics, unique association, temporal confirmation, prototype normalization, schema/profile persistence, Atlas restore, API metadata-only exposure, deletion, and one-active-profile enforcement. Existing M2 tests were updated for schema v3 and remain passing.
+- No live enrollment, genuine holdout, consenting non-primary negative segment, threshold calibration, simultaneous-person test, or unattended performance measurement was run. M3 is not accepted from static evidence.
+- Raw frames persisted: **NONE**. Unknown embeddings persisted: **NONE**. Continuous perception Codex/Luna calls: **0**. Model files are ignored and not committed.
+- Recommendation: run explicit enrollment and the required primary/negative identity qualification before Architect acceptance; do not begin M4 yet.

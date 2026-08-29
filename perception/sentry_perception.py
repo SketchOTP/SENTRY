@@ -30,6 +30,7 @@ from .presence_state import (
     measure_image_quality,
 )
 from .presence_store import PresenceStore
+from .identity import IdentityResolver, OpenCVFaceBackend, identity_config_from_mapping
 
 
 class CameraState(str, Enum):
@@ -572,6 +573,7 @@ class Observation:
     support_detector_evidence: bool = False
     max_person_confidence: float | None = None
     candidates: list[dict[str, Any]] = field(default_factory=list)
+    identity_error: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -590,6 +592,7 @@ class Observation:
             "support_detector_evidence": self.support_detector_evidence,
             "max_person_confidence": self.max_person_confidence,
             "candidates": self.candidates,
+            "identity_error": self.identity_error,
         }
 
 
@@ -604,6 +607,8 @@ class PerceptionEngine:
         *,
         entry_confidence_threshold: float | None = None,
         hold_confidence_threshold: float | None = None,
+        identity_resolver: IdentityResolver | None = None,
+        identity_cadence_seconds: float = 0.5,
     ) -> None:
         self.detector = detector
         self.tracker = tracker
@@ -617,6 +622,11 @@ class PerceptionEngine:
         )
         if not 0 <= self.hold_confidence_threshold <= self.entry_confidence_threshold <= 1:
             raise ValueError("hold_confidence_threshold must be <= entry_confidence_threshold, both between 0 and 1")
+        if identity_cadence_seconds <= 0:
+            raise ValueError("identity_cadence_seconds must be positive")
+        self.identity_resolver = identity_resolver
+        self.identity_cadence_seconds = identity_cadence_seconds
+        self._last_identity_at: datetime | None = None
 
     def update_room_state(
         self,
@@ -674,6 +684,19 @@ class PerceptionEngine:
             entry_evidence=strong_evidence,
             support_evidence=support_evidence,
         )
+        identity_error = None
+        if (
+            self.identity_resolver is not None
+            and room_state.state != RoomState.EMPTY
+            and people
+            and (self._last_identity_at is None or (captured_at - self._last_identity_at).total_seconds() >= self.identity_cadence_seconds)
+        ):
+            try:
+                people = self.identity_resolver.resolve(image, people, captured_at)
+                self._last_identity_at = captured_at
+            except Exception as exc:
+                identity_error = f"{type(exc).__name__}: {exc}"
+                people = self.identity_resolver._unresolved(people)
         return Observation(
             camera_state=CameraState.ONLINE,
             captured_at=captured_at.astimezone(timezone.utc).isoformat(),
@@ -692,6 +715,7 @@ class PerceptionEngine:
                 {"bbox": [round(value, 2) for value in candidate.bbox], "confidence": candidate.confidence}
                 for candidate in raw_candidates
             ],
+            identity_error=identity_error,
         )
 
 
@@ -727,6 +751,7 @@ def validate_config(config: dict[str, Any]) -> None:
     if detector.get("name") == "openvino_yolox_s":
         if not 0 <= float(detector.get("nms_threshold", 0.45)) <= 1:
             raise ValueError("detector.nms_threshold must be between 0 and 1")
+    identity = identity_config_from_mapping(config.get("identity"))
     storage = config.get("storage", {})
     if not isinstance(storage, dict):
         raise ValueError("storage must be an object")
@@ -859,21 +884,9 @@ class PerceptionService:
             if detector_name == "openvino_yolox_s"
             else OpenVINOPersonDetector
         )
-        self.engine = PerceptionEngine(
-            detector_class(config["detector"]),
-            IoUTracker(**{
-                "match_iou_threshold": config["tracker"]["match_iou_threshold"],
-                "high_confidence_threshold": config["tracker"]["high_confidence_threshold"],
-                "new_track_confidence_threshold": config["tracker"]["new_track_confidence_threshold"],
-                "max_missing_frames": config["tracker"]["max_missing_frames"],
-            }),
-            PresenceStateMachine(PresenceStateConfig.from_mapping(config.get("presence"))),
-            entry_confidence_threshold=float(config["detector"].get("confidence_threshold", 0.40)),
-            hold_confidence_threshold=float(
-                config["detector"].get("hold_confidence_threshold", config["detector"].get("confidence_threshold", 0.40))
-            ),
-        )
-        self.observation_callback = observation_callback
+        detector = detector_class(config["detector"])
+        identity_config = identity_config_from_mapping(config.get("identity"))
+        identity_backend = OpenCVFaceBackend(identity_config) if identity_config["enabled"] else None
         storage = config.get("storage", {})
         database_path = storage.get("database_path") if isinstance(storage, dict) else None
         atlas_mirror_path = storage.get("atlas_mirror_path") if isinstance(storage, dict) else None
@@ -889,6 +902,33 @@ class PerceptionService:
         )
         if self.presence_store is not None:
             self.presence_store.start()
+        self.identity_resolver = None
+        if identity_backend is not None:
+            profile_provider = self.presence_store.identity_profile if self.presence_store else None
+            self.identity_resolver = IdentityResolver(
+                identity_backend,
+                match_threshold=identity_config["match_threshold"],
+                confirmation_count=identity_config["confirmation_count"],
+                confirmation_window_seconds=identity_config["confirmation_window_seconds"],
+                profile_provider=profile_provider,
+            )
+        self.engine = PerceptionEngine(
+            detector,
+            IoUTracker(**{
+                "match_iou_threshold": config["tracker"]["match_iou_threshold"],
+                "high_confidence_threshold": config["tracker"]["high_confidence_threshold"],
+                "new_track_confidence_threshold": config["tracker"]["new_track_confidence_threshold"],
+                "max_missing_frames": config["tracker"]["max_missing_frames"],
+            }),
+            PresenceStateMachine(PresenceStateConfig.from_mapping(config.get("presence"))),
+            entry_confidence_threshold=float(config["detector"].get("confidence_threshold", 0.40)),
+            hold_confidence_threshold=float(
+                config["detector"].get("hold_confidence_threshold", config["detector"].get("confidence_threshold", 0.40))
+            ),
+            identity_resolver=self.identity_resolver,
+            identity_cadence_seconds=identity_config["cadence_seconds"],
+        )
+        self.observation_callback = observation_callback
         self._restart_reconciliation_pending = self.presence_store is not None
         self._last_mirror_status: dict[str, Any] | None = None
         self.last_persistence_error: str | None = None

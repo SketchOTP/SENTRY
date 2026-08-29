@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: M2 durable presence memory
-- Active directive: `SENTRY-M2-LOCAL-SQLITE-ATLAS-MIRROR-001` — local SQLite, Atlas snapshots, restart recovery, and localhost history
-- Active task packet: `.agent/tasks/active/SENTRY-M1-PERCEPTION-001/`
+- Current stage: M3 primary-user identity
+- Active directive: `SENTRY-M3-PRIMARY-IDENTITY-001` — local YuNet/SFace enrollment and conservative identity annotation
+- Active task packet: none; M3 implementation is being validated from the directive and current working tree
 - Last accepted outcome: Ubuntu/V4L2 platform baseline verified
-- Latest recorded outcome: local SQLite plus Atlas snapshot mirroring qualified by deterministic and process-level evidence; awaiting Architect acceptance
-- Last state sync: 2026-08-28T22:30:00-04:00
+- Latest recorded outcome: M3 identity implementation is target-tested; live enrollment/negative identity qualification remains pending
+- Last state sync: 2026-08-29T00:00:00-04:00
 
 ## Mandatory kernel
 Read these before substantial work:
