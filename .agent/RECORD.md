@@ -322,3 +322,9 @@ The microphone produced signal but the two corrected physical attempts captured 
 
 ### Follow-up physical attempt
 The corrected CLI emitted its recording marker only after Whisper/Kokoro initialization. The captured transcript was `Thank you`, confirming `tiny.en` execution, but not the requested occupancy question. A transient Luna failure yielded a truthful unavailable answer delivered by local Kokoro; an immediate text retry returned supported occupancy facts. Spoken-request qualification remains pending.
+
+### Successful synchronized physical question
+The local Ubuntu `SENTRY Reactive Voice` window displayed `GET READY`, a three-second countdown, `SPEAK NOW`, and `DONE`. Whisper `tiny.en` captured `Is anyone in the office?`; the live API supplied current occupancy/identity facts; one low-effort Luna turn returned `grounding=supported`; and local Kokoro delivered the answer. Perception remained at 0 Luna calls and processed 340 frames at 6.980 FPS. No raw audio was persisted.
+
+### Playback-rate correction
+The prior Kokoro delivery sounded excessively fast because `pw-play -` ignored the WAV header and assumed 48 kHz stereo while Kokoro supplied 24 kHz mono. The implementation now strips the header in memory and supplies explicit 24 kHz/mono/16-bit playback parameters. The operator confirmed the corrected playback sounded normal.

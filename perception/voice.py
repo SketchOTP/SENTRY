@@ -9,6 +9,7 @@ disk and this module never calls Codex/Luna directly.
 from __future__ import annotations
 
 import base64
+import io
 import json
 import os
 import shutil
@@ -18,6 +19,7 @@ import sys
 import threading
 import time
 import uuid
+import wave
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Protocol
@@ -313,15 +315,27 @@ class KokoroSpeaker:
             audio = base64.b64decode(response["audioBase64"], validate=True)
             if not audio:
                 return False
+            pcm, sample_rate, channels = _decode_wav(audio)
             process = subprocess.Popen(
-                [self.player, "--media-role", "Communication", "-"],
+                [
+                    self.player,
+                    "--rate",
+                    str(sample_rate),
+                    "--channels",
+                    str(channels),
+                    "--format",
+                    "s16",
+                    "--media-role",
+                    "Communication",
+                    "-",
+                ],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
             )
             with self._lock:
                 self._process = process
-            process.communicate(audio, timeout=self.timeout_seconds)
+            process.communicate(pcm, timeout=self.timeout_seconds)
             with self._lock:
                 if self._process is process:
                     self._process = None
@@ -348,6 +362,14 @@ class KokoroSpeaker:
                 if self._process is process:
                     self._process = None
         return True
+
+
+def _decode_wav(audio: bytes) -> tuple[bytes, int, int]:
+    """Extract PCM and its format so PipeWire stdin cannot guess incorrectly."""
+    with wave.open(io.BytesIO(audio), "rb") as wav:
+        if wav.getcomptype() != "NONE" or wav.getsampwidth() != 2:
+            raise ValueError("Kokoro output must be uncompressed 16-bit PCM WAV")
+        return wav.readframes(wav.getnframes()), wav.getframerate(), wav.getnchannels()
 
 
 def _discover_kokoro_python() -> str | None:

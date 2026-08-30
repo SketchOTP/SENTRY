@@ -1,8 +1,11 @@
 import unittest
+import base64
+import io
 import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
+import wave
 
 import numpy as np
 
@@ -74,7 +77,13 @@ class VoiceTests(unittest.TestCase):
         self.speaker.speak.assert_not_called()
 
     def test_kokoro_uses_local_worker_and_pipewire_not_remote_service(self):
-        audio_b64 = "UklGRg=="
+        output = io.BytesIO()
+        with wave.open(output, "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(24_000)
+            wav.writeframes(b"\x00\x00" * 8)
+        audio_b64 = base64.b64encode(output.getvalue()).decode("ascii")
         synth = Mock(return_value=SimpleNamespace(
             returncode=0,
             stdout=json.dumps({"audioBase64": audio_b64}).encode(),
@@ -84,7 +93,7 @@ class VoiceTests(unittest.TestCase):
         player.returncode = 0
         with patch("perception.voice.subprocess.run", synth), patch(
             "perception.voice.subprocess.Popen", return_value=player
-        ):
+        ) as popen:
             speaker = KokoroSpeaker(
                 python_executable="/usr/bin/python3",
                 worker_script=Path(__file__).resolve().parents[1] / "tools" / "sentry_kokoro_worker.py",
@@ -92,8 +101,10 @@ class VoiceTests(unittest.TestCase):
             )
             self.assertTrue(speaker.speak("Welcome home."))
         self.assertEqual(synth.call_args.args[0][0], "/usr/bin/python3")
-        self.assertEqual(player.communicate.call_args.args[0], b"RIFF")
+        self.assertEqual(player.communicate.call_args.args[0], b"\x00\x00" * 8)
         self.assertEqual(player.communicate.call_args.kwargs, {"timeout": 300})
+        self.assertIn("--rate", popen.call_args.args[0])
+        self.assertIn("24000", popen.call_args.args[0])
 
 
 if __name__ == "__main__":
