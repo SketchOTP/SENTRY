@@ -400,3 +400,14 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Validation: contextual weather tests passed `14/14`; the combined contextual/M5/weather suite passed `39/39`; full Ubuntu regression passed `166/166`. Real public-coordinate NWS refresh was fresh and error-free; its 32% near-term maximum correctly produced `weather_not_relevant` with zero Luna calls. An 80% normalized fixture produced one valid speech decision and replay deduped without a second Luna call.
 - Production boundary: weather configuration is absent, weather rows remain zero, and production contextual weather proactivity remains disabled with expected `weather_unconfigured` behavior. Resident services remained stopped by operator request.
 - Final implementation/documentation commit is recorded after push.
+
+## SENTRY-V0.2-EVENT-REMINDERS-001 — completed
+- Status: **QUALIFIED / COMPLETED**
+- Project stage: V0.2 — Event-Triggered Reminders
+- Objective: turn one explicit next-office-session reminder request into durable, restart-safe delivery on a future distinct primary-user office session.
+- Scope delivered: schema-v8 `event_reminders`, deterministic reminder intent/API operations, one-pending enforcement, current-session exclusion, atomic claim-before-speech, local deterministic delivery, failure/restart reconciliation, and existing M5 source-event audit integration.
+- Trigger contract: only a fresh, non-restart-reconciled `person.identified` event for `primary_user` in the current healthy occupied office session can qualify. The event session must differ from `created_session_id` when creation occurred during an active session.
+- Policy boundary: explicit reminders outrank acknowledgement preference, cooldown/budget, and contextual weather for the same source event, but still respect global enable, physical/source/session validity, startup stabilization, and speech-busy behavior. No Luna call is used for create/query/cancel/delivery.
+- Validation: focused reminder suite passed `14/14`; full Ubuntu regression passed `180/180`; isolated Atlas pending/delivered restore, speech success/failure, claimed-crash reconciliation, replay dedupe, API/CLI, and privacy checks passed. Production migrated to schema 8 with zero reminder rows and was not seeded.
+- Exclusions: no general scheduler, timed/recurring/weather/leave-house trigger, additional event class, routine-driven behavior, new preference, identity/detector change, or resident-service startup.
+- Source: Architect directive supplied as `SENTRY-V0.2-EVENT-REMINDERS-001`; accepted contextual-weather baseline `3e0075e7912cf0be165b57f46f3bcff27d053367`.

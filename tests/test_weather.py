@@ -115,7 +115,7 @@ class WeatherTests(unittest.TestCase):
             local, atlas = root / "local" / "sentry.db", root / "atlas" / "sentry.db"
             value = snapshot()
             with PresenceStore(local, atlas_mirror_path=atlas) as store:
-                self.assertEqual(store.health()["schema_version"], 7)
+                self.assertEqual(store.health()["schema_version"], 8)
                 first = store.persist_weather_snapshot(value)
                 second = store.persist_weather_snapshot({**value, "fetched_at": (NOW + timedelta(minutes=1)).isoformat(), "fresh_until": (NOW + timedelta(minutes=31)).isoformat()})
                 self.assertTrue(first["written"])
@@ -126,7 +126,7 @@ class WeatherTests(unittest.TestCase):
                 self.assertEqual(store.weather_status("fixture", now=NOW + timedelta(hours=1))["status"], "stale")
             local.unlink()
             with PresenceStore(local, atlas_mirror_path=atlas) as restored:
-                self.assertEqual(restored.health()["schema_version"], 7)
+                self.assertEqual(restored.health()["schema_version"], 8)
                 self.assertEqual(restored.latest_weather_snapshot("fixture")["provider"], "nws")
 
     def test_weather_api_is_local_metadata_only(self):

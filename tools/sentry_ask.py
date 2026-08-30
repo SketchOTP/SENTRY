@@ -8,6 +8,7 @@ import sys
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,7 @@ from tools.sentry_grounding import (  # noqa: E402
 )
 from tools.sentry_routine_intent import routine_keys, select_routine_intent
 from tools.sentry_preference_intent import PreferenceIntent, select_preference_intent
+from tools.sentry_reminder_intent import ReminderIntent, select_reminder_intent
 from tools.sentry_weather_intent import WeatherIntent, select_weather_intent
 
 
@@ -100,11 +102,66 @@ def _post_json(base_url: str, path: str, payload: dict[str, Any], *, timeout: fl
         headers={"Accept": "application/json", "Content-Type": "application/json"},
         method="POST",
     )
-    with urlopen(request, timeout=timeout) as response:  # noqa: S310 - URL is operator-configured localhost
-        value = json.loads(response.read().decode("utf-8"))
+    try:
+        with urlopen(request, timeout=timeout) as response:  # noqa: S310 - URL is operator-configured localhost
+            value = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        try:
+            error_value = json.loads(exc.read().decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            error_value = {}
+        raise ValueError(error_value.get("error", f"{path} returned HTTP {exc.code}")) from exc
     if not isinstance(value, dict):
         raise ValueError(f"{path} did not return a JSON object")
     return value
+
+
+def _reminder_response(intent: ReminderIntent, *, base_url: str, room_id: str, source_surface: str, source_request_id: str) -> dict[str, Any]:
+    try:
+        if intent.kind == "create":
+            response = _post_json(base_url, "/v1/reminders", {
+                "person_id": "primary_user", "room_id": room_id,
+                "trigger_kind": "next_primary_user_office_session", "message": intent.message,
+                "source_surface": source_surface, "source_request_id": source_request_id,
+            })
+            reminder = response.get("reminder")
+            if not isinstance(reminder, dict):
+                raise ValueError("reminder response is invalid")
+            return {
+                "answer": "I saved that reminder for your next distinct office session.",
+                "grounding": "supported", "fact_ids": [], "limitations": [],
+                "reminder": reminder,
+            }
+        response = _get_json(base_url, "/v1/reminders", params={"person_id": "primary_user", "room_id": room_id})
+        reminders = response.get("reminders")
+        if not isinstance(reminders, list):
+            raise ValueError("reminder list response is invalid")
+        pending = next((item for item in reminders if isinstance(item, dict) and item.get("status") == "pending"), None)
+        if intent.kind == "query":
+            if pending is None:
+                return {"answer": "You do not have a pending office reminder.", "grounding": "supported", "fact_ids": [], "limitations": []}
+            return {
+                "answer": f"Your next-office reminder is: {pending.get('message', '')}",
+                "grounding": "supported", "fact_ids": [], "limitations": [], "reminder": pending,
+            }
+        if pending is None:
+            return {"answer": "You do not have a pending office reminder to cancel.", "grounding": "supported", "fact_ids": [], "limitations": []}
+        response = _post_json(base_url, f"/v1/reminders/{pending['reminder_id']}/cancel", {
+            "source_surface": source_surface, "source_request_id": source_request_id,
+        })
+        reminder = response.get("reminder")
+        if not isinstance(reminder, dict):
+            raise ValueError("reminder cancellation response is invalid")
+        return {"answer": "I cancelled your pending office reminder.", "grounding": "supported", "fact_ids": [], "limitations": [], "reminder": reminder}
+    except ValueError as exc:
+        message = str(exc)
+        if "already pending" in message:
+            answer = "You already have an office reminder waiting. Cancel it first if you want to replace it."
+            return {"answer": answer, "grounding": "supported", "fact_ids": [], "limitations": []}
+        return {
+            "answer": "SENTRY could not update or read that office reminder reliably right now.",
+            "grounding": "unavailable", "fact_ids": [], "limitations": [message],
+        }
 
 
 def _deterministic_preference_result(
@@ -187,8 +244,22 @@ def ask(
     timeout_seconds: int = 120,
     source_surface: str = "sentry_ask",
 ) -> dict[str, Any]:
-    preference_intent = select_preference_intent(question)
+    reminder_intent = select_reminder_intent(question)
     request_id = str(uuid.uuid4())
+    if reminder_intent is not None:
+        if reminder_intent.kind == "unsupported":
+            result = {
+                "answer": "I only support reminders for your next distinct office session right now.",
+                "grounding": "unavailable", "fact_ids": [],
+                "limitations": ["scheduled, recurring, weather, and leave-the-house reminders are not supported"],
+            }
+        else:
+            result = _reminder_response(
+                reminder_intent, base_url=base_url, room_id=room_id,
+                source_surface=source_surface, source_request_id=request_id,
+            )
+        return {"query_id": request_id, "as_of": None, **result, "luna_invocations": 0}
+    preference_intent = select_preference_intent(question)
     if preference_intent is not None:
         if preference_intent.kind == "unsupported_memory":
             return {

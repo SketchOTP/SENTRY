@@ -35,7 +35,7 @@ class PreferenceMemoryTests(unittest.TestCase):
     def test_schema_six_migration_and_default_value(self):
         with tempfile.TemporaryDirectory() as directory:
             with PresenceStore(Path(directory) / "sentry.db") as store:
-                self.assertEqual(store.health()["schema_version"], 7)
+                self.assertEqual(store.health()["schema_version"], 8)
                 self.assertEqual(store.preference_value(), "default")
                 self.assertEqual({row[1] for row in store._connection.execute("PRAGMA table_info(preference_events)")} >= {
                     "preference_event_id", "preference_key", "operation", "value_json", "source_request_id"
@@ -97,7 +97,7 @@ class PreferenceMemoryTests(unittest.TestCase):
                 store.record_proactive_feedback(action_id="action-1", feedback_type="do_not_repeat", source_surface="test", source_request_id="f1")
             local.unlink()
             with PresenceStore(local, atlas_mirror_path=atlas) as restored:
-                self.assertEqual(restored.health()["schema_version"], 7)
+                self.assertEqual(restored.health()["schema_version"], 8)
                 self.assertEqual(restored.preference_value(), "suppress")
                 self.assertEqual(len(restored.proactive_feedback()), 1)
 

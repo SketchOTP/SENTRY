@@ -437,3 +437,17 @@ Physical and preference gates precede weather; the bounded 120-minute event-time
 
 ### Boundary
 No schema 8, new event class, departure inference, weather-alert speech, routine facts, production coordinates, or resident-service startup was introduced. Weather remains cache-only and perception remains at zero Luna calls. Implementation and records are committed/pushed at the final SHA recorded in Authority.
+
+## RECORD-SENTRY-028 — V0.2 event-triggered reminders qualified
+- Date: 2026-08-30
+- Type: MILESTONE / V0.2 QUALIFICATION
+- Related directive/outcome: `SENTRY-V0.2-EVENT-REMINDERS-001` / `OUTCOME-SENTRY-V0.2-EVENT-REMINDERS-001`
+
+### Decision
+SENTRY now supports one explicit reminder whose trigger is the primary user's first confirmed identity in the next distinct office presence session. This is a durable intention, not a general scheduler and not proof of exact physical arrival.
+
+### Evidence
+Schema 8 migration, deterministic create/query/cancel, one-pending enforcement, request idempotence, active-session exclusion, future-session delivery, physical/source/session gates, acknowledgement-preference bypass, contextual-weather priority, local claim-before-speech, success/failure states, conservative claimed-crash reconciliation, processor replay dedupe, API/CLI behavior, and Atlas restore passed. Focused reminder tests passed `14/14`; the complete Ubuntu regression passed `180/180`. Production migrated to schema 8 with zero reminder rows and no seeded personal content.
+
+### Boundary
+Reminder body is explicit user text limited to 120 characters and is stored only as local metadata mirrored through the accepted SQLite snapshot path. Create/query/cancel/delivery use zero Luna calls; perception remains at zero Luna calls. Timed, recurring, weather, leave-house, routine-driven, and multi-reminder behavior remain gated. Resident services remain stopped by operator request.

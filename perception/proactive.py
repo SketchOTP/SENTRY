@@ -287,7 +287,7 @@ class ProactiveProcessor:
             "hourly_spoken_count": hourly_spoken,
         }
 
-    def _eligibility(self, event: dict[str, Any], now: datetime) -> tuple[str | None, str, dict[str, Any]]:
+    def _physical_eligibility(self, event: dict[str, Any], now: datetime) -> tuple[str | None, str, dict[str, Any]]:
         event_id = event.get("event_id")
         payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
         person_id = payload.get("person_id")
@@ -316,13 +316,24 @@ class ProactiveProcessor:
             return "room_not_occupied", candidate_key, context
         if now - self.started_at < timedelta(seconds=self.config.startup_suppression_seconds):
             return "startup_suppression", candidate_key, context
+        return None, candidate_key, context
+
+    def _eligibility(self, event: dict[str, Any], now: datetime) -> tuple[str | None, str, dict[str, Any]]:
+        reason, candidate_key, context = self._physical_eligibility(event, now)
+        if reason is not None:
+            return reason, candidate_key, context
+        return self._policy_eligibility(event, now, candidate_key, context)
+
+    def _policy_eligibility(
+        self, event: dict[str, Any], now: datetime, candidate_key: str, context: dict[str, Any]
+    ) -> tuple[str | None, str, dict[str, Any]]:
         if self.store.preference_value("primary_user", PREFERENCE_KEY) == "suppress":
             return "user_preference", candidate_key, context
-        if counts["same_session_action_count"] >= self.config.same_session_max_actions:
+        if context["same_session_action_count"] >= self.config.same_session_max_actions:
             return "already_handled_session", candidate_key, context
-        if counts["cooldown_active"]:
+        if context["cooldown_active"]:
             return "cooldown", candidate_key, context
-        if counts["hourly_spoken_count"] >= self.config.global_max_spoken_actions_per_hour:
+        if context["hourly_spoken_count"] >= self.config.global_max_spoken_actions_per_hour:
             return "hourly_budget", candidate_key, context
         if getattr(self.speech, "is_speaking", False):
             return "speech_busy", candidate_key, context
@@ -332,6 +343,49 @@ class ProactiveProcessor:
                 return weather_reason, candidate_key, context
             context["weather_context"] = weather_context
         return None, candidate_key, context
+
+    def _deliver_reminder(self, event: dict[str, Any], reminder: dict[str, Any], now: datetime) -> ProactiveOutcome:
+        action_id = str(uuid.uuid4())
+        session_id = event.get("session_id")
+        if not isinstance(session_id, int):
+            return self._persist_suppression(event, now, self._candidate_key(event), "room_not_occupied")
+        claimed = self.store.claim_event_reminder(
+            reminder_id=str(reminder["reminder_id"]), action_id=action_id,
+            source_event_id=str(event["event_id"]), session_id=session_id,
+            event_timestamp=str(event.get("occurred_at")), evaluated_at=now.isoformat(),
+        )
+        candidate_key = f"reminder:{reminder['reminder_id']}:session:{session_id}"
+        if claimed is None:
+            existing = self.store.proactive_action_for_event(str(event["event_id"]))
+            return ProactiveOutcome(
+                existing["action_id"] if existing else None, str(event["event_id"]), candidate_key,
+                "duplicate", False, None, "suppressed",
+            )
+        utterance = f"Reminder: {str(reminder['message']).strip()}"
+        if not utterance.endswith((".", "!", "?")):
+            utterance += "."
+        delivered = False
+        try:
+            delivered = bool(self.speech.speak(utterance))
+        except Exception:
+            delivered = False
+        timestamp = datetime.now(timezone.utc).isoformat()
+        if delivered:
+            self.store.finalize_event_reminder(
+                str(reminder["reminder_id"]), status="delivered", timestamp=timestamp, action_id=action_id,
+            )
+            self.store.update_proactive_action(
+                action_id, delivery_status="delivered", delivered_at=timestamp, utterance=utterance,
+            )
+            return ProactiveOutcome(action_id, str(event["event_id"]), candidate_key, None, False, None, "delivered", utterance)
+        self.store.finalize_event_reminder(
+            str(reminder["reminder_id"]), status="failed", timestamp=timestamp, action_id=action_id,
+            failure_reason="delivery_failed",
+        )
+        self.store.update_proactive_action(
+            action_id, delivery_status="failed", suppression_reason="delivery_failed", utterance=utterance,
+        )
+        return ProactiveOutcome(action_id, str(event["event_id"]), candidate_key, "delivery_failed", False, None, "failed", utterance)
 
     def _weather_context(self, event: dict[str, Any], now: datetime) -> tuple[str | None, dict[str, Any] | None]:
         policy = self.weather_policy
@@ -424,7 +478,15 @@ class ProactiveProcessor:
         existing = self.store.proactive_action_for_event(event_id)
         if existing:
             return ProactiveOutcome(existing["action_id"], event_id, candidate_key, "duplicate", bool(existing.get("judge_invoked")), existing.get("judge_decision"), existing.get("delivery_status", "suppressed"), existing.get("utterance"))
-        reason, candidate_key, context = self._eligibility(event, evaluated_at)
+        physical_reason, candidate_key, context = self._physical_eligibility(event, evaluated_at)
+        if physical_reason is not None:
+            return self._persist_suppression(event, evaluated_at, candidate_key, physical_reason)
+        reminder = self.store.pending_event_reminder_for_event(event)
+        if reminder is not None:
+            if getattr(self.speech, "is_speaking", False):
+                return self._persist_suppression(event, evaluated_at, f"reminder:{reminder['reminder_id']}:session:{event.get('session_id')}", "speech_busy")
+            return self._deliver_reminder(event, reminder, evaluated_at)
+        reason, candidate_key, context = self._policy_eligibility(event, evaluated_at, candidate_key, context)
         if reason is not None:
             return self._persist_suppression(event, evaluated_at, candidate_key, reason)
 

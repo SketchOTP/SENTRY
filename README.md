@@ -8,7 +8,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 **SENTRY V0.1 is accepted within the office-only boundary:** M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, M5 restrained proactivity, reactive voice, and the 30-minute unattended M6 integration soak passed within their recorded evidence boundaries. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. The owner/operator permanently waived the former 72-hour soak in favor of the passed 30-minute final soak.
 
-**V0.2 resident runtime, routine statistics, routine-grounded conversation, preference/feedback memory, the read-only weather-context foundation, and contextual weather proactivity are qualified:** the accepted stack runs as enabled native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. The current startup condition is the authenticated Ubuntu user session. Routine statistics remain derived and sparse production history correctly remains insufficient. Schema 6 adds one explicit, reversible primary-user acknowledgement preference plus auditable proactive feedback; schema 7 adds bounded NWS snapshots. Contextual weather proactivity consumes only cached fresh NWS forecasts, requires at least 60% precipitation probability within 120 minutes, and remains disabled in production because no coordinates have been configured. Weather is not an M5 input beyond this separately qualified contextual directive.
+**V0.2 resident runtime, routine statistics, routine-grounded conversation, preference/feedback memory, the read-only weather-context foundation, contextual weather proactivity, and event-triggered reminders are qualified:** the accepted stack runs as enabled native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. The current startup condition is the authenticated Ubuntu user session. Routine statistics remain derived and sparse production history correctly remains insufficient. Schema 6 adds one explicit, reversible primary-user acknowledgement preference plus auditable proactive feedback; schema 7 adds bounded NWS snapshots; schema 8 adds one-shot next-office-session reminders. Contextual weather proactivity consumes only cached fresh NWS forecasts, requires at least 60% precipitation probability within 120 minutes, and remains disabled in production because no coordinates have been configured. Reminders are explicit, deterministic, durable, at-most-once local speech and do not require Luna. Weather and routines remain isolated from reminder delivery.
 
 ## Project links
 
@@ -88,6 +88,10 @@ The production result is currently `insufficient` because natural history is spa
 
 The read-only NWS weather foundation is documented in [`docs/V0.2_WEATHER_CONTEXT.md`](docs/V0.2_WEATHER_CONTEXT.md). It uses schema-v7 snapshots, explicit operator coordinates, bounded retries, 24-hour point-resource caching, freshness states, and the localhost-only `/v1/weather` endpoint. Production weather is not enabled until explicit coordinates are supplied in the local configuration.
 
+## V0.2 Event Reminders
+
+The one-shot reminder capability is documented in [`docs/V0.2_EVENT_REMINDERS.md`](docs/V0.2_EVENT_REMINDERS.md). It supports one explicit `next_primary_user_office_session` reminder for the primary user, excludes the creation session, claims before speech, survives restart without replay, and keeps unsupported scheduler shapes out of scope.
+
 ## Reuse strategy
 
 ### Accepted V0.1 reasoning layer
@@ -114,8 +118,9 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 10. **V0.2 — Routine-grounded conversation**: deterministic routine intent/scope routing, maturity-aware bounded fact packets, and truthful sparse-history answers through M4 (qualified).
 11. **V0.2 — Preference + feedback memory**: one explicit reversible acknowledgement preference, auditable proactive feedback, and deterministic M5 suppression (qualified).
 12. **V0.2 — Read-only weather context**: explicit-location NWS snapshots, freshness-gated localhost weather facts, and an independent refresh timer (qualified; production location not configured).
+13. **V0.2 — Event-triggered reminders**: one explicit next-office-session reminder with deterministic intent/API handling, same-session exclusion, durable claim-before-speech delivery, and restart-safe dedupe (qualified).
 
-M6, V0.2 resident runtime, the V0.2 routine-statistics foundation, and routine-grounded conversation have passed. Routine facts entering proactive judgment, or multi-room hardware work, requires a new Architect directive and remains outside the accepted office-only V0.1/V0.2 boundary.
+M6, V0.2 resident runtime, routine statistics/conversation, preference memory, weather context/proactivity, and event-triggered reminders have passed. Routine facts entering proactive judgment, general scheduling, or multi-room hardware work requires a new Architect directive and remains outside the accepted office-only V0.1/V0.2 boundary.
 
 ## Key acceptance targets
 

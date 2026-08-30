@@ -96,7 +96,7 @@ class ProactivePolicyTests(unittest.TestCase):
     def test_schema_four_migrates_and_action_log_is_metadata_only(self):
         with tempfile.TemporaryDirectory() as directory:
             with PresenceStore(Path(directory) / "sentry.db") as store:
-                self.assertEqual(store.health()["schema_version"], 7)
+                self.assertEqual(store.health()["schema_version"], 8)
                 columns = {row[1] for row in store._connection.execute("PRAGMA table_info(proactive_actions)")}
                 self.assertIn("suppression_reason", columns)
 

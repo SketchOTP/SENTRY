@@ -25,7 +25,7 @@ from .storage_mirror import (
 )
 
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 PREFERENCE_KEY = "proactivity.primary_user_session_acknowledgement"
 PREFERENCE_VALUES = {"allow", "suppress"}
 FEEDBACK_TYPES = {"helpful", "not_helpful", "too_frequent", "do_not_repeat"}
@@ -86,6 +86,7 @@ class PresenceStore:
             else None
         )
         self._migrate()
+        self.reconcile_claimed_reminders()
 
     def close(self) -> None:
         with self._lock:
@@ -357,6 +358,46 @@ class PresenceStore:
                 self._connection.execute(
                     "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                     (7, datetime.now(timezone.utc).isoformat()),
+                )
+                migrated = True
+            if 8 not in applied:
+                self._connection.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS event_reminders (
+                        reminder_id TEXT PRIMARY KEY,
+                        person_id TEXT NOT NULL CHECK (person_id = 'primary_user'),
+                        room_id TEXT NOT NULL CHECK (room_id = 'office'),
+                        trigger_kind TEXT NOT NULL CHECK (trigger_kind = 'next_primary_user_office_session'),
+                        message TEXT NOT NULL CHECK (length(message) BETWEEN 1 AND 120),
+                        created_at TEXT NOT NULL,
+                        created_session_id INTEGER,
+                        source_surface TEXT NOT NULL,
+                        source_request_id TEXT NOT NULL,
+                        status TEXT NOT NULL CHECK (status IN ('pending', 'claimed', 'delivered', 'failed', 'cancelled')),
+                        claimed_at TEXT,
+                        trigger_event_id TEXT,
+                        trigger_session_id INTEGER,
+                        delivery_action_id TEXT,
+                        delivered_at TEXT,
+                        failed_at TEXT,
+                        cancelled_at TEXT,
+                        cancelled_source_surface TEXT,
+                        cancelled_source_request_id TEXT,
+                        failure_reason TEXT,
+                        UNIQUE(source_surface, source_request_id),
+                        FOREIGN KEY (created_session_id) REFERENCES presence_sessions(session_id),
+                        FOREIGN KEY (trigger_session_id) REFERENCES presence_sessions(session_id),
+                        FOREIGN KEY (delivery_action_id) REFERENCES proactive_actions(action_id)
+                    );
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_one_pending_event_reminder
+                        ON event_reminders(person_id, room_id, trigger_kind) WHERE status = 'pending';
+                    CREATE INDEX IF NOT EXISTS idx_event_reminders_status
+                        ON event_reminders(status, created_at);
+                    """
+                )
+                self._connection.execute(
+                    "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+                    (8, datetime.now(timezone.utc).isoformat()),
                 )
                 migrated = True
         if migrated:
@@ -832,6 +873,200 @@ class PresenceStore:
 
     def proactive_actions_for_candidate(self, candidate_key: str) -> list[dict[str, Any]]:
         return [item for item in self.proactive_actions(limit=1000) if item["candidate_key"] == candidate_key]
+
+    def event_reminders(self, *, person_id: str = "primary_user", room_id: str = "office", limit: int = 100) -> list[dict[str, Any]]:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT reminder_id, person_id, room_id, trigger_kind, message, created_at, created_session_id, "
+                "source_surface, source_request_id, status, claimed_at, trigger_event_id, trigger_session_id, "
+                "delivery_action_id, delivered_at, failed_at, cancelled_at, cancelled_source_surface, "
+                "cancelled_source_request_id, failure_reason "
+                "FROM event_reminders WHERE person_id = ? AND room_id = ? "
+                "ORDER BY created_at DESC, rowid DESC LIMIT ?",
+                (person_id, room_id, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def event_reminder(self, reminder_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT reminder_id, person_id, room_id, trigger_kind, message, created_at, created_session_id, "
+                "source_surface, source_request_id, status, claimed_at, trigger_event_id, trigger_session_id, "
+                "delivery_action_id, delivered_at, failed_at, cancelled_at, cancelled_source_surface, "
+                "cancelled_source_request_id, failure_reason "
+                "FROM event_reminders WHERE reminder_id = ?", (reminder_id,),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
+    @staticmethod
+    def _validate_reminder_message(message: str) -> str:
+        if not isinstance(message, str):
+            raise ValueError("reminder message must be a string")
+        if any(ord(char) < 32 for char in message):
+            raise ValueError("reminder message must be 1-120 characters without control characters")
+        normalized = " ".join(message.strip().split())
+        if not normalized or len(normalized) > 120:
+            raise ValueError("reminder message must be 1-120 characters without control characters")
+        return normalized
+
+    def create_event_reminder(
+        self, *, message: str, person_id: str = "primary_user", room_id: str = "office",
+        trigger_kind: str = "next_primary_user_office_session", source_surface: str,
+        source_request_id: str, created_at: datetime | str | None = None,
+    ) -> dict[str, Any]:
+        if person_id != "primary_user" or room_id != "office" or trigger_kind != "next_primary_user_office_session":
+            raise ValueError("only the primary-user next-office-session reminder is supported")
+        if not source_surface or not source_request_id:
+            raise ValueError("reminder provenance is required")
+        normalized = self._validate_reminder_message(message)
+        timestamp = _utc_iso(created_at or datetime.now(timezone.utc))
+        with self._lock, self._connection:
+            existing = self._connection.execute(
+                "SELECT * FROM event_reminders WHERE source_surface = ? AND source_request_id = ?",
+                (source_surface, source_request_id),
+            ).fetchone()
+            if existing is not None:
+                return dict(existing)
+            active = self._connection.execute(
+                "SELECT reminder_id FROM event_reminders WHERE person_id = ? AND room_id = ? "
+                "AND trigger_kind = ? AND status = 'pending' LIMIT 1",
+                (person_id, room_id, trigger_kind),
+            ).fetchone()
+            if active is not None:
+                raise ValueError("an office reminder is already pending; cancel it first")
+            open_session = self._connection.execute(
+                "SELECT session_id FROM presence_sessions WHERE room_id = ? AND status = 'open' "
+                "ORDER BY started_at DESC LIMIT 1", (room_id,),
+            ).fetchone()
+            reminder_id = str(uuid.uuid4())
+            self._connection.execute(
+                "INSERT INTO event_reminders(reminder_id, person_id, room_id, trigger_kind, message, created_at, "
+                "created_session_id, source_surface, source_request_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')",
+                (reminder_id, person_id, room_id, trigger_kind, normalized, timestamp,
+                 open_session[0] if open_session else None, source_surface, source_request_id),
+            )
+            row = self._connection.execute("SELECT * FROM event_reminders WHERE reminder_id = ?", (reminder_id,)).fetchone()
+        self._maybe_mirror(force=True)
+        return dict(row)
+
+    def cancel_event_reminder(self, reminder_id: str, *, source_surface: str, source_request_id: str,
+                              cancelled_at: datetime | str | None = None) -> dict[str, Any]:
+        if not reminder_id or not source_surface or not source_request_id:
+            raise ValueError("reminder id and cancellation provenance are required")
+        timestamp = _utc_iso(cancelled_at or datetime.now(timezone.utc))
+        with self._lock, self._connection:
+            row = self._connection.execute("SELECT * FROM event_reminders WHERE reminder_id = ?", (reminder_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"reminder not found: {reminder_id}")
+            if row["status"] == "cancelled":
+                return dict(row)
+            if row["status"] != "pending":
+                raise ValueError(f"reminder cannot be cancelled from status {row['status']}")
+            self._connection.execute(
+                "UPDATE event_reminders SET status = 'cancelled', cancelled_at = ?, cancelled_source_surface = ?, "
+                "cancelled_source_request_id = ? WHERE reminder_id = ? AND status = 'pending'",
+                (timestamp, source_surface, source_request_id, reminder_id),
+            )
+            updated = self._connection.execute("SELECT * FROM event_reminders WHERE reminder_id = ?", (reminder_id,)).fetchone()
+        self._maybe_mirror(force=True)
+        return dict(updated)
+
+    def pending_event_reminder_for_event(self, event: dict[str, Any]) -> dict[str, Any] | None:
+        payload = event.get("payload") if isinstance(event.get("payload"), dict) else {}
+        if event.get("event_type") != "person.identified" or payload.get("person_id") != "primary_user":
+            return None
+        event_time = _parse_utc_time(event.get("occurred_at"))
+        session_id = event.get("session_id")
+        if event_time is None or session_id is None:
+            return None
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT * FROM event_reminders WHERE person_id = 'primary_user' AND room_id = ? "
+                "AND trigger_kind = 'next_primary_user_office_session' AND status = 'pending' "
+                "ORDER BY created_at ASC, rowid ASC", (event.get("room_id", "office"),),
+            ).fetchall()
+        for row in rows:
+            created_at = _parse_utc_time(row["created_at"])
+            if created_at is None or event_time <= created_at:
+                continue
+            if row["created_session_id"] is not None and row["created_session_id"] == session_id:
+                continue
+            return dict(row)
+        return None
+
+    def claim_event_reminder(
+        self, *, reminder_id: str, action_id: str, source_event_id: str, session_id: int,
+        event_timestamp: str, evaluated_at: str,
+    ) -> dict[str, Any] | None:
+        """Atomically reserve a pending reminder and its proactive action before speech."""
+
+        with self._lock:
+            try:
+                with self._connection:
+                    reminder = self._connection.execute(
+                        "SELECT * FROM event_reminders WHERE reminder_id = ? AND status = 'pending'", (reminder_id,)
+                    ).fetchone()
+                    if reminder is None:
+                        return None
+                    self._connection.execute(
+                        "INSERT INTO proactive_actions(action_id, source_event_id, candidate_key, event_type, person_id, session_id, "
+                        "event_timestamp, evaluated_at, eligibility_result, suppression_reason, delivery_status) "
+                        "VALUES (?, ?, ?, 'person.identified', 'primary_user', ?, ?, ?, 'eligible', NULL, 'not_attempted')",
+                        (action_id, source_event_id, f"reminder:{reminder_id}:session:{session_id}", session_id, event_timestamp, evaluated_at),
+                    )
+                    updated = self._connection.execute(
+                        "UPDATE event_reminders SET status = 'claimed', claimed_at = ?, trigger_event_id = ?, "
+                        "trigger_session_id = ?, delivery_action_id = ? WHERE reminder_id = ? AND status = 'pending'",
+                        (evaluated_at, source_event_id, session_id, action_id, reminder_id),
+                    ).rowcount
+                    if updated != 1:
+                        raise sqlite3.IntegrityError("reminder was claimed concurrently")
+            except sqlite3.IntegrityError:
+                return None
+        self._maybe_mirror(force=True)
+        return dict(reminder)
+
+    def finalize_event_reminder(self, reminder_id: str, *, status: str, timestamp: str,
+                                action_id: str, failure_reason: str | None = None) -> None:
+        if status not in {"delivered", "failed"}:
+            raise ValueError("invalid reminder final status")
+        with self._lock, self._connection:
+            if status == "delivered":
+                updated = self._connection.execute(
+                    "UPDATE event_reminders SET status = 'delivered', delivered_at = ? "
+                    "WHERE reminder_id = ? AND status = 'claimed'", (timestamp, reminder_id),
+                ).rowcount
+            else:
+                updated = self._connection.execute(
+                    "UPDATE event_reminders SET status = 'failed', failed_at = ?, failure_reason = ? "
+                    "WHERE reminder_id = ? AND status = 'claimed'", (timestamp, failure_reason, reminder_id),
+                ).rowcount
+        if updated != 1:
+            raise ValueError(f"reminder is not claimed: {reminder_id}")
+        self._maybe_mirror(force=True)
+
+    def reconcile_claimed_reminders(self) -> int:
+        timestamp = datetime.now(timezone.utc).isoformat()
+        with self._lock, self._connection:
+            rows = self._connection.execute(
+                "SELECT reminder_id, delivery_action_id FROM event_reminders WHERE status = 'claimed'"
+            ).fetchall()
+            for row in rows:
+                self._connection.execute(
+                    "UPDATE event_reminders SET status = 'failed', failed_at = ?, failure_reason = ? "
+                    "WHERE reminder_id = ? AND status = 'claimed'",
+                    (timestamp, "unknown_delivery_after_restart", row["reminder_id"]),
+                )
+                if row["delivery_action_id"]:
+                    self._connection.execute(
+                        "UPDATE proactive_actions SET delivery_status = 'failed', suppression_reason = 'delivery_failed' "
+                        "WHERE action_id = ?", (row["delivery_action_id"],),
+                    )
+        if rows:
+            self._maybe_mirror(force=True)
+        return len(rows)
 
     def latest_weather_snapshot(self, location_label: str = "home") -> dict[str, Any] | None:
         with self._lock:

@@ -351,3 +351,14 @@ This preserves the boundary between physical truth, explicit behavior preference
 
 ### Recheck trigger
 Recheck if weather is added to proactive policy, if a second provider or alert semantics are proposed, or if production coordinates are configured.
+
+## LEARNING-SENTRY-030 — Explicit next-session reminders must claim before speech
+- Date: 2026-08-30
+- Evidence source: `SENTRY-V0.2-EVENT-REMINDERS-001`; schema-v8 isolated qualification and `180/180` regression
+- Confidence: VERIFIED
+
+### Learning
+The safest first physical reminder is a single explicit pending intention keyed to `primary_user` / `office` / `next_primary_user_office_session`. Capture the active session at creation, require a later distinct session identity event, and atomically reserve both the reminder and its existing proactive-action audit record before speaking.
+
+### Safety boundary
+A claimed reminder is never automatically replayed after a crash because local speech cannot be made transactionally exactly-once. Reconcile it to an explicit unknown-delivery failure. Reminder delivery is deterministic and does not need Luna; unsupported scheduler shapes, routine facts, and inferred arrival/leave events remain outside the feature.

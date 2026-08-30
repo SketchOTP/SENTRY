@@ -1121,3 +1121,25 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 
 ### Boundary
 - Production weather remains disabled until explicit operator coordinates are configured. Weather alerts do not trigger speech; routines remain excluded; no departure or outdoor intent is inferred; perception remains at zero Luna calls; resident services remained stopped.
+
+## OUTCOME-SENTRY-V0.2-EVENT-REMINDERS-001 — Event-triggered reminders
+- Completed: 2026-08-30
+- Verdict: **V0.2 EVENT REMINDERS QUALIFIED**
+- Starting SHA: `3e0075e7912cf0be165b57f46f3bcff27d053367`
+- Retrieval confidence: **ADEQUATE**
+
+### Implementation
+- Schema 8 adds `event_reminders` with one-pending partial uniqueness for `primary_user` / `office` / `next_primary_user_office_session`, explicit provenance, lifecycle timestamps, trigger/session/action links, cancellation provenance, and failure reason.
+- `tools/sentry_reminder_intent.py`, `tools/sentry_ask.py`, and the localhost state API provide deterministic create/query/cancel behavior. Messages are normalized, metadata-only, control-character-free, and limited to 120 characters. Unsupported timed, recurring, weather, and leave-house forms fail closed with zero Luna calls.
+- Reminder creation records an open session when present. Only a later fresh, healthy, occupied, non-restart-reconciled `person.identified` event for `primary_user` in a distinct session qualifies. Existing physical gates remain ahead of reminder policy.
+- A valid explicit reminder has priority over acknowledgement suppression, cooldown/budget, and contextual weather for the same source event, but still respects global enable, startup stabilization, and speech-busy behavior. It is claimed atomically with a `proactive_actions` record before deterministic local speech, without Luna.
+- Successful speech marks `delivered`; confirmed failure marks `failed`; a claimed row found on store reopen becomes `failed` with `unknown_delivery_after_restart` and is never replayed. Existing source-event uniqueness prevents duplicate action delivery.
+
+### Evidence
+- Isolated qualification passed schema migration, empty/active-session creation, one-pending enforcement, request idempotence, same-session exclusion, distinct-session delivery, preference interaction, weather priority, non-primary/stale/restart rejection, speech success/failure, crash/replay safety, API/CLI behavior, cancellation, and Atlas restore for pending/delivered state.
+- Focused reminder tests passed **14/14**. The full Ubuntu regression passed **180/180** after the implementation. No continuous perception Luna calls were introduced; reminder operations use zero Luna calls.
+- The actual production database was migrated read-only with respect to reminder content: local SQLite is on ext4, Atlas remains snapshot-only on SSHFS, schema is 8, reminder count is 0, pending count is 0, and no production reminder was seeded. Resident services were left inactive by operator request.
+
+### Boundary
+- This is one explicit next-session office reminder, not a scheduler, alarm, recurrence engine, weather/leave trigger, or inferred personal arrival event. Reminder text is local metadata and is not sent to Luna; raw audio, frames, embeddings, and biometric data remain absent from persistence.
+- Final implementation and documentation commit SHAs are recorded in the GitHub history after push.

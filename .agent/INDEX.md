@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: V0.2 contextual weather proactivity qualified
-- Active directive: SENTRY-V0.2-CONTEXTUAL-WEATHER-PROACTIVITY-001 — completed successfully
-- Active task packet: none; contextual weather implementation and evidence are recorded in the repository
-- Last accepted outcome: V0.2 contextual weather proactivity qualified; production weather remains disabled until explicit coordinates are configured
-- Latest recorded outcome: V0.2 contextual weather proactivity qualified; V0.1, resident runtime, routine statistics/conversation, preference/feedback memory, and weather context remain accepted
-- Last state sync: 2026-08-30T18:45:00-04:00; contextual implementation recorded at `57764c5`
+- Current stage: V0.2 event-triggered reminders qualified
+- Active directive: SENTRY-V0.2-EVENT-REMINDERS-001 — completed successfully
+- Active task packet: none; event-reminder implementation and evidence are recorded in the repository
+- Last accepted outcome: V0.2 event-triggered reminders qualified; production reminder state remains empty
+- Latest recorded outcome: V0.2 event-triggered reminders qualified; V0.1, resident runtime, routine statistics/conversation, preference/feedback memory, weather context, and contextual weather proactivity remain accepted
+- Last state sync: 2026-08-30T19:30:00-04:00; implementation and documentation commits are recorded in the reminder outcome/record entries
 
 ## Mandatory kernel
 Read these before substantial work:

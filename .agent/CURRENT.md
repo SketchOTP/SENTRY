@@ -1,15 +1,24 @@
 # Current Project State
 
-Last updated: 2026-08-30T18:35:00-04:00
+Last updated: 2026-08-30T19:30:00-04:00
 
 ## Current stage
-V0.2 — contextual weather proactivity qualified
+V0.2 — event-triggered reminders qualified
 
 ## Current objective
-Combine a real primary-user session event with cached fresh precipitation context without weakening physical truth, preference, dedupe, or Luna boundaries.
+Fulfil one explicit next-office-session reminder from a future persisted primary-user identity event with durable, restart-safe, deterministic local delivery.
 
 ## Active directive
-SENTRY-V0.2-CONTEXTUAL-WEATHER-PROACTIVITY-001 — completed successfully; contextual weather proactivity qualified.
+SENTRY-V0.2-EVENT-REMINDERS-001 — completed successfully; event-triggered reminders qualified.
+
+## V0.2 event-triggered reminders — 2026-08-30
+- Schema version 8 adds one bounded `event_reminders` table for `primary_user` / `office` / `next_primary_user_office_session`, with a partial unique index enforcing one pending reminder and request provenance for idempotent creation/cancellation.
+- Deterministic `sentry_ask.py` intent handling supports create, query, and cancel. Timed, recurring, weather, leave-the-house, and other scheduler-shaped requests fail closed with zero Luna calls. Reminder text is normalized, control-character-free, limited to 120 characters, and only the explicit body is persisted.
+- Creation records the currently open session, if any; only a later valid `person.identified` event in a distinct session can trigger delivery. Track changes and same-session re-identification do not qualify.
+- Physical/source/session/startup gates run before reminder eligibility. An explicit reminder outranks acknowledgement preference, cooldown/budget, and contextual weather for the same source event, while still respecting global enable and speech-busy behavior. Routine facts remain absent.
+- Claiming inserts the durable `proactive_actions` record and transitions `pending` to `claimed` atomically before local speech. Success is `delivered`; confirmed speech failure is `failed`; a claimed row found after restart becomes `failed` with `unknown_delivery_after_restart` and is never replayed.
+- Isolated qualification covered current-session exclusion, future-session delivery, preference suppression bypass, weather priority, failure/crash/replay safety, API/CLI behavior, one-pending enforcement, idempotence, and Atlas restore. Focused reminder tests passed 14/14; full Ubuntu regression passed 180/180. The actual production DB migrated to schema 8 with zero reminder rows and was not seeded. Resident services remain stopped by operator request.
+- Production reminder implementation commit and final documentation commit are recorded in the corresponding ledger entries after push.
 
 ## V0.2 contextual weather proactivity — 2026-08-30
 - The existing `person.identified` / current occupied-session event remains the only candidate. Existing physical, source-health, startup, preference, dedupe, cooldown, budget, and speech-busy gates run before contextual weather evaluation.

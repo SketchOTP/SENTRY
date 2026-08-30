@@ -80,6 +80,9 @@ class _Handler(BaseHTTPRequestHandler):
                 "current_value": store.preference_value(person_id),
                 "events": store.preference_events(person_id, limit=limit) if history else [],
             })
+        elif parsed.path == "/v1/reminders":
+            person_id = query.get("person_id", ["primary_user"])[0]
+            self._send(200, {"reminders": store.event_reminders(person_id=person_id, room_id=room_id, limit=limit)})
         elif parsed.path == "/v1/proactive-actions/recent":
             person_id = query.get("person_id", ["primary_user"])[0]
             window = float(query.get("window_seconds", ["600"])[0])
@@ -135,6 +138,33 @@ class _Handler(BaseHTTPRequestHandler):
                     source_surface=source_surface, source_request_id=source_request_id,
                 )
                 self._send(200, {"ok": True, "preference": result, "current_value": store.preference_value(person_id)})
+                return
+            if self.path.split("?", 1)[0] == "/v1/reminders":
+                person_id = body.get("person_id", "primary_user")
+                room_id = body.get("room_id", "office")
+                trigger_kind = body.get("trigger_kind", "next_primary_user_office_session")
+                message = body.get("message")
+                source_surface = body.get("source_surface", "api")
+                source_request_id = body.get("source_request_id")
+                if not all(isinstance(item, str) and item for item in (person_id, room_id, trigger_kind, message, source_surface, source_request_id)):
+                    raise ValueError("person_id, room_id, trigger_kind, message, source_surface, and source_request_id are required strings")
+                result = store.create_event_reminder(
+                    message=message, person_id=person_id, room_id=room_id, trigger_kind=trigger_kind,
+                    source_surface=source_surface, source_request_id=source_request_id,
+                )
+                self._send(200, {"ok": True, "reminder": result})
+                return
+            path = self.path.split("?", 1)[0]
+            if path.startswith("/v1/reminders/") and path.endswith("/cancel"):
+                reminder_id = path[len("/v1/reminders/"):-len("/cancel")]
+                source_surface = body.get("source_surface", "api")
+                source_request_id = body.get("source_request_id")
+                if not reminder_id or not isinstance(source_surface, str) or not source_surface or not isinstance(source_request_id, str) or not source_request_id:
+                    raise ValueError("reminder id, source_surface, and source_request_id are required")
+                result = store.cancel_event_reminder(
+                    reminder_id, source_surface=source_surface, source_request_id=source_request_id,
+                )
+                self._send(200, {"ok": True, "reminder": result})
                 return
             if self.path.split("?", 1)[0] == "/v1/proactive-feedback":
                 fields = (body.get("action_id"), body.get("person_id", "primary_user"), body.get("feedback_type"), body.get("source_surface", "api"), body.get("source_request_id"))
