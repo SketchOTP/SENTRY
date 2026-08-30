@@ -975,3 +975,9 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 
 ### Boundary
 - Reactive voice remains implementation-corrected but physically spoken-request unverified. M6 remains gated pending Architect review; the accepted final soak requirement is 30 minutes unattended and the former 72-hour requirement remains waived.
+
+## OUTCOME-SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001 — M6 final soak release
+- Status: **ACTIVE / UNATTENDED SOAK RUNNING**
+- Starting commit: `1ce3e6114ec8f18fb691dedd536c57472d1dd609`
+- Reactive voice is accepted by Architect disposition. The physical microphone → Whisper `tiny.en` → M4 grounded state → one Luna turn → local Kokoro → PipeWire speaker proof passed; M6 is released with a 30-minute soak. The former 72-hour requirement is permanently waived by owner/operator decision.
+- The mutable current snapshot and current-facing documentation now identify M6 as active and no longer describe reactive voice as pending. Earlier failed voice attempts remain preserved as historical evidence.

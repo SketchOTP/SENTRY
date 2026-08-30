@@ -1,21 +1,22 @@
 # Current Project State
 
-Last updated: 2026-08-29T22:25:00-04:00
+Last updated: 2026-08-29T23:05:00-04:00
 
 ## Current stage
-Pre-M6 reactive voice — implementation corrected; M6 30-minute unattended soak gated
+M6 — 30-minute unattended final acceptance soak
 
 ## Current objective
-Return the physically verified reactive voice closure for Architect review. Do not start M6 until accepted.
+Run the complete accepted V0.1 stack unattended for 30 minutes, then perform final integrity and regression checks.
 
 ## Active directive
-SENTRY-PRE-M6-REACTIVE-VOICE-001 — explicit microphone capture, local Whisper `tiny.en` STT, existing M4 grounded answer, and local Kokoro output through this host's PipeWire speaker.
+SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001 — unattended integrated stability soak; reactive voice is accepted and is not being requalified.
 
 ## Owner/operator M6 decision — 2026-08-29
 - M5 is accepted at `e6b56b0f446bc153ba7f936387fad8ec954cb1f6`.
 - The former 72-hour unattended soak is **SUPERSEDED / WAIVED** and must not be resurrected.
 - The final M6 requirement is a **30-minute unattended soak**, deliberately shorter and not equivalent reliability evidence to 72 hours.
-- M6 remains gated until the bounded reactive voice path receives Architect review.
+- Reactive voice is **ACCEPTED**: physical microphone → Whisper `tiny.en` → M4 grounded state → one Luna turn → local Kokoro → PipeWire speaker proof passed at `1ce3e611`.
+- M6 is **ACTIVE** with the owner/operator-approved 30-minute final soak. The former 72-hour requirement remains **WAIVED / SUPERSEDED**.
 
 ## Owner/operator acceptance — 2026-08-28
 - Practical Ubuntu camera/human-detection behavior is **ACCEPTED BY OWNER/OPERATOR DIRECTION** for V0.1 progression.
@@ -35,7 +36,7 @@ SENTRY-PRE-M6-REACTIVE-VOICE-001 — explicit microphone capture, local Whisper 
 - M1 practical presence is accepted by owner/operator direction; detector selection is frozen at corrected YOLOX-S and no fresh detector/camera qualification is required.
 - M2 durable memory is accepted with metadata-only local SQLite, Atlas snapshots, restart/session, failure-truthfulness, and localhost API behavior. Do not place the live database on the Atlas mount.
 - M3 live enrollment and bounded identity qualification passed; M4 conversational grounding is now qualified within bounded API/Luna evidence.
-- M4 bounded grounded conversation is implemented and qualified; M5 restrained proactivity is qualified by one real physical event. M6 remains gated pending Architect review.
+- M4 bounded grounded conversation is implemented and qualified; M5 restrained proactivity is qualified by one real physical event; reactive voice is accepted. M6 is the final integrated stability gate.
 
 ## M5 restrained proactivity — qualified
 - Schema migration 4 adds metadata-only `proactive_actions` with durable source-event/candidate keys, eligibility/suppression reason, judge, citation, utterance, and delivery provenance.
@@ -47,12 +48,12 @@ SENTRY-PRE-M6-REACTIVE-VOICE-001 — explicit microphone capture, local Whisper 
 - Corrected physical performance: 840 captured / 489 processed, 8.618 FPS, 102.746 ms median and 120.063 ms p95, 350 dropped frames, V4L2/MJPEG/1280x720/15 FPS, camera online, mirror status `ok`, persistence error `null`, continuous perception Luna calls `0`.
 - Restart/replay dedupe against the exact isolated DB produced `duplicate`, zero additional Luna calls, one action row, and no second delivery. M5 physical handoff is qualified; M6 remains gated.
 
-## Pre-M6 reactive voice — implementation corrected, Architect review pending
+## Reactive voice — accepted
 - Added `perception/voice.py`, `tools/sentry_voice.py`, and `tools/sentry_kokoro_worker.py` for one explicit push-to-talk request: PipeWire microphone -> in-memory PCM -> local `openai-whisper==20250625` `tiny.en` CPU transcription -> existing `tools/sentry_ask.py` M4 grounding -> installed local Kokoro synthesis -> this host's PipeWire speaker.
 - The recorder never writes audio to disk. Whisper weights are cached outside the repository under the user-local cache. No audio, embeddings, or raw frames were sent to Luna.
 - The initial implementation proof used Whisper `base.en` with no live perception source, so M4 truthfully reported unavailable current state; that run is not final voice qualification. The corrected path uses Whisper `tiny.en` and local Kokoro directly, defaulting to the lower `am_michael` voice at `0.9x`. Local Kokoro playback succeeded; subsequent microphone attempts captured no intelligible requested question. The CLI now displays a temporary local Zenity window titled `SENTRY Reactive Voice` with a three-second countdown and explicit `SPEAK NOW`/`DONE` markers, plus terminal fallback markers.
 - The first attempt exposed a full stdout-pipe recorder bug; concurrent draining corrected it. The failure produced zero Luna calls and no persisted audio and was not counted as voice qualification evidence.
-- Focused voice tests passed 4/4; full Ubuntu regression passed 96/96 after correction. M6 30-minute soak remains gated pending Architect review.
+- Focused voice tests passed 5/5; full Ubuntu regression passed 97/97 after correction. The physical spoken-request proof passed and M6 is released.
 
 ## M4 grounded conversation — qualified within bounded evidence
 - `tools/sentry_grounding.py` retrieves `/health`, current room state, sessions, persons, and events from localhost, then allow-lists them into stable fact IDs with an explicit `as_of` timestamp and deterministic derived session/identity/last-empty facts.

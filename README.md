@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 ## Current status
 
-**M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, and M5 restrained proactivity are accepted within their recorded evidence boundaries.** The bounded reactive voice path is implemented and its corrected local `tiny.en` + Kokoro proof is being closed; M6 remains gated pending Architect review. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. The owner/operator has waived the former 72-hour soak in favor of a 30-minute unattended final acceptance soak.
+**M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, M5 restrained proactivity, and the bounded reactive voice path are accepted within their recorded evidence boundaries.** M6 is the active 30-minute unattended final acceptance soak. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. The owner/operator has waived the former 72-hour soak in favor of a 30-minute unattended final acceptance soak.
 
 ## Project links
 

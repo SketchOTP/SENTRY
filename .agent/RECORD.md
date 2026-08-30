@@ -328,3 +328,14 @@ The local Ubuntu `SENTRY Reactive Voice` window displayed `GET READY`, a three-s
 
 ### Playback-rate correction
 The prior Kokoro delivery sounded excessively fast because `pw-play -` ignored the WAV header and assumed 48 kHz stereo while Kokoro supplied 24 kHz mono. The implementation now strips the header in memory and supplies explicit 24 kHz/mono/16-bit playback parameters. The operator confirmed the corrected playback sounded normal.
+
+## RECORD-SENTRY-020 — M6 released after reactive voice acceptance
+- Date: 2026-08-29
+- Type: MILESTONE / M6 ACTIVE
+- Related directive: `SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001`
+
+### Decision
+Architect accepted the reactive voice proof at `1ce3e611` and released M6. The final unattended acceptance requirement is exactly 30 minutes; the former 72-hour requirement is waived/superseded by owner/operator decision and must not be resurrected.
+
+### Current boundary
+M0 through M5 and reactive voice are accepted within their recorded evidence boundaries. M6 is a stability/integration gate only. No detector, identity, voice, or architecture work is reopened during the soak.

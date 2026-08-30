@@ -7,8 +7,8 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: Pre-M6 reactive voice — corrected; spoken request pending; M6 30-minute soak gated
-- Active directive: `SENTRY-PRE-M6-REACTIVE-VOICE-001` — bounded local microphone/STT/grounded-answer/speaker path
+- Current stage: M6 — 30-minute unattended final acceptance soak
+- Active directive: `SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001` — integrated V0.1 stability and integrity gate
 - Active task packet: none; M3 implementation is being validated from the directive and current working tree
 - Last accepted outcome: Ubuntu/V4L2 platform baseline verified
 - Latest recorded outcome: bounded reactive voice path physically verified through local STT, M4 grounding, and local speech
