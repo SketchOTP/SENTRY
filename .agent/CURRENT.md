@@ -1,15 +1,21 @@
 # Current Project State
 
-Last updated: 2026-08-29T22:05:00-04:00
+Last updated: 2026-08-29T22:25:00-04:00
 
 ## Current stage
-M5 restrained proactivity — qualified; M6 unattended soak gated
+Pre-M6 reactive voice — implementation corrected; M6 30-minute unattended soak gated
 
 ## Current objective
-Prepare for Architect review of M5 qualification and keep M6 unattended soak gated.
+Return the physically verified reactive voice closure for Architect review. Do not start M6 until accepted.
 
 ## Active directive
-SENTRY-M5-PHYSICAL-HANDOFF-QUALIFICATION-001 — operator-gated empty baseline, real primary-user entry, persisted identity event, and existing proactive processor handoff.
+SENTRY-PRE-M6-REACTIVE-VOICE-001 — explicit microphone capture, local Whisper `tiny.en` STT, existing M4 grounded answer, and local Kokoro output through this host's PipeWire speaker.
+
+## Owner/operator M6 decision — 2026-08-29
+- M5 is accepted at `e6b56b0f446bc153ba7f936387fad8ec954cb1f6`.
+- The former 72-hour unattended soak is **SUPERSEDED / WAIVED** and must not be resurrected.
+- The final M6 requirement is a **30-minute unattended soak**, deliberately shorter and not equivalent reliability evidence to 72 hours.
+- M6 remains gated until the bounded reactive voice path receives Architect review.
 
 ## Owner/operator acceptance — 2026-08-28
 - Practical Ubuntu camera/human-detection behavior is **ACCEPTED BY OWNER/OPERATOR DIRECTION** for V0.1 progression.
@@ -40,6 +46,13 @@ SENTRY-M5-PHYSICAL-HANDOFF-QUALIFICATION-001 — operator-gated empty baseline, 
 - Corrected run: local DB `/home/sketch/.local/share/sentry/m5-qualification/handoff-20260829T215316Z.sentry.db`; Atlas snapshot `/srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/m5-qualification/handoff-20260829T215316Z.sentry.db`. Empty baseline completed `21:53:39.050306Z`; entry prompt `21:53:57.362266Z`; `room.became_occupied`/`presence.session_started` at `21:54:16.643081Z` (session `1`); `person.identified` at `21:54:17.711178Z` (event `1cb6e1b2-749a-4dfe-8a66-0c7bb3390ef3`, track `1`, confidence `0.6749`); action `d542857b-9bb2-4831-9ec6-85e1071594fc` was eligible, invoked one low-effort `gpt-5.6-luna` turn, and persisted `judge_silent` with valid fact citations.
 - Corrected physical performance: 840 captured / 489 processed, 8.618 FPS, 102.746 ms median and 120.063 ms p95, 350 dropped frames, V4L2/MJPEG/1280x720/15 FPS, camera online, mirror status `ok`, persistence error `null`, continuous perception Luna calls `0`.
 - Restart/replay dedupe against the exact isolated DB produced `duplicate`, zero additional Luna calls, one action row, and no second delivery. M5 physical handoff is qualified; M6 remains gated.
+
+## Pre-M6 reactive voice — implementation corrected, Architect review pending
+- Added `perception/voice.py`, `tools/sentry_voice.py`, and `tools/sentry_kokoro_worker.py` for one explicit push-to-talk request: PipeWire microphone -> in-memory PCM -> local `openai-whisper==20250625` `tiny.en` CPU transcription -> existing `tools/sentry_ask.py` M4 grounding -> installed local Kokoro synthesis -> this host's PipeWire speaker.
+- The recorder never writes audio to disk. Whisper weights are cached outside the repository under the user-local cache. No audio, embeddings, or raw frames were sent to Luna.
+- The initial implementation proof used Whisper `base.en` with no live perception source, so M4 truthfully reported unavailable current state; that run is not final voice qualification. The corrected path uses Whisper `tiny.en` and local Kokoro directly. Local Kokoro playback succeeded; subsequent microphone attempts captured no intelligible speech and therefore made zero M4/Luna calls.
+- The first attempt exposed a full stdout-pipe recorder bug; concurrent draining corrected it. The failure produced zero Luna calls and no persisted audio and was not counted as voice qualification evidence.
+- Focused voice tests passed 4/4; full Ubuntu regression passed 96/96 after correction. M6 30-minute soak remains gated pending Architect review.
 
 ## M4 grounded conversation — qualified within bounded evidence
 - `tools/sentry_grounding.py` retrieves `/health`, current room state, sessions, persons, and events from localhost, then allow-lists them into stable fact IDs with an explicit `as_of` timestamp and deterministic derived session/identity/last-empty facts.

@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 ## Current status
 
-**M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, and M5 restrained proactivity are accepted within their recorded evidence boundaries.** Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. M6 unattended soak remains gated.
+**M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, and M5 restrained proactivity are accepted within their recorded evidence boundaries.** The bounded reactive voice path is implemented and its corrected local `tiny.en` + Kokoro proof is being closed; M6 remains gated pending Architect review. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. The owner/operator has waived the former 72-hour soak in favor of a 30-minute unattended final acceptance soak.
 
 ## Project links
 
@@ -49,6 +49,7 @@ SENTRY must be able to:
 - answer questions such as “Who is in the office?”, “When did I come in?”, and “How long have I been here?” from actual SENTRY data;
 - allow a physical event to become a proactive assistant candidate;
 - suppress duplicate/repetitive speech with cooldowns and an interruption budget;
+- accept one explicitly invoked microphone question through local Whisper STT, grounded M4 answering, and local speaker delivery;
 - report camera/assistant failures explicitly rather than inventing state.
 
 ## M1 implementation
@@ -79,7 +80,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 4. **M3 — Primary-user identity**: local enrollment, conservative recognition, unknown/unresolved fallback (accepted within bounded evidence).
 5. **M4 — Conversational grounding**: assistant queries current and historical office state.
 6. **M5 — Restrained proactive behavior**: persisted-event eligibility, dedupe/cooldowns/budget, bounded Luna judgment, local speech audit trail (qualified within bounded physical-event evidence).
-7. **M6 — Soak + acceptance**: at least 72 hours unattended with documented results.
+7. **M6 — Soak + acceptance**: 30 minutes unattended with documented results (owner/operator waiver of the former 72-hour requirement).
 
 Only after M6 passes should routine learning or multi-room hardware work begin.
 
@@ -90,7 +91,7 @@ Only after M6 passes should routine learning or multi-room hardware work begin.
 - Entry generally confirmed within 3 seconds of clear visibility.
 - Empty transition within the configured grace period, target <=25 seconds after actual departure.
 - Target >=98% precision for accepted primary-user identifications; uncertain observations become `unknown`.
-- 72-hour unattended run without manual process restart.
+- 30-minute unattended run without manual process restart.
 - No lost completed sessions across normal restart.
 - One semantic event creates at most one proactive spoken action unless a genuinely new event occurs.
 

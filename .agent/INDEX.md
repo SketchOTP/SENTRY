@@ -7,11 +7,11 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: M5 restrained proactivity — qualified; M6 soak gated
-- Active directive: `SENTRY-M5-PHYSICAL-HANDOFF-QUALIFICATION-001` — corrected operator-gated physical event handoff
+- Current stage: Pre-M6 reactive voice — corrected; spoken request pending; M6 30-minute soak gated
+- Active directive: `SENTRY-PRE-M6-REACTIVE-VOICE-001` — bounded local microphone/STT/grounded-answer/speaker path
 - Active task packet: none; M3 implementation is being validated from the directive and current working tree
 - Last accepted outcome: Ubuntu/V4L2 platform baseline verified
-- Latest recorded outcome: M5 restrained proactivity qualified through one real primary-user physical event
+- Latest recorded outcome: bounded reactive voice path physically verified through local STT, M4 grounding, and local speech
 - Last state sync: 2026-08-29T00:00:00-04:00
 
 ## Mandatory kernel

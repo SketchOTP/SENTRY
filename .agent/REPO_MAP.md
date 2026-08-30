@@ -18,6 +18,7 @@ Last verified against: `main` and working-tree inspection on 2026-08-29.
 - `tools/sentry_identity_evaluate.py` and `tools/sentry_identity_live_verify.py` — metadata-only held-out and live identity qualification runners; no frames or embeddings are written.
 - `tools/sentry_codex_response.schema.json` — structured output contract for the bounded bridge.
 - `tools/sentry_codex_bridge.py` — bounded OAuth/Luna launcher reused by the event proof and grounded query path; runtime calls execute from a temporary non-repository cwd and copy the selected schema to an absolute local path.
+- `perception/voice.py`, `tools/sentry_voice.py`, and `tools/sentry_kokoro_worker.py` — bounded push-to-talk PipeWire/in-memory Whisper `tiny.en` STT adapter reusing M4 `sentry_ask.py` and an installed local Kokoro runtime with local PipeWire playback; no audio persistence or continuous Luna calls.
 
 ## Important interfaces / contracts
 - `AGENTS.md` — Authority repository router.

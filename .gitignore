@@ -226,4 +226,7 @@ perception-observations*.jsonl
 *.onnx
 *.pth
 *.pt
+*.wav
+*.mp3
+*.flac
 .gstack/

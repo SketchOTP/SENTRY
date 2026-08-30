@@ -345,3 +345,10 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Replay proof: a fresh processor against the same isolated DB returned `duplicate`, made 0 additional Luna calls, and left one action row.
 - Validation: focused harness/M5 tests 15/15; full Ubuntu regression 92/92; physical performance 8.618 FPS with V4L2/MJPEG/1280x720/15 FPS; continuous perception Luna calls 0; raw frames/embeddings none.
 - Boundary: M5 is qualified within the bounded primary-user/current-session event class. M6 unattended soak remains gated pending Architect review.
+
+## SENTRY-PRE-M6-REACTIVE-VOICE-001 — Correction update — 2026-08-29
+- Status: **IMPLEMENTED / SPOKEN REQUEST PENDING**
+- Corrected the voice path to use local Whisper `tiny.en` (`openai-whisper==20250625`) for STT and an installed local Kokoro runtime for TTS. Kokoro WAV bytes are transient and played through this Ubuntu host's PipeWire speaker; no remote service dependency is used.
+- The state source was verified live: perception established `occupied`, and the equivalent text query returned a supported grounded answer with one low-effort Luna call. `tiny.en` passed an in-memory Kokoro phrase round-trip and local Kokoro playback succeeded.
+- The two physical attempts captured no intelligible speech and therefore made zero Luna calls. No qualification claim is made for a spoken request yet. Focused tests are 5/5 and full Ubuntu regression is 97/97.
+- Scope boundary: no M1/M2/M3/M4/M5 behavior changed; M6 remains gated and the final owner/operator soak is 30 minutes, not 72 hours.

@@ -954,3 +954,20 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 
 ### Boundary
 - M5 is qualified for the bounded `primary_user` / current-session `person.identified` proactive event path. M6 unattended soak remains gated pending Architect review. Historical detector and simultaneous-person limitations remain unchanged.
+
+## OUTCOME-SENTRY-PRE-M6-REACTIVE-VOICE-001 — Local STT/TTS correction
+- Completed: 2026-08-29
+- Status: **IMPLEMENTED / PHYSICAL SPOKEN REQUEST UNRESOLVED**
+
+### Correction
+- The first implementation used Whisper `base.en` and a Speech Dispatcher path; that did not satisfy the operator's requested lightweight STT and Kokoro TTS behavior. The corrected implementation uses pinned `openai-whisper==20250625` with `tiny.en`, plus an installed local Kokoro runtime invoked through `tools/sentry_kokoro_worker.py`. Kokoro output remains in memory and is streamed to this Ubuntu host's PipeWire `pw-play`; no remote/RPi5 service is used.
+- Kokoro runtime discovery is local and configurable through `SENTRY_KOKORO_PYTHON` or `--kokoro-python`; it does not bind SENTRY to another application.
+
+### Verification
+- `tiny.en` loaded successfully. An in-memory Kokoro-generated phrase round-trip was transcribed exactly as `Is anyone in the office?` by `tiny.en`; no audio file was created.
+- Local Kokoro synthesis and PipeWire playback returned success. A live state-grounding proof with SENTRY perception running returned a supported answer that the office was occupied by one visible unresolved person, using one low-effort `gpt-5.6-luna` turn.
+- Two corrected physical microphone attempts captured signal but no intelligible speech, so both correctly made zero M4/Luna calls and produced no TTS. The microphone path is therefore not claimed as completed spoken qualification until an intelligible operator phrase is captured.
+- Focused voice tests: **5/5 passed**. Full Ubuntu regression: **97/97 passed**. `git diff --check` passed. No raw audio, frames, embeddings, or biometrics were persisted; continuous perception Luna calls remained `0`.
+
+### Boundary
+- Reactive voice remains implementation-corrected but physically spoken-request unverified. M6 remains gated pending Architect review; the accepted final soak requirement is 30 minutes unattended and the former 72-hour requirement remains waived.

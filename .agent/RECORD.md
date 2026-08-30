@@ -305,3 +305,17 @@ Perception started before the `CONFIRMED_EMPTY` marker. A persisted empty/online
 
 ### Boundary
 The action invoked one low-effort `gpt-5.6-luna` turn and persisted a valid `judge_silent` outcome with no delivery. Replay returned `duplicate` with zero additional Luna calls and one action row. Full regression passed 92/92. M6 72-hour unattended soak remains gated; no new detector or identity claim is made.
+
+## RECORD-SENTRY-019 — Reactive voice implementation corrected
+- Date: 2026-08-29
+- Type: IMPLEMENTATION / QUALIFICATION PENDING
+- Related directive/outcome: `SENTRY-PRE-M6-REACTIVE-VOICE-001` / `OUTCOME-SENTRY-PRE-M6-REACTIVE-VOICE-001`
+
+### Decision / event
+The reactive voice path now uses local Whisper `tiny.en` for STT and an installed local Kokoro runtime for TTS. Kokoro is executed locally through a one-shot worker and streamed to this Ubuntu host's PipeWire speaker; SENTRY does not call a remote/RPi5 service.
+
+### Evidence
+`tiny.en` correctly transcribed an in-memory Kokoro-generated question. Local Kokoro playback succeeded. With live perception running, the same question's grounded text path returned a supported occupied-state answer with one low-effort Luna call. Focused voice tests passed 5/5 and full Ubuntu regression passed 97/97.
+
+### Boundary
+The microphone produced signal but the two corrected physical attempts captured no intelligible speech, so no spoken-request qualification is claimed and both made zero Luna calls. No raw audio was persisted. M6 remains gated; the owner/operator-approved final soak is 30 minutes unattended and the former 72-hour requirement is waived.
