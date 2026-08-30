@@ -1060,3 +1060,22 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 
 ### Boundary
 - Routine snapshots remain derived/rebuildable and cannot rewrite or override physical sessions/events/current state. No routine facts enter M5 proactive judgment; continuous perception Luna calls remain `0`; no raw frames, audio, embeddings, biometric data, or secrets were exposed.
+
+## OUTCOME-SENTRY-V0.2-PREFERENCE-FEEDBACK-MEMORY-001 — Preference + proactive feedback memory
+- Completed: 2026-08-30
+- Verdict: **V0.2 PREFERENCE + FEEDBACK MEMORY QUALIFIED**
+- Starting SHA: `f2b8340a7b5de32397618822142ebd1a61691160`
+- Retrieval confidence: **ADEQUATE**
+
+### Implementation
+- Schema 6 adds append-only `preference_events` and `proactive_feedback` ledgers. The only supported preference is `proactivity.primary_user_session_acknowledgement`; values are `allow` or `suppress`, with `default` when no event exists. Clear/forget supersedes prior state without deleting history.
+- Deterministic preference/feedback intent handling is layered into `tools/sentry_ask.py`, so supported writes, recall, and bounded feedback use zero Luna calls. Unsupported arbitrary memory requests fail closed. The localhost API exposes validated preference, feedback, and recent-delivered-action operations.
+- M5 applies explicit suppression after physical/source validity gates and before cooldown, budget, speech, or Luna. `allow` and `default` preserve the accepted path. Feedback is restricted to real delivered `person.identified` actions; only explicit `do_not_repeat` creates suppress.
+
+### Evidence
+- Qualification used isolated databases and synthetic metadata-only actions. Atlas snapshot/restore preserved schema 6, preference history, and feedback. Request retries were idempotent, unknown keys/values were rejected, and non-delivered/ambiguous/expired actions were not accepted as feedback targets.
+- The production database was inspected read-only before deployment: local SQLite was healthy at schema 5 with no preference or feedback records. No personal preference was written to production during qualification. Resident perception remained separate from the preference path and made zero Luna calls.
+- Focused preference tests passed **10/10**. Full Ubuntu regression passed **139/139** with only existing warnings. Reactive voice remains compatible through `sentry_ask.py`; routine facts remain absent from M5.
+
+### Boundary
+- This is explicit behavioral preference memory, not inferred preference, transcript mining, general semantic memory, or routine-driven proactivity. Preference state can personalize assistant behavior but cannot override physical room/session truth. Broader memory, context, and new proactive classes remain gated.

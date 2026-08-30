@@ -360,6 +360,13 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Runtime boundary: local SQLite remains authoritative on local ext4; Atlas remains the snapshot mirror on `fuse.sshfs`; stable V4L2 camera configuration and accepted OpenVINO/YOLOX runtime are preserved. Reactive voice remains explicit and is not made continuously listening.
 - Validation: 900-second supervised live probe passed with 30 samples and no failures; all services remained active, API and Atlas mirror remained healthy, and perception stayed above the 5 FPS floor. Individual API, proactive, and perception failure/restart isolation, clean stop/start, session invariants, and proactive dedupe were verified.
 - Exclusions: no routine learning, new sensors/models, detector/tracker/identity changes, continuous microphone, M3/M4/M5 redesign, or M6 expansion.
+
+## SENTRY-V0.2-PREFERENCE-FEEDBACK-MEMORY-001 — completed
+- Status: **QUALIFIED / COMPLETED**
+- Scope: schema-v6 typed preference ledger, bounded proactive-feedback ledger, deterministic `sentry_ask.py` preference commands, localhost API surfaces, and the existing M5 preference suppression gate.
+- Result: the sole supported preference is `proactivity.primary_user_session_acknowledgement`; default/allow preserve M5 behavior, suppress records `user_preference` before Luna, and `do_not_repeat` creates the same explicit suppress preference only for a real delivered supported action. Arbitrary semantic memory and implicit feedback are rejected.
+- Validation: isolated qualification databases proved set/query/allow/clear, request idempotence, audit history, recent-action safety, Atlas restore, M5 zero-Luna suppression, API validation/privacy, and reactive voice compatibility. Focused tests passed `10/10`; full Ubuntu regression passed `139/139`.
+- Production boundary: the actual production database was read-only inspected before deployment and had no preference/feedback rows. No personal preference was seeded or written into production during qualification. Resident perception remained at zero Luna calls.
 ## SENTRY-V0.2-ROUTINE-STATISTICS-001 — completed
 - Status: **QUALIFIED / COMPLETED**
 - Scope: deterministic timezone-aware routine statistics over trusted sessions/events; schema-v5 derived snapshots; localhost `/v1/routines`; independent user-systemd refresh timer.

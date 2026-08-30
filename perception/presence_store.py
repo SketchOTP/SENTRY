@@ -13,7 +13,7 @@ import sqlite3
 import threading
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +25,10 @@ from .storage_mirror import (
 )
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
+PREFERENCE_KEY = "proactivity.primary_user_session_acknowledgement"
+PREFERENCE_VALUES = {"allow", "suppress"}
+FEEDBACK_TYPES = {"helpful", "not_helpful", "too_frequent", "do_not_repeat"}
 
 
 def _utc_iso(value: datetime | str) -> str:
@@ -34,6 +37,18 @@ def _utc_iso(value: datetime | str) -> str:
             raise ValueError("history timestamps must be timezone-aware")
         return value.astimezone(timezone.utc).isoformat()
     return value
+
+
+def _parse_utc_time(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed.astimezone(timezone.utc)
 
 
 @dataclass(frozen=True)
@@ -88,6 +103,7 @@ class PresenceStore:
         self.close()
 
     def _migrate(self) -> None:
+        migrated = False
         with self._lock, self._connection:
             self._connection.execute(
                 "CREATE TABLE IF NOT EXISTS schema_migrations ("
@@ -138,6 +154,7 @@ class PresenceStore:
                     (1, datetime.now(timezone.utc).isoformat()),
                 )
                 applied.add(1)
+                migrated = True
             if 2 not in applied:
                 columns = {
                     row[1]
@@ -165,6 +182,7 @@ class PresenceStore:
                     "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                     (2, datetime.now(timezone.utc).isoformat()),
                 )
+                migrated = True
             if 3 not in applied:
                 columns = {row[1] for row in self._connection.execute("PRAGMA table_info(room_state)")}
                 if "people_json" not in columns:
@@ -199,6 +217,7 @@ class PresenceStore:
                     (3, datetime.now(timezone.utc).isoformat()),
                 )
                 applied.add(3)
+                migrated = True
             if 4 not in applied:
                 self._connection.executescript(
                     """
@@ -235,6 +254,7 @@ class PresenceStore:
                     (4, datetime.now(timezone.utc).isoformat()),
                 )
                 applied.add(4)
+                migrated = True
             if 5 not in applied:
                 self._connection.executescript(
                     """
@@ -268,6 +288,48 @@ class PresenceStore:
                     "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                     (5, datetime.now(timezone.utc).isoformat()),
                 )
+                applied.add(5)
+                migrated = True
+            if 6 not in applied:
+                self._connection.executescript(
+                    f"""
+                    CREATE TABLE IF NOT EXISTS preference_events (
+                        preference_event_id TEXT PRIMARY KEY,
+                        person_id TEXT NOT NULL,
+                        preference_key TEXT NOT NULL CHECK (preference_key = '{PREFERENCE_KEY}'),
+                        operation TEXT NOT NULL CHECK (operation IN ('set', 'clear')),
+                        value_json TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        source_surface TEXT NOT NULL,
+                        source_request_id TEXT NOT NULL,
+                        supersedes_event_id TEXT,
+                        UNIQUE(source_surface, source_request_id)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_preference_events_current
+                        ON preference_events(person_id, preference_key, created_at DESC);
+                    CREATE TABLE IF NOT EXISTS proactive_feedback (
+                        feedback_id TEXT PRIMARY KEY,
+                        action_id TEXT NOT NULL,
+                        person_id TEXT NOT NULL,
+                        feedback_type TEXT NOT NULL CHECK (feedback_type IN ('helpful', 'not_helpful', 'too_frequent', 'do_not_repeat')),
+                        created_at TEXT NOT NULL,
+                        source_surface TEXT NOT NULL,
+                        source_request_id TEXT NOT NULL UNIQUE,
+                        resulting_preference_event_id TEXT,
+                        FOREIGN KEY (action_id) REFERENCES proactive_actions(action_id),
+                        FOREIGN KEY (resulting_preference_event_id) REFERENCES preference_events(preference_event_id)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_proactive_feedback_action
+                        ON proactive_feedback(action_id, created_at DESC);
+                    """
+                )
+                self._connection.execute(
+                    "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+                    (6, datetime.now(timezone.utc).isoformat()),
+                )
+                migrated = True
+        if migrated:
+            self._maybe_mirror(force=True)
 
     @staticmethod
     def _observation_value(observation: Any, name: str, default: Any = None) -> Any:
@@ -739,6 +801,176 @@ class PresenceStore:
 
     def proactive_actions_for_candidate(self, candidate_key: str) -> list[dict[str, Any]]:
         return [item for item in self.proactive_actions(limit=1000) if item["candidate_key"] == candidate_key]
+
+    def preference_events(self, person_id: str = "primary_user", *, limit: int = 100) -> list[dict[str, Any]]:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT preference_event_id, person_id, preference_key, operation, value_json, created_at, "
+                "source_surface, source_request_id, supersedes_event_id FROM preference_events "
+                "WHERE person_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?",
+                (person_id, limit),
+            ).fetchall()
+        values = []
+        for row in rows:
+            value = dict(row)
+            value["value"] = json.loads(value.pop("value_json"))
+            values.append(value)
+        return values
+
+    def preference_value(
+        self, person_id: str = "primary_user", preference_key: str = PREFERENCE_KEY
+    ) -> str:
+        if preference_key != PREFERENCE_KEY:
+            raise ValueError(f"unsupported preference key: {preference_key}")
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT operation, value_json FROM preference_events "
+                "WHERE person_id = ? AND preference_key = ? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+                (person_id, preference_key),
+            ).fetchone()
+        if row is None or row[0] == "clear":
+            return "default"
+        value = json.loads(row[1])
+        if value not in PREFERENCE_VALUES:
+            return "default"
+        return str(value)
+
+    def _record_preference_event_locked(
+        self, *, person_id: str, operation: str, value: str | None,
+        source_surface: str, source_request_id: str, created_at: str,
+    ) -> dict[str, Any]:
+        if not person_id or operation not in {"set", "clear"}:
+            raise ValueError("preference person_id and operation are invalid")
+        if operation == "set" and value not in PREFERENCE_VALUES:
+            raise ValueError("preference value is invalid")
+        if not source_surface or not source_request_id:
+            raise ValueError("preference provenance is required")
+        existing = self._connection.execute(
+            "SELECT preference_event_id, person_id, preference_key, operation, value_json, created_at, "
+            "source_surface, source_request_id, supersedes_event_id FROM preference_events "
+            "WHERE source_surface = ? AND source_request_id = ?",
+            (source_surface, source_request_id),
+        ).fetchone()
+        if existing is not None:
+            result = dict(existing)
+            result["value"] = json.loads(result.pop("value_json"))
+            return result
+        previous = self._connection.execute(
+            "SELECT preference_event_id FROM preference_events WHERE person_id = ? AND preference_key = ? "
+            "ORDER BY created_at DESC, rowid DESC LIMIT 1",
+            (person_id, PREFERENCE_KEY),
+        ).fetchone()
+        event_id = str(uuid.uuid4())
+        self._connection.execute(
+            "INSERT INTO preference_events(preference_event_id, person_id, preference_key, operation, value_json, "
+            "created_at, source_surface, source_request_id, supersedes_event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (event_id, person_id, PREFERENCE_KEY, operation, json.dumps(value), created_at,
+             source_surface, source_request_id, previous[0] if previous else None),
+        )
+        return {
+            "preference_event_id": event_id,
+            "person_id": person_id,
+            "preference_key": PREFERENCE_KEY,
+            "operation": operation,
+            "value": value,
+            "created_at": created_at,
+            "source_surface": source_surface,
+            "source_request_id": source_request_id,
+            "supersedes_event_id": previous[0] if previous else None,
+        }
+
+    def record_preference(
+        self, *, person_id: str = "primary_user", operation: str, value: str | None = None,
+        source_surface: str, source_request_id: str, created_at: datetime | str | None = None,
+    ) -> dict[str, Any]:
+        timestamp = _utc_iso(created_at or datetime.now(timezone.utc))
+        with self._lock, self._connection:
+            result = self._record_preference_event_locked(
+                person_id=person_id, operation=operation, value=value,
+                source_surface=source_surface, source_request_id=source_request_id,
+                created_at=timestamp,
+            )
+        self._maybe_mirror(force=True)
+        return result
+
+    def recent_delivered_proactive_action(
+        self, person_id: str = "primary_user", *, now: datetime | None = None, window_seconds: float = 600.0,
+    ) -> dict[str, Any] | None:
+        if window_seconds <= 0:
+            raise ValueError("feedback window must be positive")
+        cutoff = _parse_utc_time((now or datetime.now(timezone.utc)).isoformat())
+        assert cutoff is not None
+        candidates = []
+        for action in self.proactive_actions(limit=1000):
+            if action.get("person_id") != person_id or action.get("delivery_status") != "delivered":
+                continue
+            delivered_at = _parse_utc_time(action.get("delivered_at"))
+            if delivered_at is not None and timedelta(seconds=0) <= cutoff - delivered_at <= timedelta(seconds=window_seconds):
+                candidates.append(action)
+        return candidates[0] if len(candidates) == 1 else None
+
+    def proactive_feedback(self, *, limit: int = 100) -> list[dict[str, Any]]:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT feedback_id, action_id, person_id, feedback_type, created_at, source_surface, "
+                "source_request_id, resulting_preference_event_id FROM proactive_feedback "
+                "ORDER BY created_at DESC, rowid DESC LIMIT ?", (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def record_proactive_feedback(
+        self, *, action_id: str, person_id: str = "primary_user", feedback_type: str,
+        source_surface: str, source_request_id: str, created_at: datetime | str | None = None,
+    ) -> dict[str, Any]:
+        if feedback_type not in FEEDBACK_TYPES:
+            raise ValueError("feedback type is invalid")
+        if not source_surface or not source_request_id:
+            raise ValueError("feedback provenance is required")
+        timestamp = _utc_iso(created_at or datetime.now(timezone.utc))
+        with self._lock, self._connection:
+            existing = self._connection.execute(
+                "SELECT feedback_id, action_id, person_id, feedback_type, created_at, source_surface, "
+                "source_request_id, resulting_preference_event_id FROM proactive_feedback WHERE source_request_id = ?",
+                (source_request_id,),
+            ).fetchone()
+            if existing is not None:
+                return dict(existing)
+            action = self._connection.execute(
+                "SELECT event_type, person_id, delivery_status FROM proactive_actions WHERE action_id = ?", (action_id,)
+            ).fetchone()
+            if action is None:
+                raise ValueError(f"proactive action not found: {action_id}")
+            if action[1] != person_id:
+                raise ValueError("feedback person does not match proactive action")
+            if action[0] != "person.identified" or person_id != "primary_user":
+                raise ValueError("feedback action is outside the supported acknowledgement scope")
+            if action[2] != "delivered":
+                raise ValueError("feedback action was not delivered")
+            preference_event_id = None
+            if feedback_type == "do_not_repeat":
+                preference = self._record_preference_event_locked(
+                    person_id=person_id, operation="set", value="suppress",
+                    source_surface=source_surface, source_request_id=f"{source_request_id}:preference",
+                    created_at=timestamp,
+                )
+                preference_event_id = preference["preference_event_id"]
+            feedback_id = str(uuid.uuid4())
+            self._connection.execute(
+                "INSERT INTO proactive_feedback(feedback_id, action_id, person_id, feedback_type, created_at, "
+                "source_surface, source_request_id, resulting_preference_event_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (feedback_id, action_id, person_id, feedback_type, timestamp, source_surface, source_request_id, preference_event_id),
+            )
+            result = {
+                "feedback_id": feedback_id, "action_id": action_id, "person_id": person_id,
+                "feedback_type": feedback_type, "created_at": timestamp, "source_surface": source_surface,
+                "source_request_id": source_request_id, "resulting_preference_event_id": preference_event_id,
+            }
+        self._maybe_mirror(force=True)
+        return result
 
     def routine_source(self, window_start: str, window_end: str, *, room_id: str = "office") -> dict[str, list[dict[str, Any]]]:
         """Return bounded metadata-only source rows for routine derivation."""

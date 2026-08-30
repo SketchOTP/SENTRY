@@ -51,11 +51,11 @@ class LocalMirrorTests(unittest.TestCase):
             )
             connection.close()
             with PresenceStore(path) as store:
-                self.assertEqual(store.health()["schema_version"], 5)
+                self.assertEqual(store.health()["schema_version"], 6)
                 columns = {row[1] for row in store._connection.execute("PRAGMA table_info(presence_sessions)")}
                 self.assertTrue({"start_reason", "end_reason", "recovered_after_restart", "end_time_uncertain"} <= columns)
             with PresenceStore(path) as reopened:
-                self.assertEqual(reopened.health()["schema_version"], 5)
+                self.assertEqual(reopened.health()["schema_version"], 6)
 
     def test_snapshot_is_integrity_checked_and_health_reports_mirror(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -68,7 +68,7 @@ class LocalMirrorTests(unittest.TestCase):
                 store.stop("2026-08-28T12:00:02+00:00")
                 health = store.health()
                 self.assertEqual(health["db_available"], True)
-                self.assertEqual(health["schema_version"], 5)
+                self.assertEqual(health["schema_version"], 6)
                 self.assertEqual(health["atlas_mirror"]["status"], "ok")
                 self.assertIsNotNone(health["atlas_mirror"]["snapshot_sha256"])
             self.assertTrue(atlas.is_file())
@@ -204,7 +204,7 @@ class LocalMirrorTests(unittest.TestCase):
                     self.assertEqual(response.status, 200)
                     self.assertTrue(health["ok"])
                     self.assertTrue(health["db_available"])
-                    self.assertEqual(health["schema_version"], 5)
+                    self.assertEqual(health["schema_version"], 6)
                     self.assertEqual(health["atlas_mirror"]["status"], "disabled")
                     connection.request("GET", "/v1/rooms/office/sessions")
                     sessions = json.loads(connection.getresponse().read())

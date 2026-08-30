@@ -8,7 +8,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 **SENTRY V0.1 is accepted within the office-only boundary:** M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, M5 restrained proactivity, reactive voice, and the 30-minute unattended M6 integration soak passed within their recorded evidence boundaries. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. The owner/operator permanently waived the former 72-hour soak in favor of the passed 30-minute final soak.
 
-**V0.2 resident runtime and routine-grounded conversation are qualified:** the accepted stack runs as enabled native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. The current startup condition is the authenticated Ubuntu user session. Routine statistics are derived through schema-v5 snapshots and can be discussed through the bounded M4 path; the current sparse production history correctly remains insufficient, and routine facts remain excluded from M5.
+**V0.2 resident runtime, routine-grounded conversation, and preference/feedback memory are qualified:** the accepted stack runs as enabled native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. The current startup condition is the authenticated Ubuntu user session. Routine statistics are derived through schema-v5 snapshots and can be discussed through the bounded M4 path; the current sparse production history correctly remains insufficient, and routine facts remain excluded from M5. Schema 6 adds one explicit, reversible primary-user acknowledgement preference plus auditable proactive feedback; arbitrary semantic memory remains unsupported.
 
 ## Project links
 
@@ -51,6 +51,7 @@ SENTRY must be able to:
 - answer questions such as “Who is in the office?”, “When did I come in?”, and “How long have I been here?” from actual SENTRY data;
 - allow a physical event to become a proactive assistant candidate;
 - suppress duplicate/repetitive speech with cooldowns and an interruption budget;
+- remember one explicit primary-user acknowledgement preference and auditable feedback;
 - accept one explicitly invoked microphone question through local Whisper STT, grounded M4 answering, and local speaker delivery;
 - report camera/assistant failures explicitly rather than inventing state.
 
@@ -81,7 +82,7 @@ The transparent routine-statistics foundation is documented in [`docs/V0.2_ROUTI
 /home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_routines.py show --config ~/.config/sentry/config.json
 ```
 
-The production result is currently `insufficient` because natural history is sparse. Routine snapshots never override physical state or feed M5. Their bounded conversational use is documented in [`docs/V0.2_ROUTINE_GROUNDED_CONVERSATION.md`](docs/V0.2_ROUTINE_GROUNDED_CONVERSATION.md).
+The production result is currently `insufficient` because natural history is sparse. Routine snapshots never override physical state or feed M5. Their bounded conversational use is documented in [`docs/V0.2_ROUTINE_GROUNDED_CONVERSATION.md`](docs/V0.2_ROUTINE_GROUNDED_CONVERSATION.md). Preference and feedback memory is documented in [`docs/V0.2_PREFERENCE_FEEDBACK_MEMORY.md`](docs/V0.2_PREFERENCE_FEEDBACK_MEMORY.md).
 
 ## Reuse strategy
 
@@ -107,6 +108,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 8. **V0.2 — Resident runtime**: supervised auto-starting perception, API, and proactive services with bounded restart/recovery (qualified).
 9. **V0.2 — Routine statistics foundation**: deterministic, timezone-aware, interruption-filtered derived summaries with schema-v5 persistence, localhost API, and scheduled refresh (qualified; production data currently insufficient).
 10. **V0.2 — Routine-grounded conversation**: deterministic routine intent/scope routing, maturity-aware bounded fact packets, and truthful sparse-history answers through M4 (qualified).
+11. **V0.2 — Preference + feedback memory**: one explicit reversible acknowledgement preference, auditable proactive feedback, and deterministic M5 suppression (qualified).
 
 M6, V0.2 resident runtime, the V0.2 routine-statistics foundation, and routine-grounded conversation have passed. Routine facts entering proactive judgment, or multi-room hardware work, requires a new Architect directive and remains outside the accepted office-only V0.1/V0.2 boundary.
 

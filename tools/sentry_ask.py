@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
+from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -14,11 +16,13 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.sentry_codex_bridge import invoke_grounded_query  # noqa: E402
 from tools.sentry_grounding import (  # noqa: E402
+    _get_json,
     retrieve_fact_packet,
     unavailable_response,
     validate_grounded_response,
 )
 from tools.sentry_routine_intent import routine_keys, select_routine_intent
+from tools.sentry_preference_intent import PreferenceIntent, select_preference_intent
 
 
 def _insufficient_routine_response(fact_ids: list[str], facts: list[dict[str, Any]]) -> dict[str, Any]:
@@ -57,6 +61,101 @@ def _routine_source_unavailable_response(reason: str) -> dict[str, Any]:
     }
 
 
+def _preference_response(value: str, *, fact_id: str = "preference:proactivity.primary_user_session_acknowledgement") -> dict[str, Any]:
+    if value == "suppress":
+        answer = "Your greeting preference is disabled, so I will not proactively acknowledge you when I first recognize you in a session."
+    elif value == "allow":
+        answer = "Your greeting preference is enabled; I may consider a brief acknowledgement when I first recognize you in a session."
+    else:
+        answer = "You have no explicit greeting preference saved, so SENTRY is using its default acknowledgement policy."
+    return {"answer": answer, "grounding": "supported", "fact_ids": [fact_id], "limitations": []}
+
+
+def _post_json(base_url: str, path: str, payload: dict[str, Any], *, timeout: float = 5.0) -> dict[str, Any]:
+    request = Request(
+        f"{base_url.rstrip('/')}{path}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Accept": "application/json", "Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlopen(request, timeout=timeout) as response:  # noqa: S310 - URL is operator-configured localhost
+        value = json.loads(response.read().decode("utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"{path} did not return a JSON object")
+    return value
+
+
+def _deterministic_preference_result(
+    intent: PreferenceIntent, *, base_url: str, person_id: str, source_surface: str, source_request_id: str,
+) -> dict[str, Any]:
+    try:
+        if intent.kind == "query":
+            preferences = _get_json(base_url, "/v1/preferences", params={"person_id": person_id})
+            value = preferences.get("current_value")
+            if value not in {"default", "allow", "suppress"}:
+                raise ValueError("preference response is invalid")
+            result = _preference_response(value)
+            if intent.query_topic == "why":
+                if value == "suppress":
+                    result["answer"] = "I did not greet you because your saved preference suppresses primary-user session acknowledgements."
+                else:
+                    result["answer"] = "I don't have an explicit suppression preference saved; I may have chosen silence under the normal proactive policy."
+                    result["limitations"] = ["the latest proactive decision was not included in this bounded preference lookup"]
+            return result
+        if intent.kind == "write":
+            payload = {
+                "person_id": person_id,
+                "operation": intent.operation,
+                "value": intent.value,
+                "source_surface": source_surface,
+                "source_request_id": source_request_id,
+            }
+            response = _post_json(base_url, "/v1/preferences", payload)
+            preference = response.get("preference")
+            if not isinstance(preference, dict):
+                raise ValueError("preference mutation response is invalid")
+            current = response.get("current_value")
+            result = _preference_response(current)
+            result["answer"] = {
+                "set": "I saved your preference: I will suppress primary-user session acknowledgements." if intent.value == "suppress" else "I saved your preference: primary-user session acknowledgements are allowed again.",
+                "clear": "I forgot your greeting preference and restored the default policy.",
+            }.get(str(intent.operation), "Your preference was saved.")
+            result["preference_event_id"] = preference.get("preference_event_id")
+            return result
+        if intent.kind == "feedback":
+            recent = _get_json(base_url, "/v1/proactive-actions/recent", params={"person_id": person_id, "window_seconds": "600"})
+            action = recent.get("action")
+            if not isinstance(action, dict) or not action.get("action_id"):
+                return {
+                    "answer": "I couldn't safely match that feedback to one recent delivered acknowledgement, so I did not save it.",
+                    "grounding": "partial", "fact_ids": [],
+                    "limitations": ["no single unambiguous delivered proactive action within the last 10 minutes"],
+                }
+            response = _post_json(base_url, "/v1/proactive-feedback", {
+                "action_id": action["action_id"], "person_id": person_id,
+                "feedback_type": intent.feedback_type, "source_surface": source_surface,
+                "source_request_id": source_request_id,
+            })
+            feedback = response.get("feedback")
+            if not isinstance(feedback, dict):
+                raise ValueError("feedback response is invalid")
+            result = {
+                "answer": "I saved that feedback." if intent.feedback_type != "do_not_repeat" else "I saved that feedback and disabled future primary-user session acknowledgements.",
+                "grounding": "supported", "fact_ids": ["recent-proactive-action"], "limitations": [],
+                "feedback_id": feedback.get("feedback_id"),
+            }
+            if feedback.get("resulting_preference_event_id"):
+                result["preference_event_id"] = feedback["resulting_preference_event_id"]
+            return result
+    except Exception as exc:  # noqa: BLE001 - deterministic API failure is explicit
+        return {
+            "answer": "SENTRY could not update or read that preference reliably right now.",
+            "grounding": "unavailable", "fact_ids": [],
+            "limitations": [f"preference API unavailable: {type(exc).__name__}"],
+        }
+    return {}
+
+
 def ask(
     question: str,
     *,
@@ -64,7 +163,24 @@ def ask(
     room_id: str = "office",
     effort: str = "low",
     timeout_seconds: int = 120,
+    source_surface: str = "sentry_ask",
 ) -> dict[str, Any]:
+    preference_intent = select_preference_intent(question)
+    request_id = str(uuid.uuid4())
+    if preference_intent is not None:
+        if preference_intent.kind == "unsupported_memory":
+            return {
+                "query_id": request_id, "as_of": None,
+                "answer": "I don't support storing that kind of preference yet.",
+                "grounding": "unavailable", "fact_ids": [],
+                "limitations": ["only primary-user session acknowledgement preferences are supported"],
+                "luna_invocations": 0,
+            }
+        result = _deterministic_preference_result(
+            preference_intent, base_url=base_url, person_id="primary_user",
+            source_surface=source_surface, source_request_id=request_id,
+        )
+        return {"query_id": request_id, "as_of": None, **result, "luna_invocations": 0}
     routine_intent = select_routine_intent(question)
     if routine_intent is not None and routine_intent.unsupported:
         return {

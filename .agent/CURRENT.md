@@ -1,15 +1,24 @@
 # Current Project State
 
-Last updated: 2026-08-30T09:30:00-04:00
+Last updated: 2026-08-30T10:12:00-04:00
 
 ## Current stage
-V0.2 — routine-grounded conversation qualified after routine statistics foundation
+V0.2 — explicit preference + proactive feedback memory qualified
 
 ## Current objective
-Answer bounded usual/typical behavior questions from derived routine snapshots without turning sparse statistics into physical truth or feeding routine data into M5.
+Remember one explicit, typed user behavior preference and bounded proactive feedback without creating general semantic memory or changing physical truth.
 
 ## Active directive
-SENTRY-V0.2-ROUTINE-GROUNDED-CONVERSATION-001 — completed successfully; routine-grounded conversation qualified.
+SENTRY-V0.2-PREFERENCE-FEEDBACK-MEMORY-001 — completed successfully; preference + feedback memory qualified.
+
+## V0.2 preference + proactive feedback memory — 2026-08-30
+- Schema version 6 adds append-only `preference_events` and `proactive_feedback` ledgers. The sole supported key is `proactivity.primary_user_session_acknowledgement`, with typed `allow`/`suppress` values and `default` when unset.
+- Deterministic `sentry_ask.py` commands support set, allow, clear/forget, recall, and bounded explicit feedback. Unsupported arbitrary “remember X” requests fail closed with zero Luna calls. Mutations are provenance-backed and idempotent by source request ID.
+- M5 now checks the preference after fundamental event/session/source-health gates and before dedupe/cooldown/budget/Luna/speech. Explicit suppression persists `user_preference`; allow/default retain the accepted M5 path. Routine facts do not enter M5.
+- Localhost API adds metadata-only preference/feedback reads and writes plus bounded recent delivered-action resolution. API enum validation, one-action feedback scope, non-delivered rejection, restart/Atlas preservation, and privacy boundaries are covered.
+- Qualification used isolated databases and did not write a personal preference to production. The real production database was inspected read-only before deployment: schema 5, no preference events, no feedback rows, healthy local SQLite, and no production preference mutation.
+- Focused preference tests passed `10/10`; full Ubuntu regression passed `139/139` with existing warnings only. M5 deterministic suppression remains zero Luna; continuous perception remains zero Luna. Reactive voice remains compatible through `sentry_ask.py`.
+- Preference + feedback memory is qualified. Broader semantic memory, inferred preferences, routine-driven proactivity, and new contextual sources remain gated.
 
 ## V0.2 routine-grounded conversation — 2026-08-30
 - `tools/sentry_routine_intent.py` deterministically routes habitual language to one of four accepted routine types and an explicit all-days/weekday/weekend/named-weekday scope. Non-habitual questions stay on the physical-history path; unsupported habitual activity/causal questions fail closed.

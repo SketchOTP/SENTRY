@@ -27,10 +27,23 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _read_json(self) -> dict:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0 or length > 16_384:
+                raise ValueError("request body must be between 1 and 16384 bytes")
+            value = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("request body must be valid JSON") from exc
+        if not isinstance(value, dict):
+            raise ValueError("request body must be a JSON object")
+        return value
+
     def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
         room_id = query.get("room_id", ["office"])[0]
+        history = query.get("history", ["0"])[0].lower() in {"1", "true", "yes"}
         try:
             limit = min(100, max(1, int(query.get("limit", ["100"])[0])))
         except (TypeError, ValueError):
@@ -58,10 +71,60 @@ class _Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/v1/events":
             self._send(200, {"events": store.events(room_id, limit=limit)})
         elif parsed.path == "/v1/routines":
-            history = query.get("history", ["0"])[0].lower() in {"1", "true", "yes"}
             self._send(200, {"routines": store.routine_snapshots(latest_only=not history, limit=limit)})
+        elif parsed.path == "/v1/preferences":
+            person_id = query.get("person_id", ["primary_user"])[0]
+            self._send(200, {
+                "person_id": person_id,
+                "preference_key": "proactivity.primary_user_session_acknowledgement",
+                "current_value": store.preference_value(person_id),
+                "events": store.preference_events(person_id, limit=limit) if history else [],
+            })
+        elif parsed.path == "/v1/proactive-actions/recent":
+            person_id = query.get("person_id", ["primary_user"])[0]
+            window = float(query.get("window_seconds", ["600"])[0])
+            action = store.recent_delivered_proactive_action(person_id, window_seconds=window)
+            self._send(200, {"action": action})
         else:
             self._send(404, {"error": "not_found"})
+
+    def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+        store: PresenceStore = self.server.store  # type: ignore[attr-defined]
+        try:
+            body = self._read_json()
+            if self.path.split("?", 1)[0] == "/v1/preferences":
+                person_id = body.get("person_id", "primary_user")
+                operation = body.get("operation")
+                value = body.get("value")
+                source_surface = body.get("source_surface", "api")
+                source_request_id = body.get("source_request_id")
+                if not all(isinstance(item, str) and item for item in (person_id, operation, source_surface, source_request_id)):
+                    raise ValueError("person_id, operation, source_surface, and source_request_id are required strings")
+                if operation == "clear":
+                    value = None
+                elif operation != "set" or value not in {"allow", "suppress"}:
+                    raise ValueError("preference operation/value is invalid")
+                result = store.record_preference(
+                    person_id=person_id, operation=operation, value=value,
+                    source_surface=source_surface, source_request_id=source_request_id,
+                )
+                self._send(200, {"ok": True, "preference": result, "current_value": store.preference_value(person_id)})
+                return
+            if self.path.split("?", 1)[0] == "/v1/proactive-feedback":
+                fields = (body.get("action_id"), body.get("person_id", "primary_user"), body.get("feedback_type"), body.get("source_surface", "api"), body.get("source_request_id"))
+                if not all(isinstance(item, str) and item for item in fields):
+                    raise ValueError("action_id, person_id, feedback_type, source_surface, and source_request_id are required strings")
+                result = store.record_proactive_feedback(
+                    action_id=fields[0], person_id=fields[1], feedback_type=fields[2],
+                    source_surface=fields[3], source_request_id=fields[4],
+                )
+                self._send(200, {"ok": True, "feedback": result})
+                return
+            self._send(404, {"error": "not_found"})
+        except ValueError as exc:
+            self._send(400, {"error": str(exc)})
+        except KeyError as exc:
+            self._send(404, {"error": str(exc)})
 
     def log_message(self, format: str, *args: object) -> None:
         return

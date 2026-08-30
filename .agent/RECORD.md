@@ -394,3 +394,17 @@ Deterministic intent/scope routing, metadata-only routine facts, maturity-aware 
 
 ### Boundary
 Routine facts are derived/rebuildable, cannot override physical truth, are not fed into M5, and do not support unsupported activity or causal claims. The existing reactive voice bridge remains compatible through `sentry_ask.py`.
+
+## RECORD-SENTRY-025 — V0.2 preference + proactive feedback memory qualified
+- Date: 2026-08-30
+- Type: MILESTONE / V0.2 QUALIFICATION
+- Related directive/outcome: `SENTRY-V0.2-PREFERENCE-FEEDBACK-MEMORY-001` / `OUTCOME-SENTRY-V0.2-PREFERENCE-FEEDBACK-MEMORY-001`
+
+### Decision
+The first explicit behavioral memory slice is qualified. SENTRY can remember one user-controlled primary-user session acknowledgement preference and auditable feedback without creating general semantic memory or altering physical truth.
+
+### Evidence
+Schema 6 ledger migration, deterministic conversation/API mutation and recall, reversible history, idempotence, feedback scope, M5 `user_preference` suppression, Atlas restore, privacy checks, and the full `139/139` Ubuntu regression passed. Qualification state was isolated; production preference state remained unmodified and default.
+
+### Boundary
+No inferred preferences, transcript mining, routine-driven proactivity, external context, or additional proactive event classes were added. Routine facts remain outside M5, perception remains at zero Luna calls, and broader memory requires a later directive.

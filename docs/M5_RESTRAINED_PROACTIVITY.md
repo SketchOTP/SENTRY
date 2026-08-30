@@ -18,9 +18,10 @@ persisted person.identified
 ```
 
 The live SQLite database remains on the Ubuntu host. Schema migration 4 adds
-`proactive_actions`; existing Atlas mirroring covers it through the normal
-SQLite backup path. No frames, embeddings, or identity prototypes enter the
-fact packet or action log.
+`proactive_actions`; schema 6 adds the separate explicit preference/feedback
+ledger. Existing Atlas mirroring covers both through the normal SQLite backup
+path. No frames, embeddings, or identity prototypes enter the fact packet or
+action log.
 
 ## Default policy
 
@@ -42,8 +43,14 @@ Deterministic suppressions never call Luna. Reasons are machine-readable,
 including `disabled`, `unsupported_event`, `non_primary`, `stale`,
 `room_not_occupied`, `source_unhealthy`, `restart_reconciled`, `duplicate`,
 `already_handled_session`, `cooldown`, `hourly_budget`,
-`startup_suppression`, `speech_busy`, `judge_silent`, `judge_invalid`, and
-`delivery_failed`.
+`startup_suppression`, `user_preference`, `speech_busy`, `judge_silent`,
+`judge_invalid`, and `delivery_failed`.
+
+Preference suppression occurs only after the physical-validity checks and
+before cooldown, budget, Luna, or speech.
+
+The preference/feedback extension is documented in
+[`docs/V0.2_PREFERENCE_FEEDBACK_MEMORY.md`](V0.2_PREFERENCE_FEEDBACK_MEMORY.md).
 
 ## Commands
 

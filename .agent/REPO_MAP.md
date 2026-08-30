@@ -29,6 +29,10 @@ Last verified against: `main` and working-tree inspection on 2026-08-30.
 - `deploy/systemd/user/sentry-routines.service` and `sentry-routines.timer` — independent six-hour derived-statistics refresh.
 - `tests/test_routines.py` — metadata-only routine statistics, schema-v5, API, Atlas restore, idempotence, DST, and privacy tests.
 - `tests/test_routine_conversation.py` — routine intent/scope, maturity, privacy, outage, contradiction, and M4/M5-boundary tests.
+- `tools/sentry_preference_intent.py` / `tests/test_preferences.py` — deterministic supported preference/feedback intent routing and schema-v6 qualification coverage.
+- `perception/presence_store.py` — schema-v6 append-only preference and proactive-feedback ledgers, current-value derivation, recent delivered-action resolution, and Atlas mirroring.
+- `perception/proactive.py` / `tools/sentry_state_api.py` — deterministic `user_preference` M5 gate and localhost preference/feedback/recent-action surfaces.
+- `docs/V0.2_PREFERENCE_FEEDBACK_MEMORY.md` — narrow preference vocabulary, provenance, privacy, feedback semantics, and M5 boundary.
 
 ## Important interfaces / contracts
 - `AGENTS.md` — Authority repository router.

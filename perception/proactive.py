@@ -16,14 +16,14 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
-from .presence_store import PresenceStore
+from .presence_store import PREFERENCE_KEY, PresenceStore
 
 
 SUPPRESSION_REASONS = {
     "disabled", "unsupported_event", "non_primary", "stale", "room_not_occupied",
     "source_unhealthy", "restart_reconciled", "duplicate", "already_handled_session",
     "cooldown", "hourly_budget", "startup_suppression", "speech_busy", "judge_silent",
-    "judge_invalid", "delivery_failed",
+    "judge_invalid", "delivery_failed", "user_preference",
 }
 _ALLOWED_DECISIONS = {"speak", "silent"}
 _BANNED_UTTERANCE_PATTERNS = (
@@ -279,6 +279,8 @@ class ProactiveProcessor:
             return "room_not_occupied", candidate_key, context
         if now - self.started_at < timedelta(seconds=self.config.startup_suppression_seconds):
             return "startup_suppression", candidate_key, context
+        if self.store.preference_value("primary_user", PREFERENCE_KEY) == "suppress":
+            return "user_preference", candidate_key, context
         if counts["same_session_action_count"] >= self.config.same_session_max_actions:
             return "already_handled_session", candidate_key, context
         if counts["cooldown_active"]:
