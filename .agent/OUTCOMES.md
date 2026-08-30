@@ -1143,4 +1143,4 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 
 ### Boundary
 - This is one explicit next-session office reminder, not a scheduler, alarm, recurrence engine, weather/leave trigger, or inferred personal arrival event. Reminder text is local metadata and is not sent to Luna; raw audio, frames, embeddings, and biometric data remain absent from persistence.
-- Final documentation commit SHA will be recorded after the required Notion synchronization and push.
+- Final documentation commit: `38ec6f6c5d7e7e188f1517a24f69c4e47523cf13` (`docs: record event reminder implementation evidence`).

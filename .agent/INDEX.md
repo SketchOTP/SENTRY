@@ -12,7 +12,7 @@
 - Active task packet: none; event-reminder implementation and evidence are recorded in the repository
 - Last accepted outcome: V0.2 event-triggered reminders qualified; production reminder state remains empty
 - Latest recorded outcome: V0.2 event-triggered reminders qualified; V0.1, resident runtime, routine statistics/conversation, preference/feedback memory, weather context, and contextual weather proactivity remain accepted
-- Last state sync: 2026-08-30T19:30:00-04:00; implementation and documentation commits are recorded in the reminder outcome/record entries
+- Last state sync: 2026-08-30T19:35:00-04:00; implementation `dcd36d3`, documentation `38ec6f6`
 
 ## Mandatory kernel
 Read these before substantial work:
