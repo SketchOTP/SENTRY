@@ -16,7 +16,7 @@ SENTRY-V0.2-ROUTINE-GROUNDED-CONVERSATION-001 — completed successfully; routin
 - `tools/sentry_grounding.py` adds an allow-listed, metadata-only routine fact packet with stable IDs such as `routine:office_session_start_time:weekday`. It retains current physical facts so routine patterns cannot override present state; it does not expose raw sessions, biometric data, or M5 context.
 - `tools/sentry_ask.py` returns deterministic sparse-history answers with zero Luna calls when selected snapshots are `insufficient`; `observed` and `stable` snapshots may use at most one existing low-effort Luna turn with explicit maturity wording rules. Routine source failure is non-fatal to ordinary physical queries.
 - The actual resident API remained healthy at schema 5 with Atlas mirror `ok`. Five live routine questions returned evidence-insufficient answers from the real 40-snapshot production set (all `insufficient`), with no routine claim and zero Luna calls. The accepted M4 voice path reuses `sentry_ask.py`; no fresh microphone run was required.
-- Focused routine-conversation tests passed `16/16`; full Ubuntu regression passed `128/128` with the existing multiprocessing fork deprecation warning. M5 routine isolation and continuous perception Luna-call count remain `0`.
+- Focused routine-conversation tests passed `17/17`; full Ubuntu regression passed `129/129` with the existing multiprocessing fork deprecation warning. M5 routine isolation and continuous perception Luna-call count remain `0`.
 - Routine-grounded conversation is qualified. Routine statistics remain derived/rebuildable; routine-driven proactivity remains gated for a future Architect directive.
 
 ## V0.2 routine statistics — 2026-08-30

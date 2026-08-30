@@ -1054,7 +1054,7 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Extended `tools/sentry_ask.py` with routine-source retrieval only for routine intents, deterministic `insufficient` responses with zero Luna calls, and bounded use of the existing one-turn bridge for `observed`/`stable` evidence. The bridge prompt now states the physical-history > derived-routine > Luna hierarchy and wording restrictions.
 
 ### Validation and live proof
-- Focused routine-conversation tests: **16/16 PASSED**. Full Ubuntu regression: **128/128 PASSED** with the existing multiprocessing fork deprecation warning.
+- Focused routine-conversation tests: **17/17 PASSED**. Full Ubuntu regression: **129/129 PASSED** with the existing multiprocessing fork deprecation warning.
 - Resident `/health` was healthy at schema 5 with local DB available, Atlas mirror `ok`, and no persistence error. `/v1/routines` returned 40 latest metadata-only snapshots; all were `insufficient`, with sparse natural-history counts. The five required live routine questions (start time, duration, absence, first identity confirmation, and general routine summary) returned explicit evidence-insufficient answers and made **0 Luna calls**.
 - Fixture coverage includes routine intent/scope, physical-vs-routine separation, insufficient/observed/stable maturity, unknown/sensitive routine filtering, routine endpoint failure, current-state contradiction, and one-turn behavior. The accepted reactive voice path remains compatible because it reuses `tools/sentry_ask.py`.
 

@@ -77,6 +77,15 @@ class RoutineConversationTests(unittest.TestCase):
         self.assertEqual(result["luna_invocations"], 0)
         self.assertIn("activity", result["limitations"][0])
 
+    def test_unsupported_habitual_cause_and_premise_are_rejected_without_luna(self):
+        for question in ("Why do I usually leave early?", "You know I always leave around 5, right?"):
+            with self.subTest(question=question), patch("tools.sentry_ask.invoke_grounded_query") as invoke:
+                result = ask(question)
+            invoke.assert_not_called()
+            self.assertEqual(result["grounding"], "unavailable")
+            self.assertEqual(result["luna_invocations"], 0)
+            self.assertIn("causal", result["limitations"][0])
+
     @patch("tools.sentry_ask.invoke_grounded_query")
     @patch("tools.sentry_grounding._get_json")
     def test_insufficient_routine_is_deterministic_and_cites_routine_fact(self, get_json, invoke):

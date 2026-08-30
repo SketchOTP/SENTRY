@@ -390,7 +390,7 @@ Routine snapshots remain derived and cannot override current physical evidence o
 Routine statistics are now available to a bounded M4 conversation path. The feature is qualified without claiming that the current sparse production history contains a mature routine.
 
 ### Evidence
-Deterministic intent/scope routing, metadata-only routine facts, maturity-aware wording, physical-state contradiction protection, source-outage isolation, and one-turn Luna behavior passed. The resident production API returned 40 latest snapshots, all `insufficient`; five real routine questions correctly returned sparse-history limitations with zero Luna calls. Focused tests passed `16/16`; full regression passed `128/128`.
+Deterministic intent/scope routing, metadata-only routine facts, maturity-aware wording, physical-state contradiction protection, source-outage isolation, and one-turn Luna behavior passed. The resident production API returned 40 latest snapshots, all `insufficient`; five real routine questions correctly returned sparse-history limitations with zero Luna calls. Focused tests passed `17/17`; full regression passed `129/129`.
 
 ### Boundary
 Routine facts are derived/rebuildable, cannot override physical truth, are not fed into M5, and do not support unsupported activity or causal claims. The existing reactive voice bridge remains compatible through `sentry_ask.py`.
