@@ -1,22 +1,22 @@
 # Current Project State
 
-Last updated: 2026-08-29T23:05:00-04:00
+Last updated: 2026-08-30T02:10:00-04:00
 
 ## Current stage
-M6 — 30-minute unattended final acceptance soak
+V0.1 — accepted after 30-minute unattended final acceptance soak
 
 ## Current objective
-Run the complete accepted V0.1 stack unattended for 30 minutes, then perform final integrity and regression checks.
+Maintain the accepted office-only V0.1 boundary; future work requires a new Architect directive.
 
 ## Active directive
-SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001 — unattended integrated stability soak; reactive voice is accepted and is not being requalified.
+SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001 — completed successfully; M6 accepted.
 
 ## Owner/operator M6 decision — 2026-08-29
 - M5 is accepted at `e6b56b0f446bc153ba7f936387fad8ec954cb1f6`.
 - The former 72-hour unattended soak is **SUPERSEDED / WAIVED** and must not be resurrected.
 - The final M6 requirement is a **30-minute unattended soak**, deliberately shorter and not equivalent reliability evidence to 72 hours.
 - Reactive voice is **ACCEPTED**: physical microphone → Whisper `tiny.en` → M4 grounded state → one Luna turn → local Kokoro → PipeWire speaker proof passed at `1ce3e611`.
-- M6 is **ACTIVE** with the owner/operator-approved 30-minute final soak. The former 72-hour requirement remains **WAIVED / SUPERSEDED**.
+- M6 30-minute unattended final soak **PASSED**. SENTRY V0.1 is **ACCEPTED** within the office-only capability boundary. The former 72-hour requirement remains **WAIVED / SUPERSEDED**.
 
 ## Owner/operator acceptance — 2026-08-28
 - Practical Ubuntu camera/human-detection behavior is **ACCEPTED BY OWNER/OPERATOR DIRECTION** for V0.1 progression.
@@ -36,7 +36,7 @@ SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001 — unattended integrated stability soak; r
 - M1 practical presence is accepted by owner/operator direction; detector selection is frozen at corrected YOLOX-S and no fresh detector/camera qualification is required.
 - M2 durable memory is accepted with metadata-only local SQLite, Atlas snapshots, restart/session, failure-truthfulness, and localhost API behavior. Do not place the live database on the Atlas mount.
 - M3 live enrollment and bounded identity qualification passed; M4 conversational grounding is now qualified within bounded API/Luna evidence.
-- M4 bounded grounded conversation is implemented and qualified; M5 restrained proactivity is qualified by one real physical event; reactive voice is accepted. M6 is the final integrated stability gate.
+- M4 bounded grounded conversation is implemented and qualified; M5 restrained proactivity and reactive voice are accepted; M6 final integrated stability evidence passed.
 
 ## M5 restrained proactivity — qualified
 - Schema migration 4 adds metadata-only `proactive_actions` with durable source-event/candidate keys, eligibility/suppression reason, judge, citation, utterance, and delivery provenance.
@@ -46,7 +46,7 @@ SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001 — unattended integrated stability soak; r
 - Automated M5 policy suite is 12/12 before the harness correction; the corrected harness adds three sequencing tests. Full Ubuntu regression is 92/92. A bounded real Luna candidate proof returned valid `silent` and persisted it. The corrected physical handoff run established a persisted empty baseline, real primary-user entry, occupied session, `person.identified`, and one eligible M5 action with a valid grounded `silent` decision.
 - Corrected run: local DB `/home/sketch/.local/share/sentry/m5-qualification/handoff-20260829T215316Z.sentry.db`; Atlas snapshot `/srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/m5-qualification/handoff-20260829T215316Z.sentry.db`. Empty baseline completed `21:53:39.050306Z`; entry prompt `21:53:57.362266Z`; `room.became_occupied`/`presence.session_started` at `21:54:16.643081Z` (session `1`); `person.identified` at `21:54:17.711178Z` (event `1cb6e1b2-749a-4dfe-8a66-0c7bb3390ef3`, track `1`, confidence `0.6749`); action `d542857b-9bb2-4831-9ec6-85e1071594fc` was eligible, invoked one low-effort `gpt-5.6-luna` turn, and persisted `judge_silent` with valid fact citations.
 - Corrected physical performance: 840 captured / 489 processed, 8.618 FPS, 102.746 ms median and 120.063 ms p95, 350 dropped frames, V4L2/MJPEG/1280x720/15 FPS, camera online, mirror status `ok`, persistence error `null`, continuous perception Luna calls `0`.
-- Restart/replay dedupe against the exact isolated DB produced `duplicate`, zero additional Luna calls, one action row, and no second delivery. M5 physical handoff is qualified; M6 remains gated.
+- Restart/replay dedupe against the exact isolated DB produced `duplicate`, zero additional Luna calls, one action row, and no second delivery. M5 physical handoff is qualified; M6 final integrated stability evidence passed.
 
 ## Reactive voice — accepted
 - Added `perception/voice.py`, `tools/sentry_voice.py`, and `tools/sentry_kokoro_worker.py` for one explicit push-to-talk request: PipeWire microphone -> in-memory PCM -> local `openai-whisper==20250625` `tiny.en` CPU transcription -> existing `tools/sentry_ask.py` M4 grounding -> installed local Kokoro synthesis -> this host's PipeWire speaker.

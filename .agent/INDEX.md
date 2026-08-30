@@ -7,11 +7,11 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: M6 — 30-minute unattended final acceptance soak
-- Active directive: `SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001` — integrated V0.1 stability and integrity gate
-- Active task packet: none; M3 implementation is being validated from the directive and current working tree
+- Current stage: V0.1 accepted after M6 30-minute unattended final acceptance
+- Active directive: none; M6 final acceptance passed at `ae75eea`
+- Active task packet: none; V0.1 final acceptance is complete
 - Last accepted outcome: Ubuntu/V4L2 platform baseline verified
-- Latest recorded outcome: bounded reactive voice path physically verified through local STT, M4 grounding, and local speech
+- Latest recorded outcome: M6 30-minute unattended final acceptance passed; V0.1 accepted
 - Last state sync: 2026-08-29T00:00:00-04:00
 
 ## Mandatory kernel

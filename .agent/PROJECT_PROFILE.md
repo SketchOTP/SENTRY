@@ -28,7 +28,7 @@
 ## Compatibility commitments
 - Preserve the office-only V0.1 boundary and milestone order beginning at M0.
 - Preserve explicit degraded/offline states, conservative `unknown` identity behavior, local physical-event history, and restrained proactive speech as the implementation evolves.
-- M5 uses a post-persistence proactive processor with one allowed event class (`person.identified` for `primary_user`), deterministic suppression, one bounded low-effort Luna judgment for survivors, and local Speech Dispatcher delivery. Reactive voice is accepted through explicit PipeWire capture, local Whisper `tiny.en` STT, the existing M4 grounded query path, and an installed local Kokoro runtime for local PipeWire playback. M6 is the active owner/operator-approved 30-minute final soak.
+- M5 uses a post-persistence proactive processor with one allowed event class (`person.identified` for `primary_user`), deterministic suppression, one bounded low-effort Luna judgment for survivors, and local Speech Dispatcher delivery. Reactive voice is accepted through explicit PipeWire capture, local Whisper `tiny.en` STT, the existing M4 grounded query path, and an installed local Kokoro runtime for local PipeWire playback. M6 passed the owner/operator-approved 30-minute final soak; V0.1 is accepted within the office-only boundary.
 - Do not treat the suggested repository shape in the project scope as permission to create unneeded empty runtime modules.
 
 ## Safety / operational constraints

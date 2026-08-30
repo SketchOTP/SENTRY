@@ -981,3 +981,24 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Starting commit: `1ce3e6114ec8f18fb691dedd536c57472d1dd609`
 - Reactive voice is accepted by Architect disposition. The physical microphone → Whisper `tiny.en` → M4 grounded state → one Luna turn → local Kokoro → PipeWire speaker proof passed; M6 is released with a 30-minute soak. The former 72-hour requirement is permanently waived by owner/operator decision.
 - The mutable current snapshot and current-facing documentation now identify M6 as active and no longer describe reactive voice as pending. Earlier failed voice attempts remain preserved as historical evidence.
+
+## OUTCOME-SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001 — Final integrated soak
+- Completed: 2026-08-30
+- Status: **PASSED**
+- Starting commit: `1ce3e6114ec8f18fb691dedd536c57472d1dd609`; documentation reconciliation commit: `ae75eea9b0a5638c998672af441dfb9c97b33e74`.
+
+### Soak evidence
+- Codex Process Job `job-mtf4s7lt-6b92e470` ran the actual stack for `1811.818` seconds (30 minutes minimum) from `2026-08-30T01:28:45Z` through `2026-08-30T01:58:57Z`.
+- Perception survived continuously and exited cleanly: `26,991` captured, `13,458` processed, `13,532` dropped, `7.475` overall processed FPS, `118.966 ms` median processing latency, `146.841 ms` p95. Camera remained V4L2/MJPEG/1280x720/15 FPS and online.
+- No camera read, detector, identity, persistence, mirror, or unhandled runtime errors occurred. The sampled health interval remained `db_available=true`, schema `4`, room `occupied`, camera `online`, with one open office session and no duplicate session creation. Peak sampled RSS was `460,935,168` bytes; perception start/end RSS from the service metrics was `290,078,720` / `453,574,656` bytes.
+- The soak interval contained one lifecycle sequence (`system.started`, initial `room.camera_degraded`, `room.camera_online`, `system.stopped`) and no false source-loss-to-empty transition. The production database ended with one observed open session, 23 events total, and one pre-existing stale proactive action. The proactive loop ran 60 times; the stale candidate was suppressed once and subsequent replays were duplicate-suppressed, with zero soak Luna judge calls, zero delivered utterances, and zero perception Luna calls.
+
+### End-of-run integrity
+- Active DB: `/home/sketch/.local/share/sentry/sentry.db` on local ext4; Atlas mirror: `/srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/backups/sentry.db` on `fuse.sshfs`. SQLite opened only the local DB for live operation; both local and Atlas copies passed `PRAGMA integrity_check=ok` and contained the same logical schema/data (`schema 4`, one open session, 23 events, one proactive action).
+- Final localhost API smoke passed for health, room state, sessions, persons, and events. One post-soak M4 query invoked exactly one low-effort `gpt-5.6-luna` turn and returned a supported answer matching the persisted occupied/recognized state. This post-soak query is separate from continuous perception, which remained at zero Luna calls.
+- Reactive voice availability check passed: local `tiny.en`/Whisper import and model availability, local Kokoro discovery at `/home/sketch/Projects/ATLAS_BROWSER/.venv/bin/python`, `/usr/bin/pw-play`, and PipeWire were available. No voice requalification was performed.
+- Final full Ubuntu regression: **97/97 PASSED**. No raw video/audio, embeddings, biometric prototype, or secrets were persisted in the soak evidence.
+
+### Boundary and decision
+- The required accepted capability chain remained intact across the unattended run. Historical YOLOX edge cases and the bounded M3 simultaneous-person limitation remain documented residual limitations; neither became a new M6 failure.
+- M6 30-minute unattended acceptance **PASSED**. The 72-hour soak remains permanently waived/superseded by owner/operator decision.

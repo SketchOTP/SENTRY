@@ -6,7 +6,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 ## Current status
 
-**M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, M5 restrained proactivity, and the bounded reactive voice path are accepted within their recorded evidence boundaries.** M6 is the active 30-minute unattended final acceptance soak. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. The owner/operator has waived the former 72-hour soak in favor of a 30-minute unattended final acceptance soak.
+**SENTRY V0.1 is accepted within the office-only boundary:** M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, M5 restrained proactivity, reactive voice, and the 30-minute unattended M6 integration soak passed within their recorded evidence boundaries. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. The owner/operator permanently waived the former 72-hour soak in favor of the passed 30-minute final soak.
 
 ## Project links
 
@@ -82,7 +82,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 6. **M5 — Restrained proactive behavior**: persisted-event eligibility, dedupe/cooldowns/budget, bounded Luna judgment, local speech audit trail (qualified within bounded physical-event evidence).
 7. **M6 — Soak + acceptance**: 30 minutes unattended with documented results (owner/operator waiver of the former 72-hour requirement).
 
-Only after M6 passes should routine learning or multi-room hardware work begin.
+M6 has passed. Routine learning or multi-room hardware work requires a new Architect directive and remains outside the accepted office-only V0.1 boundary.
 
 ## Key acceptance targets
 

@@ -339,3 +339,17 @@ Architect accepted the reactive voice proof at `1ce3e611` and released M6. The f
 
 ### Current boundary
 M0 through M5 and reactive voice are accepted within their recorded evidence boundaries. M6 is a stability/integration gate only. No detector, identity, voice, or architecture work is reopened during the soak.
+
+## RECORD-SENTRY-021 — M6 30-minute final acceptance passed
+- Date: 2026-08-30
+- Type: MILESTONE / V0.1 ACCEPTANCE
+- Related directive: `SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001`
+
+### Decision
+The actual accepted SENTRY V0.1 stack completed the owner/operator-approved 30-minute unattended soak successfully. M6 is accepted; the former 72-hour soak remains waived/superseded and must not be resurrected.
+
+### Evidence
+The run lasted `1811.818` seconds, processed `13,458` frames at `7.475 FPS`, and exited cleanly. V4L2/MJPEG/1280x720/15 FPS remained online. Local ext4 SQLite and the Atlas `fuse.sshfs` snapshot both passed integrity checks; one open session remained valid, no persistence/mirror errors occurred, and the one pre-existing stale proactive candidate was suppressed without Luna or speech. Post-soak API reads and one grounded M4 query were consistent with persisted state. Final Ubuntu regression passed `97/97`.
+
+### Accepted V0.1 boundary
+SENTRY V0.1 is accepted for the office-only capability chain: webcam presence, durable local-memory/Atlas-mirror history, bounded primary identity, grounded text and reactive voice, restrained proactivity, and 30-minute unattended integrated stability. Whole-home expansion, longer-duration reliability, simultaneous-person identity, wake-word/continuous listening, and other future capabilities remain outside this acceptance.

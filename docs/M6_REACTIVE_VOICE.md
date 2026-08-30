@@ -62,6 +62,6 @@ The first physical attempt exposed and corrected a pipe-drain bug in the
 PipeWire recorder. It was not treated as STT or grounding evidence. Focused
 voice tests and the full Ubuntu regression passed after the correction.
 
-Reactive voice is accepted at commit `1ce3e611`. M6 is the active final
-acceptance gate with a 30-minute unattended soak; the earlier 72-hour
-requirement is waived and must not be resurrected.
+Reactive voice is accepted at commit `1ce3e611`. M6 passed its 30-minute
+unattended final acceptance soak; the earlier 72-hour requirement is waived
+and must not be resurrected.
