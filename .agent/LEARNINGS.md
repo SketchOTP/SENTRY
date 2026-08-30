@@ -313,3 +313,8 @@ Separate native user-systemd units for perception, the localhost API, and proact
 
 ### Safety boundary
 The authenticated user session is the startup condition when `Linger=no`; this must not be described as boot-before-login persistence. Local SQLite remains the live database and Atlas remains a complete snapshot mirror. Service restarts must not be interpreted as physical entry/exit events, and proactive dedupe must remain persisted outside perception.
+## LEARNING-SENTRY-024 — Routine maturity must require independent dates
+Routine statistics can be transparent and useful without an ML model when clock times are treated circularly and positive durations/intervals use robust summaries. Sample count alone is insufficient: requiring distinct local dates prevents one unusually busy day from manufacturing a stable routine. Sparse natural history should remain explicitly `insufficient`.
+
+## LEARNING-SENTRY-025 — Derived routine refresh belongs outside perception
+Routine refresh is safely isolated as a user-systemd oneshot/timer over the local SQLite source. The timer can fail or lag without stopping perception, the localhost API, or proactive processing; snapshots are rebuildable and mirrored through the existing Atlas backup path.

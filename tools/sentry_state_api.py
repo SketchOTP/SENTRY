@@ -57,6 +57,9 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(200, {"persons": store.persons()})
         elif parsed.path == "/v1/events":
             self._send(200, {"events": store.events(room_id, limit=limit)})
+        elif parsed.path == "/v1/routines":
+            history = query.get("history", ["0"])[0].lower() in {"1", "true", "yes"}
+            self._send(200, {"routines": store.routine_snapshots(latest_only=not history, limit=limit)})
         else:
             self._send(404, {"error": "not_found"})
 

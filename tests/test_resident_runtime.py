@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.sentry_install_user_services import UNIT_NAMES, install, production_config
+from tools.sentry_install_user_services import ROUTINE_UNIT_NAMES, UNIT_NAMES, install, production_config
 from tools.sentry_proactive import watch_loop
 from tools.sentry_resident_live_probe import _unit_states
 
@@ -54,13 +54,14 @@ class ResidentRuntimeTests(unittest.TestCase):
             with patch("tools.sentry_install_user_services._run_systemctl"):
                 install(config, start=False, systemd_user_dir=units)
             self.assertEqual(json.loads(config.read_text(encoding="utf-8")), custom)
-            self.assertEqual(sorted(path.name for path in units.iterdir()), sorted(UNIT_NAMES))
+            self.assertEqual(sorted(path.name for path in units.iterdir()), sorted((*UNIT_NAMES, *ROUTINE_UNIT_NAMES)))
 
     def test_units_use_accepted_paths_and_isolated_services(self):
         unit_root = Path("deploy/systemd/user")
         perception = (unit_root / "sentry-perception.service").read_text(encoding="utf-8")
         api = (unit_root / "sentry-state-api.service").read_text(encoding="utf-8")
         proactive = (unit_root / "sentry-proactive.service").read_text(encoding="utf-8")
+        routines = (unit_root / "sentry-routines.timer").read_text(encoding="utf-8")
         self.assertIn("WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY", perception)
         self.assertIn("--config %h/.config/sentry/config.json", perception)
         self.assertIn("--heartbeat-file /srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/health/perception.json", perception)
@@ -71,6 +72,8 @@ class ResidentRuntimeTests(unittest.TestCase):
             self.assertIn("Restart=on-failure", unit)
             self.assertIn("RestartSec=10s", unit)
         self.assertNotIn("old", perception.lower())
+        self.assertIn("OnBootSec=2min", routines)
+        self.assertIn("OnUnitActiveSec=6h", routines)
 
     def test_live_probe_uses_user_systemd_and_localhost_api(self):
         self.assertEqual(_unit_states.__module__, "tools.sentry_resident_live_probe")

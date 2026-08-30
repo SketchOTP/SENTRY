@@ -3,13 +3,25 @@
 Last updated: 2026-08-30T02:10:00-04:00
 
 ## Current stage
-V0.2 — resident runtime qualified after V0.1 acceptance
+V0.2 — routine statistics foundation qualified after resident runtime acceptance
 
 ## Current objective
-Operate the accepted office-only V0.1 stack as a supervised Ubuntu resident and accumulate trustworthy longitudinal metadata; routine learning requires a later Architect directive.
+Derive transparent, rebuildable routine statistics from trusted longitudinal history without changing physical truth or exposing routine data to M4/M5 yet.
 
 ## Active directive
-SENTRY-V0.2-RESIDENT-RUNTIME-001 — completed successfully; resident runtime qualified.
+SENTRY-V0.2-ROUTINE-STATISTICS-001 — completed successfully; routine statistics foundation qualified.
+
+## V0.2 routine statistics — 2026-08-30
+- Schema version 5 adds append-only derived `routine_snapshots`; physical sessions/events remain immutable source truth.
+- `perception/routines.py` implements exactly four routine types: observed session start clock time, completed observed session duration, interruption-free absence between sessions, and earliest confirmed `primary_user` time per session.
+- Analysis preserves UTC source timestamps and uses configured `America/New_York` IANA timezone, 56-day lookback, circular clock-time statistics, and median/MAD/p25/p75/min/max/relative-MAD duration statistics.
+- Maturity requires both sample count and distinct local dates: observed at 5/5, stable at 8/8 plus resultant length >=0.80 for clock routines or relative MAD <=0.35 for positive durations/intervals. Labels are heuristic maturity states, not probabilities.
+- Uncertain/restart-reconciled/incomplete sessions and absence intervals crossing system or camera interruption events are excluded with reason counts. First identity time is explicitly not exact personal entry.
+- Production refresh against `/home/sketch/.local/share/sentry/sentry.db` wrote 40 latest snapshots (four types × ten scopes), all `insufficient` because natural history is sparse. No production history was seeded or rewritten.
+- `GET /v1/routines` returns latest metadata-only snapshots on the existing localhost API. `tools/sentry_routines.py refresh/show` provide bounded CLI operations. Unchanged source/config refresh is idempotent.
+- `sentry-routines.service` and `sentry-routines.timer` are installed/enabled as an independent user-systemd oneshot/timer: two-minute initial delay, six-hour cadence. Routine refresh failure does not control resident perception/API/proactivity.
+- Focused routine suite passed `17/17`; combined routine/store/mirror/resident checks passed `38/38`; full Ubuntu regression passed `120/120` with one known Python multiprocessing deprecation warning. Local and Atlas schema-v5 databases passed integrity checks; resident services remained healthy at approximately 7.5 FPS after startup.
+- Routine statistics are derived/rebuildable and are not yet included in conversational grounding or proactive judgment. A later Architect directive is required for that boundary.
 
 ## V0.2 resident runtime — 2026-08-30
 - Native systemd user services are installed, enabled, and running for the authenticated `sketch` user session: `sentry-perception.service`, `sentry-state-api.service`, and `sentry-proactive.service`.

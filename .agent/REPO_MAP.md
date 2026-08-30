@@ -1,6 +1,6 @@
 # Repository Map
 
-Last verified against: `main` and working-tree inspection on 2026-08-29.
+Last verified against: `main` and working-tree inspection on 2026-08-30.
 
 ## Entry points
 - `README.md` — concise project contract, V0.1 boundary, milestones, and current status.
@@ -22,6 +22,10 @@ Last verified against: `main` and working-tree inspection on 2026-08-29.
 - `deploy/systemd/user/` — native user-systemd units and resident-runtime operations guide for perception, the localhost API, and continuous proactive polling.
 - `tools/sentry_install_user_services.py` — reproducible installer for the local mode-600 production config and enabled user units.
 - `tools/sentry_resident_live_probe.py` — bounded metadata-only live probe for service health, API health, Atlas mirror status, and perception heartbeat.
+- `perception/routines.py` — standard-library routine feature extraction, circular clock-time/robust duration statistics, evidence exclusions, and maturity gates.
+- `tools/sentry_routines.py` — bounded routine snapshot refresh/show CLI over the local SQLite source.
+- `deploy/systemd/user/sentry-routines.service` and `sentry-routines.timer` — independent six-hour derived-statistics refresh.
+- `tests/test_routines.py` — metadata-only routine statistics, schema-v5, API, Atlas restore, idempotence, DST, and privacy tests.
 
 ## Important interfaces / contracts
 - `AGENTS.md` — Authority repository router.
@@ -45,4 +49,4 @@ Last verified against: `main` and working-tree inspection on 2026-08-29.
 - Future DAWN integration — upstream behavior and GPLv3 licensing must be verified before dependency, derivation, or fork decisions.
 - Codex OAuth credentials and per-turn usage — keep credentials private; treat local OAuth proof as trusted-host evidence only.
 
-The M2 persistence/session/API slice is implemented in `perception/presence_store.py` and `tools/sentry_state_api.py`; active SQLite operations are local to the Ubuntu host and complete snapshots are mirrored to Atlas by `perception/storage_mirror.py`. M3 identity is implemented in `perception/identity.py` and the enrollment/admin tools. M4 grounded conversation is implemented in `tools/sentry_grounding.py` and `tools/sentry_ask.py`. M5 restrained proactivity is implemented in `perception/proactive.py`, `tools/sentry_proactive.py`, and `tools/sentry_m5_live.py`; its physical event-to-action qualification is accepted. V0.2 resident supervision is implemented in `deploy/systemd/user/` and the two resident-runtime tools above.
+The M2 persistence/session/API slice is implemented in `perception/presence_store.py` and `tools/sentry_state_api.py`; active SQLite operations are local to the Ubuntu host and complete snapshots are mirrored to Atlas by `perception/storage_mirror.py`. M3 identity is implemented in `perception/identity.py` and the enrollment/admin tools. M4 grounded conversation is implemented in `tools/sentry_grounding.py` and `tools/sentry_ask.py`. M5 restrained proactivity is implemented in `perception/proactive.py`, `tools/sentry_proactive.py`, and `tools/sentry_m5_live.py`; its physical event-to-action qualification is accepted. V0.2 resident supervision is implemented in `deploy/systemd/user/` and the resident-runtime tools. V0.2 routine statistics are implemented in `perception/routines.py` with schema-v5 persistence in `perception/presence_store.py`, the `/v1/routines` API, and scheduled refresh units.

@@ -367,3 +367,16 @@ The 900-second metadata-only live probe completed with 30 samples and no failure
 
 ### Accepted boundary
 The runtime requires an authenticated user session because `Linger=no`; no boot-before-login claim is made. Local SQLite remains authoritative on local ext4, Atlas remains the snapshot mirror, and continuous perception Luna calls remain zero. Routine statistics/learning and broader household expansion require a later directive.
+## RECORD-SENTRY-023 — V0.2 routine statistics foundation qualified
+- Date: 2026-08-30
+- Type: MILESTONE / V0.2 QUALIFICATION
+- Related directive/outcome: `SENTRY-V0.2-ROUTINE-STATISTICS-001` / `OUTCOME-SENTRY-V0.2-ROUTINE-STATISTICS-001`
+
+### Decision
+The first V0.2 learning layer is qualified as a deterministic, rebuildable statistical foundation. It does not claim that current natural history contains a mature routine.
+
+### Evidence
+Schema 5 routine snapshots, circular clock handling, robust duration/absence summaries, sample/date maturity gates, uncertainty/interruption exclusions, idempotent refresh, localhost API, Atlas restore, and the independent user-systemd timer passed validation. Actual production refresh returned `insufficient` for all 40 latest type/scope snapshots, correctly reflecting sparse history. Focused and full regression suites passed `17/17`, `38/38`, and `120/120` respectively.
+
+### Boundary
+Routine snapshots remain derived and cannot override current physical evidence or feed M4/M5. Learned routine conversation/proactivity requires a later Architect directive.

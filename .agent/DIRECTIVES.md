@@ -360,3 +360,10 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Runtime boundary: local SQLite remains authoritative on local ext4; Atlas remains the snapshot mirror on `fuse.sshfs`; stable V4L2 camera configuration and accepted OpenVINO/YOLOX runtime are preserved. Reactive voice remains explicit and is not made continuously listening.
 - Validation: 900-second supervised live probe passed with 30 samples and no failures; all services remained active, API and Atlas mirror remained healthy, and perception stayed above the 5 FPS floor. Individual API, proactive, and perception failure/restart isolation, clean stop/start, session invariants, and proactive dedupe were verified.
 - Exclusions: no routine learning, new sensors/models, detector/tracker/identity changes, continuous microphone, M3/M4/M5 redesign, or M6 expansion.
+## SENTRY-V0.2-ROUTINE-STATISTICS-001 — completed
+- Status: **QUALIFIED / COMPLETED**
+- Scope: deterministic timezone-aware routine statistics over trusted sessions/events; schema-v5 derived snapshots; localhost `/v1/routines`; independent user-systemd refresh timer.
+- Result: four routine types implemented with circular clock-time statistics, robust duration/absence statistics, interruption/uncertainty exclusions, sample plus distinct-date maturity gates, source-fingerprint idempotence, metadata-only provenance, and Atlas-preserved snapshots.
+- Production evidence: actual local DB refreshed without seeding; 40 latest snapshots across four types and ten scopes, all correctly `insufficient` because the live history is sparse.
+- Validation: 17 focused routine tests, 38 combined focused checks, and 120/120 full Ubuntu regression tests passed. Timer oneshot succeeded and resident services remained healthy at approximately 7.5 FPS with zero perception Luna calls.
+- Boundary: routine snapshots remain derived and do not alter physical truth or feed M4/M5. No routine inference model, clustering, additional sensors/rooms, or conversational/proactive use was added.

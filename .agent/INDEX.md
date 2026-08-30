@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: V0.2 resident runtime qualification completed after V0.1 acceptance
-- Active directive: SENTRY-V0.2-RESIDENT-RUNTIME-001 — completed successfully
-- Active task packet: none; `SENTRY-V0.2-RESIDENT-RUNTIME-001` is archived with its evidence and handoff
-- Last accepted outcome: Ubuntu/V4L2 platform baseline verified
-- Latest recorded outcome: V0.2 resident runtime qualified; V0.1 remains accepted
-- Last state sync: 2026-08-29T00:00:00-04:00
+- Current stage: V0.2 routine statistics foundation qualified after resident runtime acceptance
+- Active directive: SENTRY-V0.2-ROUTINE-STATISTICS-001 — completed successfully
+- Active task packet: none; routine-statistics implementation and evidence are recorded in the repository
+- Last accepted outcome: V0.2 routine statistics foundation qualified; production history remains insufficient
+- Latest recorded outcome: V0.2 routine statistics foundation qualified; V0.1 and resident runtime remain accepted
+- Last state sync: 2026-08-30T01:00:00-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

@@ -12,6 +12,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 UNIT_ROOT = REPO_ROOT / "deploy" / "systemd" / "user"
 UNIT_NAMES = ("sentry-perception.service", "sentry-state-api.service", "sentry-proactive.service")
+ROUTINE_UNIT_NAMES = ("sentry-routines.service", "sentry-routines.timer")
 
 
 def production_config(example_path: Path) -> dict:
@@ -44,15 +45,17 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
 
     unit_dir = systemd_user_dir or (Path.home() / ".config" / "systemd" / "user")
     unit_dir.mkdir(parents=True, exist_ok=True)
-    for name in UNIT_NAMES:
+    for name in (*UNIT_NAMES, *ROUTINE_UNIT_NAMES):
         source = UNIT_ROOT / name
         if not source.is_file():
             raise FileNotFoundError(source)
         shutil.copyfile(source, unit_dir / name)
     _run_systemctl("daemon-reload")
     _run_systemctl("enable", *UNIT_NAMES)
+    _run_systemctl("enable", "sentry-routines.timer")
     if start:
         _run_systemctl("restart", *UNIT_NAMES)
+        _run_systemctl("start", "sentry-routines.timer")
     return config_path
 
 

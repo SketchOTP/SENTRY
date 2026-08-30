@@ -1022,3 +1022,22 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 
 ### Boundary
 - V0.2 resident supervision is qualified. Routine statistics/learning, additional rooms/sensors, continuous listening, and other post-V0.1 expansion remain outside this directive and require a later Architect decision.
+## OUTCOME-SENTRY-V0.2-ROUTINE-STATISTICS-001 — Routine statistics foundation
+- Completed: 2026-08-30
+- Verdict: **V0.2 ROUTINE STATISTICS FOUNDATION QUALIFIED**
+- Starting SHA: `49662bc5ff314cc2c5d28a09cb704ad5267c33a3`
+- Retrieval confidence: **HIGH**
+
+### Implementation
+- Added standard-library `perception/routines.py` and `tools/sentry_routines.py` for four fixed derived routine types: observed session start clock time, completed observed session duration, interruption-free absence between sessions, and first confirmed `primary_user` time within each presence session.
+- Added schema-v5 append-only `routine_snapshots` with algorithm/version, IANA timezone, analysis window, source-as-of/fingerprint, sample/date counts, maturity, derived statistics, and exclusion counts. No physical session/event rows are rewritten.
+- Added `/v1/routines`, production routine configuration, and independent `sentry-routines.service` / `sentry-routines.timer` with two-minute initial delay and six-hour refresh cadence.
+
+### Evidence
+- Production host timezone is `America/New_York`; source timestamps remain UTC; lookback is 56 days. Maturity defaults are 5 samples/5 dates for `observed`, 8 samples/8 dates plus clock resultant length `>=0.80` or duration relative MAD `<=0.35` for `stable`.
+- The actual local production DB was refreshed without seeded history. The result is 40 latest snapshots (4 routine types × 10 scopes), all `insufficient`; the observed source contains only a few sessions and identity confirmations across too few dates. This is the correct sparse-history outcome.
+- Focused routine tests: `17/17`; combined routine/store/mirror/resident tests: `38/38`; full Ubuntu regression: `120/120` with one known multiprocessing fork deprecation warning. DST, midnight wrap, robust outliers, interruption exclusions, identity deduplication, Atlas restore, API privacy, migration, and idempotence are covered.
+- Timer installation/enablement and oneshot execution passed. Local SQLite is schema 5 on local ext4; Atlas remains the snapshot mirror on `fuse.sshfs`; both passed integrity checks and contained matching logical routine data. Resident services remained active and API health remained healthy; perception remained above 5 FPS after warm-up and continuous perception Luna calls stayed at 0.
+
+### Boundary
+- Routine outputs are derived/rebuildable and remain gated from M4 conversation and M5 proactive judgment. No black-box ML, routine-driven action, physical-state alteration, detector/identity/tracker change, or raw-frame/biometric persistence was introduced.

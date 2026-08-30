@@ -1,0 +1,9 @@
+[Unit]
+Description=SENTRY derived routine statistics refresh
+After=default.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
+ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_routines.py refresh --config %h/.config/sentry/config.json
+NoNewPrivileges=true

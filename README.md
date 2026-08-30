@@ -8,7 +8,7 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 **SENTRY V0.1 is accepted within the office-only boundary:** M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, M5 restrained proactivity, reactive voice, and the 30-minute unattended M6 integration soak passed within their recorded evidence boundaries. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. The owner/operator permanently waived the former 72-hour soak in favor of the passed 30-minute final soak.
 
-**V0.2 resident runtime is qualified:** the accepted stack now runs as enabled native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. The current startup condition is the authenticated Ubuntu user session; routine learning is not yet implemented.
+**V0.2 resident runtime is qualified:** the accepted stack now runs as enabled native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. The current startup condition is the authenticated Ubuntu user session; routine statistics are now implemented and qualified as a separate derived foundation, but remain gated from conversation/proactivity.
 
 ## Project links
 
@@ -70,7 +70,18 @@ The resident deployment is documented in [`docs/V0.2_RESIDENT_RUNTIME.md`](docs/
 /home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_install_user_services.py
 ```
 
-The live SQLite database remains local to the Ubuntu host and Atlas continues to receive complete integrity-checked snapshots. The continuous proactive processor polls persisted events at a bounded cadence; perception remains local and makes zero Codex/Luna calls. Routine statistics and learned habits require a later directive and real longitudinal history.
+The live SQLite database remains local to the Ubuntu host and Atlas continues to receive complete integrity-checked snapshots. The continuous proactive processor polls persisted events at a bounded cadence; perception remains local and makes zero Codex/Luna calls. Routine statistics are available through the separate scheduled refresh described below; learned routine facts remain gated from conversation and proactivity.
+
+## V0.2 Routine Statistics
+
+The transparent routine-statistics foundation is documented in [`docs/V0.2_ROUTINE_STATISTICS.md`](docs/V0.2_ROUTINE_STATISTICS.md). Refresh or inspect derived snapshots with:
+
+```bash
+/home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_routines.py refresh --config ~/.config/sentry/config.json
+/home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_routines.py show --config ~/.config/sentry/config.json
+```
+
+The production result is currently `insufficient` because natural history is sparse. Routine snapshots never override physical state and are not yet supplied to M4 or M5.
 
 ## Reuse strategy
 
@@ -94,8 +105,9 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 6. **M5 — Restrained proactive behavior**: persisted-event eligibility, dedupe/cooldowns/budget, bounded Luna judgment, local speech audit trail (qualified within bounded physical-event evidence).
 7. **M6 — Soak + acceptance**: 30 minutes unattended with documented results (owner/operator waiver of the former 72-hour requirement).
 8. **V0.2 — Resident runtime**: supervised auto-starting perception, API, and proactive services with bounded restart/recovery (qualified).
+9. **V0.2 — Routine statistics foundation**: deterministic, timezone-aware, interruption-filtered derived summaries with schema-v5 persistence, localhost API, and scheduled refresh (qualified; production data currently insufficient).
 
-M6 and V0.2 resident runtime have passed. Routine learning or multi-room hardware work requires a new Architect directive and remains outside the accepted office-only V0.1/V0.2 boundary.
+M6, V0.2 resident runtime, and the V0.2 routine-statistics foundation have passed. Routine facts entering conversation/proactivity, or multi-room hardware work, requires a new Architect directive and remains outside the accepted office-only V0.1/V0.2 boundary.
 
 ## Key acceptance targets
 

@@ -56,6 +56,16 @@
     "atlas_mirror_path": "perception-data/runtime/backups/sentry.db",
     "mirror_interval_seconds": 60
   },
+  "routines": {
+    "timezone": "America/New_York",
+    "lookback_days": 56,
+    "minimum_observed_samples": 5,
+    "minimum_stable_samples": 8,
+    "minimum_observed_distinct_dates": 5,
+    "minimum_stable_distinct_dates": 8,
+    "clock_stable_resultant_length": 0.8,
+    "duration_stable_relative_mad": 0.35
+  },
   "proactivity": {
     "enabled": false,
     "event_ttl_seconds": 30,

@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh SENTRY routine statistics periodically
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=6h
+Unit=sentry-routines.service
+
+[Install]
+WantedBy=timers.target

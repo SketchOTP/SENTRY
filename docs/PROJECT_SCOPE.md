@@ -818,3 +818,14 @@ These references can evolve. Verify current upstream behavior before depending o
 ---
 
 **Project state at creation:** Scope defined; implementation not yet started. **Current authorized work:** M0 only, followed by milestones in order unless evidence requires a documented change.
+
+## Current post-V0.1 state — 2026-08-30
+
+V0.1 and the V0.2 resident runtime are accepted. The V0.2 routine-statistics
+foundation is now qualified: schema-v5 append-only derived snapshots, four
+transparent routine types, timezone-aware circular/robust statistics,
+observability exclusions, maturity gates, localhost `/v1/routines`, and an
+independent user-systemd refresh timer. Current natural history is sparse, so
+the production snapshots correctly remain `insufficient`. Routine facts remain
+derived and are not yet used by M4 conversation or M5 proactivity; that use
+requires a later Architect directive.

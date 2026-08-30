@@ -6,6 +6,8 @@ services:
 - `sentry-perception.service` — local camera, presence, identity, and SQLite writes.
 - `sentry-state-api.service` — localhost-only state/history API.
 - `sentry-proactive.service` — bounded persisted-event polling with accepted M5 dedupe and policy.
+- `sentry-routines.timer` — derived routine-statistics refresh every six hours,
+  with an initial two-minute delay after the user manager starts.
 
 Perception publishes a small metadata-only heartbeat at
 `perception-data/runtime/health/perception.json`; it contains process/camera
@@ -32,6 +34,8 @@ Useful status checks:
 ```bash
 systemctl --user is-enabled sentry-perception.service sentry-state-api.service sentry-proactive.service
 systemctl --user --no-pager --full status sentry-perception.service sentry-state-api.service sentry-proactive.service
+systemctl --user is-enabled sentry-routines.timer
+systemctl --user --no-pager --full status sentry-routines.timer sentry-routines.service
 curl --fail http://127.0.0.1:48174/health
 journalctl --user -u sentry-perception.service -u sentry-state-api.service -u sentry-proactive.service --since today
 ```
@@ -51,3 +55,9 @@ systemctl --user disable sentry-proactive.service sentry-state-api.service sentr
 The live database remains local at `~/.local/share/sentry/sentry.db`; complete
 SQLite snapshots continue to mirror to the canonical Atlas runtime backup path.
 No raw frames, audio, embeddings, or secrets are written by these units.
+
+Routine statistics are refreshed by `sentry-routines.service` through
+`sentry-routines.timer`; derived snapshots are stored in the same local SQLite
+database and mirrored through the existing M2 backup path. Routine refresh is
+independent of perception and the API, and its sparse-data result may
+legitimately remain `insufficient`.

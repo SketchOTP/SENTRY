@@ -25,7 +25,7 @@ from .storage_mirror import (
 )
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 def _utc_iso(value: datetime | str) -> str:
@@ -233,6 +233,40 @@ class PresenceStore:
                 self._connection.execute(
                     "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                     (4, datetime.now(timezone.utc).isoformat()),
+                )
+                applied.add(4)
+            if 5 not in applied:
+                self._connection.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS routine_snapshots (
+                        snapshot_id TEXT PRIMARY KEY,
+                        routine_key TEXT NOT NULL,
+                        routine_type TEXT NOT NULL,
+                        scope TEXT NOT NULL,
+                        room_id TEXT NOT NULL,
+                        person_id TEXT,
+                        timezone TEXT NOT NULL,
+                        algorithm_version TEXT NOT NULL,
+                        window_start TEXT NOT NULL,
+                        window_end TEXT NOT NULL,
+                        source_as_of TEXT NOT NULL,
+                        source_fingerprint TEXT NOT NULL,
+                        generated_at TEXT NOT NULL,
+                        sample_count INTEGER NOT NULL,
+                        distinct_date_count INTEGER NOT NULL,
+                        maturity_status TEXT NOT NULL CHECK (maturity_status IN ('insufficient', 'observed', 'stable')),
+                        statistics_json TEXT NOT NULL,
+                        exclusions_json TEXT NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_routine_snapshots_key_generated
+                        ON routine_snapshots(routine_key, generated_at DESC);
+                    CREATE INDEX IF NOT EXISTS idx_routine_snapshots_source
+                        ON routine_snapshots(source_fingerprint, algorithm_version);
+                    """
+                )
+                self._connection.execute(
+                    "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+                    (5, datetime.now(timezone.utc).isoformat()),
                 )
 
     @staticmethod
@@ -705,6 +739,111 @@ class PresenceStore:
 
     def proactive_actions_for_candidate(self, candidate_key: str) -> list[dict[str, Any]]:
         return [item for item in self.proactive_actions(limit=1000) if item["candidate_key"] == candidate_key]
+
+    def routine_source(self, window_start: str, window_end: str, *, room_id: str = "office") -> dict[str, list[dict[str, Any]]]:
+        """Return bounded metadata-only source rows for routine derivation."""
+
+        with self._lock:
+            sessions = self._connection.execute(
+                "SELECT session_id, room_id, started_at, ended_at, status, start_reason, end_reason, "
+                "recovered_after_restart, end_time_uncertain FROM presence_sessions "
+                "WHERE room_id = ? AND ((started_at BETWEEN ? AND ?) OR (ended_at BETWEEN ? AND ?) "
+                "OR (started_at <= ? AND (ended_at IS NULL OR ended_at >= ?))) "
+                "ORDER BY started_at, session_id",
+                (room_id, window_start, window_end, window_start, window_end, window_start, window_start),
+            ).fetchall()
+            events = self._connection.execute(
+                "SELECT event_id, event_type, occurred_at, room_id, session_id, source, confidence, payload_json, schema_version "
+                "FROM events WHERE room_id = ? AND occurred_at BETWEEN ? AND ? ORDER BY occurred_at, event_id",
+                (room_id, window_start, window_end),
+            ).fetchall()
+        return {
+            "sessions": [dict(row) for row in sessions],
+            "events": [
+                {**dict(row), "payload": json.loads(row["payload_json"] or "{}")}
+                for row in events
+            ],
+        }
+
+    def persist_routine_snapshots(self, snapshots: list[dict[str, Any]]) -> dict[str, Any]:
+        """Append a derived snapshot batch unless the exact source is already present."""
+
+        if not snapshots:
+            return {"written": 0, "skipped": True, "source_fingerprint": None}
+        fingerprints = {str(item["source_fingerprint"]) for item in snapshots}
+        algorithms = {str(item["algorithm_version"]) for item in snapshots}
+        if len(fingerprints) != 1 or len(algorithms) != 1:
+            raise ValueError("routine snapshot batch must have one source fingerprint and algorithm version")
+        source_fingerprint = next(iter(fingerprints))
+        algorithm_version = next(iter(algorithms))
+        routine_keys = {str(item["routine_key"]) for item in snapshots}
+        with self._lock:
+            existing = {
+                row[0]
+                for row in self._connection.execute(
+                    "SELECT routine_key FROM routine_snapshots WHERE source_fingerprint = ? AND algorithm_version = ?",
+                    (source_fingerprint, algorithm_version),
+                )
+            }
+            pending = [item for item in snapshots if item["routine_key"] not in existing]
+            if not pending:
+                return {
+                    "written": 0,
+                    "skipped": True,
+                    "source_fingerprint": source_fingerprint,
+                    "routine_keys": sorted(routine_keys),
+                }
+            with self._connection:
+                self._connection.executemany(
+                    "INSERT INTO routine_snapshots("
+                    "snapshot_id, routine_key, routine_type, scope, room_id, person_id, timezone, algorithm_version, "
+                    "window_start, window_end, source_as_of, source_fingerprint, generated_at, sample_count, "
+                    "distinct_date_count, maturity_status, statistics_json, exclusions_json) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [
+                        (
+                            str(item["snapshot_id"]), item["routine_key"], item["routine_type"], item["scope"],
+                            item["room_id"], item.get("person_id"), item["timezone"], item["algorithm_version"],
+                            item["window_start"], item["window_end"], item["source_as_of"], item["source_fingerprint"],
+                            item["generated_at"], int(item["sample_count"]), int(item["distinct_date_count"]),
+                            item["maturity_status"], json.dumps(item["statistics"], sort_keys=True),
+                            json.dumps(item["exclusions"], sort_keys=True),
+                        )
+                        for item in pending
+                    ],
+                )
+        self._maybe_mirror(force=True)
+        return {
+            "written": len(pending),
+            "skipped": False,
+            "source_fingerprint": source_fingerprint,
+            "routine_keys": sorted(routine_keys),
+        }
+
+    def routine_snapshots(self, *, latest_only: bool = True, limit: int = 200) -> list[dict[str, Any]]:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        with self._lock:
+            if latest_only:
+                rows = self._connection.execute(
+                    "SELECT r.* FROM routine_snapshots r JOIN ("
+                    "SELECT routine_key, MAX(generated_at) AS generated_at FROM routine_snapshots "
+                    "GROUP BY routine_key) latest ON latest.routine_key = r.routine_key "
+                    "AND latest.generated_at = r.generated_at ORDER BY r.routine_key LIMIT ?",
+                    (limit,),
+                ).fetchall()
+            else:
+                rows = self._connection.execute(
+                    "SELECT * FROM routine_snapshots ORDER BY generated_at DESC, routine_key LIMIT ?",
+                    (limit,),
+                ).fetchall()
+        values = []
+        for row in rows:
+            value = dict(row)
+            value["statistics"] = json.loads(value.pop("statistics_json") or "{}")
+            value["exclusions"] = json.loads(value.pop("exclusions_json") or "{}")
+            values.append(value)
+        return values
 
     def claim_proactive_action(
         self, *, action_id: str, source_event_id: str, candidate_key: str, event_type: str,
