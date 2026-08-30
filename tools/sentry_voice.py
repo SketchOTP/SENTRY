@@ -46,7 +46,6 @@ def main() -> int:
 
     if not args.skip_prompt:
         input("Press Enter to start the microphone, then speak your SENTRY question... ")
-    print(json.dumps({"status": "recording", "seconds": args.duration_seconds}, sort_keys=True))
     recorder = PipeWireRecorder(source=args.source)
     transcriber = WhisperTranscriber(model_name=args.model, download_root=args.whisper_cache)
     speaker = NullSpeaker() if args.no_speech else KokoroSpeaker(
@@ -61,6 +60,7 @@ def main() -> int:
         speaker=speaker,
         ask_fn=ask,
     )
+    print(json.dumps({"status": "recording", "seconds": args.duration_seconds}, sort_keys=True), flush=True)
     result = loop.run_once()
     print(json.dumps(result.as_dict(), ensure_ascii=True, sort_keys=True))
     return 0 if result.status == "answered" and (result.delivery == "delivered" or args.no_speech) else 1

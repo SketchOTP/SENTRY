@@ -319,3 +319,6 @@ The reactive voice path now uses local Whisper `tiny.en` for STT and an installe
 
 ### Boundary
 The microphone produced signal but the two corrected physical attempts captured no intelligible speech, so no spoken-request qualification is claimed and both made zero Luna calls. No raw audio was persisted. M6 remains gated; the owner/operator-approved final soak is 30 minutes unattended and the former 72-hour requirement is waived.
+
+### Follow-up physical attempt
+The corrected CLI emitted its recording marker only after Whisper/Kokoro initialization. The captured transcript was `Thank you`, confirming `tiny.en` execution, but not the requested occupancy question. A transient Luna failure yielded a truthful unavailable answer delivered by local Kokoro; an immediate text retry returned supported occupancy facts. Spoken-request qualification remains pending.

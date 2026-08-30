@@ -967,6 +967,7 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - `tiny.en` loaded successfully. An in-memory Kokoro-generated phrase round-trip was transcribed exactly as `Is anyone in the office?` by `tiny.en`; no audio file was created.
 - Local Kokoro synthesis and PipeWire playback returned success. A live state-grounding proof with SENTRY perception running returned a supported answer that the office was occupied by one visible unresolved person, using one low-effort `gpt-5.6-luna` turn.
 - Two corrected physical microphone attempts captured signal but no intelligible speech, so both correctly made zero M4/Luna calls and produced no TTS. The microphone path is therefore not claimed as completed spoken qualification until an intelligible operator phrase is captured.
+- A later synchronized attempt used the corrected post-initialization recording marker and transcribed `Thank you`, confirming `tiny.en` was active, but it did not capture the requested occupancy question. Its transient Luna failure produced a truthful unavailable answer through Kokoro; an immediate text retry against the same live API returned supported occupancy facts. This remains no spoken-question acceptance evidence.
 - Focused voice tests: **5/5 passed**. Full Ubuntu regression: **97/97 passed**. `git diff --check` passed. No raw audio, frames, embeddings, or biometrics were persisted; continuous perception Luna calls remained `0`.
 
 ### Boundary
