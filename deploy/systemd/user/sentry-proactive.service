@@ -1,0 +1,17 @@
+[Unit]
+Description=SENTRY continuous proactive event processor
+After=default.target sentry-state-api.service sentry-perception.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
+ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_proactive.py --config %h/.config/sentry/config.json --watch --poll-seconds 1
+Restart=on-failure
+RestartSec=10s
+KillMode=control-group
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

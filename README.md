@@ -8,6 +8,8 @@ The project intentionally begins much smaller: **one office, one Ubuntu Linux ho
 
 **SENTRY V0.1 is accepted within the office-only boundary:** M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, M5 restrained proactivity, reactive voice, and the 30-minute unattended M6 integration soak passed within their recorded evidence boundaries. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. The owner/operator permanently waived the former 72-hour soak in favor of the passed 30-minute final soak.
 
+**V0.2 resident runtime is qualified:** the accepted stack now runs as enabled native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. The current startup condition is the authenticated Ubuntu user session; routine learning is not yet implemented.
+
 ## Project links
 
 - Product/spec authority: [SENTRY Notion page](https://app.notion.com/p/3c5833cb27ff8065aa88eff1089970a8)
@@ -60,6 +62,16 @@ The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](do
 
 Do not expand the first build with ESP32s, mmWave, BLE room positioning, Wi-Fi CSI, Home Assistant, Frigate, multiple rooms/cameras, a TV avatar, autonomous smart-home control, or full routine learning. Those are later phases.
 
+## V0.2 Resident Runtime
+
+The resident deployment is documented in [`docs/V0.2_RESIDENT_RUNTIME.md`](docs/V0.2_RESIDENT_RUNTIME.md). Install the supervised stack with:
+
+```bash
+/home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_install_user_services.py
+```
+
+The live SQLite database remains local to the Ubuntu host and Atlas continues to receive complete integrity-checked snapshots. The continuous proactive processor polls persisted events at a bounded cadence; perception remains local and makes zero Codex/Luna calls. Routine statistics and learned habits require a later directive and real longitudinal history.
+
 ## Reuse strategy
 
 ### Accepted V0.1 reasoning layer
@@ -81,8 +93,9 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 5. **M4 — Conversational grounding**: assistant queries current and historical office state.
 6. **M5 — Restrained proactive behavior**: persisted-event eligibility, dedupe/cooldowns/budget, bounded Luna judgment, local speech audit trail (qualified within bounded physical-event evidence).
 7. **M6 — Soak + acceptance**: 30 minutes unattended with documented results (owner/operator waiver of the former 72-hour requirement).
+8. **V0.2 — Resident runtime**: supervised auto-starting perception, API, and proactive services with bounded restart/recovery (qualified).
 
-M6 has passed. Routine learning or multi-room hardware work requires a new Architect directive and remains outside the accepted office-only V0.1 boundary.
+M6 and V0.2 resident runtime have passed. Routine learning or multi-room hardware work requires a new Architect directive and remains outside the accepted office-only V0.1/V0.2 boundary.
 
 ## Key acceptance targets
 

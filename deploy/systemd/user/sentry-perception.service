@@ -1,0 +1,17 @@
+[Unit]
+Description=SENTRY local perception service
+After=default.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
+ExecStart=%h/.venvs/sentry-ubuntu/bin/python -m perception.sentry_perception --config %h/.config/sentry/config.json --heartbeat-file /srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/health/perception.json --heartbeat-seconds 30
+Restart=on-failure
+RestartSec=10s
+KillMode=control-group
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

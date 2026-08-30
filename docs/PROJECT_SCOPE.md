@@ -637,6 +637,14 @@ Validate:
 
 Only after this milestone passes should V0.2 routine learning begin.
 
+### Owner/operator acceptance override — 2026-08-30
+
+The former 72-hour M6 target is historical scope. The owner/operator explicitly
+waived it in favor of the accepted 30-minute final soak. V0.1 was accepted
+within its office-only boundary, and V0.2 resident runtime is now the active
+phase. V0.2 first establishes supervised continuous collection; routine
+statistics and habit learning remain a later, separately authorized slice.
+
 ## 24. Quantitative Acceptance Targets
 
 These are prototype gates and may be tuned with documented evidence:
@@ -706,6 +714,16 @@ The coder must document before changing any of these:
 - Forking or substantially modifying upstream DAWN.
 
 ## 28. Future Roadmap — After V0.1 Passes
+
+### V0.2 — Resident runtime foundation
+
+- Run the accepted perception, localhost API, and proactive processor under
+  native systemd supervision.
+- Start automatically with the configured Ubuntu user session and use bounded
+  failure restart/backoff.
+- Preserve local SQLite as the active database and Atlas as the complete
+  snapshot mirror.
+- Accumulate trustworthy longitudinal metadata before deriving routines.
 
 ### V0.2 — Routine learning
 

@@ -3,13 +3,24 @@
 Last updated: 2026-08-30T02:10:00-04:00
 
 ## Current stage
-V0.1 — accepted after 30-minute unattended final acceptance soak
+V0.2 — resident runtime qualified after V0.1 acceptance
 
 ## Current objective
-Maintain the accepted office-only V0.1 boundary; future work requires a new Architect directive.
+Operate the accepted office-only V0.1 stack as a supervised Ubuntu resident and accumulate trustworthy longitudinal metadata; routine learning requires a later Architect directive.
 
 ## Active directive
-SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001 — completed successfully; M6 accepted.
+SENTRY-V0.2-RESIDENT-RUNTIME-001 — completed successfully; resident runtime qualified.
+
+## V0.2 resident runtime — 2026-08-30
+- Native systemd user services are installed, enabled, and running for the authenticated `sketch` user session: `sentry-perception.service`, `sentry-state-api.service`, and `sentry-proactive.service`.
+- Perception uses the existing accepted production config and publishes a metadata-only heartbeat at `perception-data/runtime/health/perception.json`; it never writes frames or audio.
+- Proactivity now has `--watch --poll-seconds 1`, preserving M5 persisted-event dedupe and zero-Luna deterministic suppressions.
+- Units use `Restart=on-failure`, `RestartSec=10s`, `StartLimitBurst=5`, and `StartLimitIntervalSec=300s`. The user manager startup condition is the authenticated desktop/user session; `Linger=no` is explicit and boot-before-login is not claimed.
+- Production config is local at `~/.config/sentry/config.json`, mode `0600`, created once from the checked-in example with accepted proactivity enabled. Live SQLite remains `~/.local/share/sentry/sentry.db`; Atlas remains the snapshot mirror.
+- Fifteen-minute supervised probe passed: 900 seconds, 30 metadata samples, all units active, localhost API healthy, Atlas mirror `ok`, no probe failures. Perception final sample: V4L2/MJPEG/1280x720/15 FPS, `7.607` processed FPS, `115.696 ms` median and `134.015 ms` p95.
+- Individual API/proactive/perception restart and SIGKILL recovery passed. Proactive action count remained unchanged; perception recovery added no room entry/exit event and preserved zero open sessions. Clean stop left zero resident component processes; starting enabled units restored the stack.
+- Final local and Atlas SQLite copies passed integrity checks with schema 4; logical event/session/action content matched, with no persistence or mirror error. Continuous perception Luna calls remained `0`.
+- V0.2 resident runtime is **QUALIFIED**. Routine statistics/learning, additional rooms/sensors, and other post-V0.1 expansion are not active.
 
 ## Owner/operator M6 decision — 2026-08-29
 - M5 is accepted at `e6b56b0f446bc153ba7f936387fad8ec954cb1f6`.
@@ -61,7 +72,7 @@ SENTRY-M6-30MIN-FINAL-ACCEPTANCE-001 — completed successfully; M6 accepted.
 - `tools/sentry_state_api.py` remains localhost-only and now accepts bounded history `limit` parameters. The live DB remains `/home/sketch/.local/share/sentry/sentry.db` on local ext4; no SQLite access is routed through Atlas.
 - Deterministic fixtures cover empty, occupied/recognized, occupied/unknown, occupied/unresolved, degraded, offline, completed sessions, and restart-reconciled uncertainty. Full Ubuntu regression is 77/77.
 - Real API/Luna proof completed 13 successful low-effort `gpt-5.6-luna` turns across six core and five adversarial concepts plus two additional current-state checks. The actual DB currently has healthy schema 3/mirror `ok` but no current room observation, sessions, or events, so answers correctly returned partial/unavailable rather than inventing state. A no-server proof invoked Luna 0 times.
-- Raw frames, embeddings, biometric prototypes, and unrestricted DB rows were not sent to Luna. Continuous perception Luna calls remain 0. M4 and M5 are qualified within their bounded evidence boundaries; M6 unattended soak is not active.
+- Raw frames, embeddings, biometric prototypes, and unrestricted DB rows were not sent to Luna. Continuous perception Luna calls remain 0. M4, M5, M6, and V0.2 resident runtime are qualified within their recorded boundaries.
 
 ## M2 persistence slice — accepted, local SQLite plus Atlas mirror
 - `perception.presence_store.PresenceStore` is the metadata-only SQLite store. It applies schema migration 3, records current room state, emits state-derived room/session events, records lifecycle/restart provenance, and closes open sessions on observed or restart-reconciled `occupied->empty`.

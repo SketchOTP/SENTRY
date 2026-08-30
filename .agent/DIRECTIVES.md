@@ -352,3 +352,11 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - The state source was verified live: perception established `occupied`, and the equivalent text query returned a supported grounded answer with one low-effort Luna call. `tiny.en` passed an in-memory Kokoro phrase round-trip and local Kokoro playback succeeded.
 - The two physical attempts captured no intelligible speech and therefore made zero Luna calls. No qualification claim is made for a spoken request yet. Focused tests are 5/5 and full Ubuntu regression is 97/97.
 - Scope boundary: no M1/M2/M3/M4/M5 behavior changed; M6 remains gated and the final owner/operator soak is 30 minutes, not 72 hours.
+
+## SENTRY-V0.2-RESIDENT-RUNTIME-001 — Resident runtime qualification — 2026-08-30
+- Status: **QUALIFIED / COMPLETED**
+- Objective: run the accepted office-only V0.1 stack continuously under native Ubuntu systemd user supervision without changing detector, identity, persistence, grounding, proactivity policy, or reactive voice behavior.
+- Scope delivered: separate supervised perception, localhost state API, and continuous bounded proactive-polling services; metadata-only perception heartbeat; reproducible local production configuration; install/status/stop documentation; and bounded resident live-probe diagnostics.
+- Runtime boundary: local SQLite remains authoritative on local ext4; Atlas remains the snapshot mirror on `fuse.sshfs`; stable V4L2 camera configuration and accepted OpenVINO/YOLOX runtime are preserved. Reactive voice remains explicit and is not made continuously listening.
+- Validation: 900-second supervised live probe passed with 30 samples and no failures; all services remained active, API and Atlas mirror remained healthy, and perception stayed above the 5 FPS floor. Individual API, proactive, and perception failure/restart isolation, clean stop/start, session invariants, and proactive dedupe were verified.
+- Exclusions: no routine learning, new sensors/models, detector/tracker/identity changes, continuous microphone, M3/M4/M5 redesign, or M6 expansion.

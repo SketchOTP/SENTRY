@@ -17,7 +17,7 @@
 - Frameworks: no application framework; OpenCV provides local V4L2 capture/frame handling and OpenVINO provides local 0202 inference.
 - Major dependencies: `opencv-python-headless==4.12.0.88`, `openvino==2026.3.1`, `psutil==7.0.0`.
 - Test command: `python -m unittest discover -s tests -v`.
-- Runtime environment: Ubuntu Linux x86_64 host on the canonical Atlas share. The Linux NexiGo N60 V4L2 path and pinned local runtime are established; M1 practical presence and M2/M3 are accepted within recorded boundaries, and M4 grounded conversation is now qualified within bounded evidence.
+- Runtime environment: Ubuntu Linux x86_64 host on the canonical Atlas share. The Linux NexiGo N60 V4L2 path and pinned local runtime are established; M1 practical presence, M2/M3, M4, M5, M6, and the V0.2 resident runtime are accepted within recorded boundaries.
 
 ## Important integrations
 - Direct OAuth-authenticated Codex/Luna invocation through the bounded SENTRY bridge is the accepted V0.1 reasoning layer. DAWN feasibility work is historical evidence/reference only; integration is not implemented.
@@ -29,6 +29,7 @@
 - Preserve the office-only V0.1 boundary and milestone order beginning at M0.
 - Preserve explicit degraded/offline states, conservative `unknown` identity behavior, local physical-event history, and restrained proactive speech as the implementation evolves.
 - M5 uses a post-persistence proactive processor with one allowed event class (`person.identified` for `primary_user`), deterministic suppression, one bounded low-effort Luna judgment for survivors, and local Speech Dispatcher delivery. Reactive voice is accepted through explicit PipeWire capture, local Whisper `tiny.en` STT, the existing M4 grounded query path, and an installed local Kokoro runtime for local PipeWire playback. M6 passed the owner/operator-approved 30-minute final soak; V0.1 is accepted within the office-only boundary.
+- V0.2 resident runtime uses separate native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. Units are enabled for the authenticated user session and use bounded `Restart=on-failure` recovery; routine learning is not implemented.
 - Do not treat the suggested repository shape in the project scope as permission to create unneeded empty runtime modules.
 
 ## Safety / operational constraints

@@ -1,0 +1,17 @@
+[Unit]
+Description=SENTRY localhost state API
+After=default.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
+ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_state_api.py --host 127.0.0.1 --port 48174 --database %h/.local/share/sentry/sentry.db --atlas-mirror /srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/backups/sentry.db
+Restart=on-failure
+RestartSec=10s
+KillMode=control-group
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

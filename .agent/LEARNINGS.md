@@ -302,3 +302,14 @@ When identity inference runs at a bounded cadence, the last identity annotation 
 - The physical M5 harness must start perception before operator confirmation. A startup sleep followed by an entry prompt can never establish whether the later event came from a real transition.
 - Require both operator ground truth and persisted state evidence: `CONFIRMED_EMPTY`, online camera, authoritative `empty`, no open session, and a bounded stability interval. Startup suppression must elapse while perception is running, then the harness may prompt `PRIMARY_USER_ENTER_NOW`.
 - A real event may validly result in persisted `judge_silent`; silence is successful restrained behavior. Replay must return `duplicate` with zero additional Luna calls and no second delivery.
+
+## LEARNING-SENTRY-023 — Resident SENTRY should use independent user-systemd services
+- Date: 2026-08-30
+- Evidence source: `SENTRY-V0.2-RESIDENT-RUNTIME-001`; 900-second live probe and process-level restart tests
+- Confidence: VERIFIED RUNTIME
+
+### Learning
+Separate native user-systemd units for perception, the localhost API, and proactive polling preserve component isolation while providing bounded restart/backoff and startup enablement. A metadata-only perception heartbeat is sufficient for operational liveness without persisting frames or audio.
+
+### Safety boundary
+The authenticated user session is the startup condition when `Linger=no`; this must not be described as boot-before-login persistence. Local SQLite remains the live database and Atlas remains a complete snapshot mirror. Service restarts must not be interpreted as physical entry/exit events, and proactive dedupe must remain persisted outside perception.

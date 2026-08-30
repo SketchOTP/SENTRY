@@ -1002,3 +1002,23 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 ### Boundary and decision
 - The required accepted capability chain remained intact across the unattended run. Historical YOLOX edge cases and the bounded M3 simultaneous-person limitation remain documented residual limitations; neither became a new M6 failure.
 - M6 30-minute unattended acceptance **PASSED**. The 72-hour soak remains permanently waived/superseded by owner/operator decision.
+
+## OUTCOME-SENTRY-V0.2-RESIDENT-RUNTIME-001 — Resident runtime qualification
+- Completed: 2026-08-30
+- Verdict: **V0.2 RESIDENT RUNTIME QUALIFIED**
+- Starting SHA: `9a5ae0c341d06541fde43cbbe5fbf32f9945ce28`
+- Retrieval confidence: **HIGH**
+
+### Implementation
+- Added native systemd user units `sentry-perception.service`, `sentry-state-api.service`, and `sentry-proactive.service`, with bounded `Restart=on-failure`, `RestartSec=10s`, and start-limit protection.
+- Added a metadata-only perception heartbeat, continuous proactive `--watch --poll-seconds 1` mode, a reproducible installer for `~/.config/sentry/config.json` (mode `0600`), and resident status/live-probe documentation and tooling.
+- The accepted production boundary is unchanged: YOLOX-S, V4L2 NexiGo capture, local SQLite, Atlas snapshots, localhost API, M5 policy, explicit reactive voice, and zero perception Luna calls.
+
+### Qualification evidence
+- Ubuntu user-systemd manager was active with `Linger=no`; units were enabled for the authenticated user session and all three were active after installation/start.
+- The metadata-only live probe ran for `900.0` seconds with 30 samples and zero failures. Final perception telemetry was V4L2/MJPEG/1280x720/15 FPS, `7.607` processed FPS, `115.696 ms` median latency, and `134.015 ms` p95 latency. API DB health, schema 4, and Atlas mirror status remained healthy.
+- API, proactive, and perception restart/SIGKILL isolation passed. Proactive action count remained unchanged across restart; perception recovery added no room transition and preserved the one-open-session invariant. Clean stop left no resident processes, and enabled units restored the stack.
+- Local ext4 SQLite and the Atlas `fuse.sshfs` snapshot both passed integrity checks with matching logical schema/data. No persistence or mirror errors occurred. Continuous perception Luna calls remained `0`; no raw frames/audio/embeddings/biometric data entered the repository or evidence.
+
+### Boundary
+- V0.2 resident supervision is qualified. Routine statistics/learning, additional rooms/sensors, continuous listening, and other post-V0.1 expansion remain outside this directive and require a later Architect decision.

@@ -353,3 +353,17 @@ The run lasted `1811.818` seconds, processed `13,458` frames at `7.475 FPS`, and
 
 ### Accepted V0.1 boundary
 SENTRY V0.1 is accepted for the office-only capability chain: webcam presence, durable local-memory/Atlas-mirror history, bounded primary identity, grounded text and reactive voice, restrained proactivity, and 30-minute unattended integrated stability. Whole-home expansion, longer-duration reliability, simultaneous-person identity, wake-word/continuous listening, and other future capabilities remain outside this acceptance.
+
+## RECORD-SENTRY-022 — V0.2 resident runtime qualified
+- Date: 2026-08-30
+- Type: MILESTONE / V0.2 QUALIFICATION
+- Related directive/outcome: `SENTRY-V0.2-RESIDENT-RUNTIME-001` / `OUTCOME-SENTRY-V0.2-RESIDENT-RUNTIME-001`
+
+### Decision
+The accepted SENTRY V0.1 stack now runs as a supervised Ubuntu resident under three enabled native user-systemd services. V0.2 resident runtime is qualified; routine learning is not yet active.
+
+### Evidence
+The 900-second metadata-only live probe completed with 30 samples and no failures. Perception remained above the 5 FPS floor, the localhost API and Atlas mirror remained healthy, and process-level API/proactive/perception restart isolation passed. Clean stop/start, session integrity, and proactive dedupe passed without fabricating physical events.
+
+### Accepted boundary
+The runtime requires an authenticated user session because `Linger=no`; no boot-before-login claim is made. Local SQLite remains authoritative on local ext4, Atlas remains the snapshot mirror, and continuous perception Luna calls remain zero. Routine statistics/learning and broader household expansion require a later directive.

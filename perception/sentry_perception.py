@@ -913,7 +913,14 @@ class _CameraWorker:
 
 
 class PerceptionService:
-    def __init__(self, config: dict[str, Any], observation_callback: Callable[[Observation], None] | None = None) -> None:
+    def __init__(
+        self,
+        config: dict[str, Any],
+        observation_callback: Callable[[Observation], None] | None = None,
+        *,
+        heartbeat_path: Path | None = None,
+        heartbeat_interval_seconds: float = 30.0,
+    ) -> None:
         validate_config(config)
         self.config = config
         self.buffer = LatestFrameBuffer()
@@ -976,6 +983,10 @@ class PerceptionService:
         self._last_sequence = 0
         self._processing_ms: list[float] = []
         self._started_at = 0.0
+        self.heartbeat_path = heartbeat_path
+        self.heartbeat_interval_seconds = heartbeat_interval_seconds
+        if self.heartbeat_interval_seconds <= 0:
+            raise ValueError("heartbeat_interval_seconds must be positive")
 
     def stop(self) -> None:
         self._stop.set()
@@ -1007,11 +1018,15 @@ class PerceptionService:
         self.worker.start()
         deadline = self._started_at + duration_seconds if duration_seconds is not None else None
         last_health_emit = 0.0
+        last_heartbeat = 0.0
         try:
             while not self._stop.is_set() and (deadline is None or time.perf_counter() < deadline):
+                now = time.perf_counter()
+                if self.heartbeat_path is not None and now - last_heartbeat >= self.heartbeat_interval_seconds:
+                    self.write_heartbeat()
+                    last_heartbeat = now
                 frame = self.buffer.pop_latest()
                 if frame is None:
-                    now = time.perf_counter()
                     state, reason, *_ = self.worker.snapshot()
                     if state != CameraState.ONLINE and now - last_health_emit >= 1.0:
                         evaluated_at = datetime.now(timezone.utc)
@@ -1088,6 +1103,7 @@ class PerceptionService:
                     self.observation_callback(observation)
         finally:
             self.stop()
+            self.write_heartbeat(process_alive=False)
         return self.summary()
 
     def summary(self) -> dict[str, Any]:
@@ -1114,6 +1130,21 @@ class PerceptionService:
             "persistence_error": self.last_persistence_error,
             "mirror": self._last_mirror_status,
         }
+
+    def write_heartbeat(self, *, process_alive: bool = True) -> None:
+        """Publish bounded metadata-only runtime health for service diagnostics."""
+
+        if self.heartbeat_path is None:
+            return
+        self.heartbeat_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "process_alive": process_alive,
+            "summary": self.summary(),
+        }
+        temporary = self.heartbeat_path.with_name(f".{self.heartbeat_path.name}.tmp")
+        temporary.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        temporary.replace(self.heartbeat_path)
 
 
 def _system_snapshot() -> dict[str, Any]:
@@ -1145,6 +1176,8 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - CLI exerci
     parser.add_argument("--config", type=Path, default=Path(__file__).with_name("config.example.json"))
     parser.add_argument("--duration-seconds", type=float, default=None)
     parser.add_argument("--observation-file", type=Path)
+    parser.add_argument("--heartbeat-file", type=Path)
+    parser.add_argument("--heartbeat-seconds", type=float, default=30.0)
     args = parser.parse_args(argv)
     try:
         config = load_config(args.config)
@@ -1156,7 +1189,16 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - CLI exerci
         if output:
             output.write(json.dumps(observation.as_dict(), sort_keys=True) + "\n")
             output.flush()
-    service = PerceptionService(config, emit)
+    try:
+        service = PerceptionService(
+            config,
+            emit,
+            heartbeat_path=args.heartbeat_file,
+            heartbeat_interval_seconds=args.heartbeat_seconds,
+        )
+    except (OSError, ValueError, RuntimeError) as exc:
+        print(json.dumps({"ok": False, "error": f"{type(exc).__name__}: {exc}"}))
+        return 2
     signal.signal(signal.SIGINT, lambda *_: service.stop())
     signal.signal(signal.SIGTERM, lambda *_: service.stop())
     before = _system_snapshot()
