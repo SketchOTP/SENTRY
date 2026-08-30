@@ -380,3 +380,17 @@ Schema 5 routine snapshots, circular clock handling, robust duration/absence sum
 
 ### Boundary
 Routine snapshots remain derived and cannot override current physical evidence or feed M4/M5. Learned routine conversation/proactivity requires a later Architect directive.
+
+## RECORD-SENTRY-024 — V0.2 routine-grounded conversation qualified
+- Date: 2026-08-30
+- Type: MILESTONE / V0.2 QUALIFICATION
+- Related directive/outcome: `SENTRY-V0.2-ROUTINE-GROUNDED-CONVERSATION-001` / `OUTCOME-SENTRY-V0.2-ROUTINE-GROUNDED-CONVERSATION-001`
+
+### Decision
+Routine statistics are now available to a bounded M4 conversation path. The feature is qualified without claiming that the current sparse production history contains a mature routine.
+
+### Evidence
+Deterministic intent/scope routing, metadata-only routine facts, maturity-aware wording, physical-state contradiction protection, source-outage isolation, and one-turn Luna behavior passed. The resident production API returned 40 latest snapshots, all `insufficient`; five real routine questions correctly returned sparse-history limitations with zero Luna calls. Focused tests passed `16/16`; full regression passed `128/128`.
+
+### Boundary
+Routine facts are derived/rebuildable, cannot override physical truth, are not fed into M5, and do not support unsupported activity or causal claims. The existing reactive voice bridge remains compatible through `sentry_ask.py`.

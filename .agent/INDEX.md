@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: V0.2 routine statistics foundation qualified after resident runtime acceptance
-- Active directive: SENTRY-V0.2-ROUTINE-STATISTICS-001 — completed successfully
+- Current stage: V0.2 routine-grounded conversation qualified after routine statistics foundation
+- Active directive: SENTRY-V0.2-ROUTINE-GROUNDED-CONVERSATION-001 — completed successfully
 - Active task packet: none; routine-statistics implementation and evidence are recorded in the repository
-- Last accepted outcome: V0.2 routine statistics foundation qualified; production history remains insufficient
-- Latest recorded outcome: V0.2 routine statistics foundation qualified; V0.1 and resident runtime remain accepted
-- Last state sync: 2026-08-30T01:00:00-04:00
+- Last accepted outcome: V0.2 routine-grounded conversation qualified; production routines remain insufficient
+- Latest recorded outcome: V0.2 routine-grounded conversation qualified; V0.1, resident runtime, and routine statistics remain accepted
+- Last state sync: 2026-08-30T09:30:00-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

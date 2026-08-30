@@ -11,6 +11,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from tools.sentry_routine_intent import ROUTINE_TYPES, RoutineIntent, routine_keys
+
 
 GROUNDING_STATES = {"supported", "partial", "unavailable"}
 _ALLOWED_EVENT_PAYLOAD = {
@@ -103,10 +105,48 @@ def _normalize_events(events: Any) -> list[dict[str, Any]]:
     return output
 
 
+_ROUTINE_STATISTIC_KEYS = {
+    "circular_center_seconds", "circular_center_local_time", "mean_resultant_length",
+    "circular_dispersion", "median", "mad", "p25", "p75", "minimum", "maximum",
+    "relative_mad",
+}
+_ROUTINE_SCOPES = {"all_days", "weekday", "weekend", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
+
+
+def _normalize_routine(snapshot: Any) -> dict[str, Any] | None:
+    if not isinstance(snapshot, dict):
+        return None
+    required = (
+        "routine_key", "routine_type", "scope", "timezone", "algorithm_version",
+        "window_start", "window_end", "source_as_of", "generated_at", "sample_count",
+        "distinct_date_count", "maturity_status",
+    )
+    if any(key not in snapshot for key in required):
+        return None
+    if snapshot["routine_type"] not in ROUTINE_TYPES or snapshot["scope"] not in _ROUTINE_SCOPES:
+        return None
+    if snapshot["routine_key"] != f"{snapshot['routine_type']}:{snapshot['scope']}":
+        return None
+    if snapshot["maturity_status"] not in {"insufficient", "observed", "stable"}:
+        return None
+    if not all(type(snapshot[key]) is int and snapshot[key] >= 0 for key in ("sample_count", "distinct_date_count")):
+        return None
+    statistics = snapshot.get("statistics")
+    exclusions = snapshot.get("exclusions")
+    if not isinstance(statistics, dict) or not isinstance(exclusions, dict):
+        return None
+    return {
+        **{key: snapshot[key] for key in required},
+        "statistics": {key: statistics[key] for key in _ROUTINE_STATISTIC_KEYS if key in statistics},
+        "exclusions": {key: value for key, value in exclusions.items() if isinstance(key, str) and isinstance(value, int)},
+    }
+
+
 def build_fact_packet(
     responses: dict[str, dict[str, Any]],
     *,
     as_of: str | None = None,
+    routine_keys_to_include: set[str] | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic, allow-listed packet from API response bodies."""
 
@@ -177,6 +217,33 @@ def build_fact_packet(
             "data": {"events": events},
         },
     ]
+
+    if routine_keys_to_include is not None:
+        routine_items = []
+        for raw in responses.get("routines", {}).get("routines", []):
+            normalized = _normalize_routine(raw)
+            if normalized and normalized["routine_key"] in routine_keys_to_include:
+                routine_items.append(normalized)
+        facts.append({
+            "fact_id": "routine-source",
+            "kind": "derived_routine_source",
+            "as_of": as_of_value,
+            "data": {"snapshot_count": len(routine_items), "requested_keys": sorted(routine_keys_to_include)},
+        })
+        for item in sorted(routine_items, key=lambda value: value["routine_key"]):
+            facts.append({
+                "fact_id": f"routine:{item['routine_key']}",
+                "kind": "derived_routine",
+                "as_of": item["source_as_of"],
+                "data": {
+                    key: item[key]
+                    for key in (
+                        "routine_type", "scope", "timezone", "algorithm_version", "window_start", "window_end",
+                        "source_as_of", "generated_at", "sample_count", "distinct_date_count", "maturity_status",
+                        "statistics", "exclusions",
+                    )
+                },
+            })
 
     open_sessions = [session for session in sessions if session.get("status") == "open"]
     if open_sessions:
@@ -330,7 +397,13 @@ class Retrieval:
         return self.packet is not None and self.error is None
 
 
-def retrieve_fact_packet(base_url: str, *, room_id: str = "office", timeout: float = 5.0) -> Retrieval:
+def retrieve_fact_packet(
+    base_url: str,
+    *,
+    room_id: str = "office",
+    timeout: float = 5.0,
+    routine_intent: RoutineIntent | None = None,
+) -> Retrieval:
     """Read health first, then the bounded state/history API surface."""
 
     query_id = str(uuid.uuid4())
@@ -346,7 +419,23 @@ def retrieve_fact_packet(base_url: str, *, room_id: str = "office", timeout: flo
             ("events", "/v1/events"),
         ):
             responses[name] = _get_json(base_url, path, params={"room_id": room_id, "limit": "100"}, timeout=timeout)
-        return Retrieval(query_id, build_fact_packet(responses), None)
+        if routine_intent is not None:
+            responses["routines"] = _get_json(
+                base_url,
+                "/v1/routines",
+                params={"room_id": room_id, "limit": "100"},
+                timeout=timeout,
+            )
+            if not isinstance(responses["routines"].get("routines"), list):
+                raise ValueError("/v1/routines did not return a routines list")
+        return Retrieval(
+            query_id,
+            build_fact_packet(
+                responses,
+                routine_keys_to_include=set(routine_keys(routine_intent)) if routine_intent is not None else None,
+            ),
+            None,
+        )
     except (OSError, HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
         return Retrieval(query_id, None, f"SENTRY state retrieval failed: {type(exc).__name__}")
 

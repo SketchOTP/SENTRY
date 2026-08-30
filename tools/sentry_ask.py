@@ -18,6 +18,43 @@ from tools.sentry_grounding import (  # noqa: E402
     unavailable_response,
     validate_grounded_response,
 )
+from tools.sentry_routine_intent import routine_keys, select_routine_intent
+
+
+def _insufficient_routine_response(fact_ids: list[str], facts: list[dict[str, Any]]) -> dict[str, Any]:
+    details = "; ".join(
+        (
+            f"{fact['data'].get('sample_count', 0)} qualifying observation"
+            f"{'s' if fact['data'].get('sample_count', 0) != 1 else ''} across "
+            f"{fact['data'].get('distinct_date_count', 0)} date"
+            f"{'s' if fact['data'].get('distinct_date_count', 0) != 1 else ''}"
+        )
+        for fact in facts
+    ) or "no qualifying routine observations"
+    return {
+        "answer": f"I don't have enough qualifying history to describe a reliable routine yet ({details}).",
+        "grounding": "unavailable",
+        "fact_ids": fact_ids,
+        "limitations": ["routine evidence is insufficient; this is a sparse-history result, not a source outage"],
+    }
+
+
+def _unsupported_routine_response() -> dict[str, Any]:
+    return {
+        "answer": "I don't have a supported routine statistic for that yet, so I can't answer it reliably.",
+        "grounding": "unavailable",
+        "fact_ids": [],
+        "limitations": ["SENTRY has no activity or causal routine evidence for that question"],
+    }
+
+
+def _routine_source_unavailable_response(reason: str) -> dict[str, Any]:
+    return {
+        "answer": "SENTRY's routine history is currently unavailable, so I can't answer that reliably.",
+        "grounding": "unavailable",
+        "fact_ids": [],
+        "limitations": [reason],
+    }
 
 
 def ask(
@@ -28,17 +65,40 @@ def ask(
     effort: str = "low",
     timeout_seconds: int = 120,
 ) -> dict[str, Any]:
-    retrieval = retrieve_fact_packet(base_url, room_id=room_id)
+    routine_intent = select_routine_intent(question)
+    if routine_intent is not None and routine_intent.unsupported:
+        return {
+            "query_id": None,
+            "as_of": None,
+            **_unsupported_routine_response(),
+            "luna_invocations": 0,
+        }
+    retrieval = retrieve_fact_packet(base_url, room_id=room_id, routine_intent=routine_intent)
     if not retrieval.available:
+        unavailable = (
+            _routine_source_unavailable_response(retrieval.error or "SENTRY routine history is unavailable")
+            if routine_intent is not None
+            else unavailable_response(retrieval.error or "SENTRY state is unavailable")
+        )
         return {
             "query_id": retrieval.query_id,
             "as_of": None,
-            **unavailable_response(retrieval.error or "SENTRY state is unavailable"),
+            **unavailable,
             "luna_invocations": 0,
         }
 
     assert retrieval.packet is not None
     fact_ids = {fact["fact_id"] for fact in retrieval.packet["facts"]}
+    if routine_intent is not None:
+        requested_ids = [f"routine:{key}" for key in routine_keys(routine_intent)]
+        routine_facts = [fact for fact in retrieval.packet["facts"] if fact.get("fact_id") in requested_ids]
+        if not routine_facts or all(fact["data"].get("maturity_status") == "insufficient" for fact in routine_facts):
+            return {
+                "query_id": retrieval.query_id,
+                "as_of": retrieval.packet["as_of"],
+                **_insufficient_routine_response([fact["fact_id"] for fact in routine_facts], routine_facts),
+                "luna_invocations": 0,
+            }
     invocation = invoke_grounded_query(
         question,
         retrieval.packet,

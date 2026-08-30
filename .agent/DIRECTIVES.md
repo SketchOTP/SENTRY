@@ -367,3 +367,10 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Production evidence: actual local DB refreshed without seeding; 40 latest snapshots across four types and ten scopes, all correctly `insufficient` because the live history is sparse.
 - Validation: 17 focused routine tests, 38 combined focused checks, and 120/120 full Ubuntu regression tests passed. Timer oneshot succeeded and resident services remained healthy at approximately 7.5 FPS with zero perception Luna calls.
 - Boundary: routine snapshots remain derived and do not alter physical truth or feed M4/M5. No routine inference model, clustering, additional sensors/rooms, or conversational/proactive use was added.
+
+## SENTRY-V0.2-ROUTINE-GROUNDED-CONVERSATION-001 — completed
+- Status: **QUALIFIED / COMPLETED**
+- Scope: deterministic routine intent/scope routing, bounded `/v1/routines` fact packets, maturity-aware M4 answers, sparse-history production proof, and preservation of physical/M5 boundaries.
+- Result: routine questions are separated from physical-history questions without an LLM classifier. `insufficient` snapshots return explicit evidence-insufficient answers with zero Luna calls; `observed` is tentative; `stable` permits habitual wording with evidence counts and variability.
+- Validation: focused routine-conversation tests `16/16`; full Ubuntu regression `128/128` with the known multiprocessing fork warning. Actual resident API was healthy at schema 5 with Atlas mirror `ok`; all 40 latest production snapshots remained `insufficient` and five live routine questions made zero Luna calls.
+- Boundary: routine data remains derived/rebuildable, cannot override current physical evidence, is not supplied to M5, and unsupported activity/causal questions fail closed. The accepted reactive voice path remains compatible through `tools/sentry_ask.py` by code path.

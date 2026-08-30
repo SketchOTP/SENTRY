@@ -68,4 +68,7 @@ for the six core concepts and adversarial unsupported premises. A no-server
 proof returned the deterministic unavailable answer with zero Luna calls.
 
 M5 proactive behavior, voice, and richer activity or causal-history claims are
-not included in this qualification.
+not included in the original M4 qualification. The later V0.2 routine-grounded
+conversation slice extends `sentry_ask.py` for four bounded derived routine
+types; see `docs/V0.2_ROUTINE_GROUNDED_CONVERSATION.md`. Routine facts remain
+separate from physical-history facts and are never used by M5.

@@ -318,3 +318,6 @@ Routine statistics can be transparent and useful without an ML model when clock 
 
 ## LEARNING-SENTRY-025 — Derived routine refresh belongs outside perception
 Routine refresh is safely isolated as a user-systemd oneshot/timer over the local SQLite source. The timer can fail or lag without stopping perception, the localhost API, or proactive processing; snapshots are rebuildable and mirrored through the existing Atlas backup path.
+
+## LEARNING-SENTRY-026 — Routine conversation must remain maturity- and source-aware
+Routine questions can safely reuse the M4 fact boundary when intent and scope are selected deterministically, only the requested derived snapshots are allow-listed, and current physical facts remain alongside them. Sparse `insufficient` history should return a direct evidence-limited answer with zero Luna calls; routine-source failure should not affect ordinary physical queries. `observed` is tentative and `stable` is the only maturity that supports unqualified habitual wording. Derived room timing is not personal arrival, and routine statistics must remain outside M5.

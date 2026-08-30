@@ -1041,3 +1041,22 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 
 ### Boundary
 - Routine outputs are derived/rebuildable and remain gated from M4 conversation and M5 proactive judgment. No black-box ML, routine-driven action, physical-state alteration, detector/identity/tracker change, or raw-frame/biometric persistence was introduced.
+
+## OUTCOME-SENTRY-V0.2-ROUTINE-GROUNDED-CONVERSATION-001 — Routine-grounded conversation
+- Completed: 2026-08-30
+- Verdict: **V0.2 ROUTINE-GROUNDED CONVERSATION QUALIFIED**
+- Starting SHA: `3f12eba7b3caaebe7fe3f374c8ed721511c0fead`
+- Retrieval confidence: **ADEQUATE**
+
+### Implementation
+- Added deterministic `tools/sentry_routine_intent.py` routing for habitual language, the four accepted routine types, and explicit all-days/weekday/weekend/named-weekday scopes. Non-habitual questions remain physical-history queries; unsupported habitual activity/causal questions fail closed.
+- Extended `tools/sentry_grounding.py` with a metadata-only allow-listed routine fact shape and stable IDs such as `routine:office_session_start_time:weekday`. Current physical facts remain in the packet so derived routines cannot override current state. M5 fact construction was not changed.
+- Extended `tools/sentry_ask.py` with routine-source retrieval only for routine intents, deterministic `insufficient` responses with zero Luna calls, and bounded use of the existing one-turn bridge for `observed`/`stable` evidence. The bridge prompt now states the physical-history > derived-routine > Luna hierarchy and wording restrictions.
+
+### Validation and live proof
+- Focused routine-conversation tests: **16/16 PASSED**. Full Ubuntu regression: **128/128 PASSED** with the existing multiprocessing fork deprecation warning.
+- Resident `/health` was healthy at schema 5 with local DB available, Atlas mirror `ok`, and no persistence error. `/v1/routines` returned 40 latest metadata-only snapshots; all were `insufficient`, with sparse natural-history counts. The five required live routine questions (start time, duration, absence, first identity confirmation, and general routine summary) returned explicit evidence-insufficient answers and made **0 Luna calls**.
+- Fixture coverage includes routine intent/scope, physical-vs-routine separation, insufficient/observed/stable maturity, unknown/sensitive routine filtering, routine endpoint failure, current-state contradiction, and one-turn behavior. The accepted reactive voice path remains compatible because it reuses `tools/sentry_ask.py`.
+
+### Boundary
+- Routine snapshots remain derived/rebuildable and cannot rewrite or override physical sessions/events/current state. No routine facts enter M5 proactive judgment; continuous perception Luna calls remain `0`; no raw frames, audio, embeddings, biometric data, or secrets were exposed.

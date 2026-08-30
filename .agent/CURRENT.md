@@ -1,15 +1,23 @@
 # Current Project State
 
-Last updated: 2026-08-30T02:10:00-04:00
+Last updated: 2026-08-30T09:30:00-04:00
 
 ## Current stage
-V0.2 — routine statistics foundation qualified after resident runtime acceptance
+V0.2 — routine-grounded conversation qualified after routine statistics foundation
 
 ## Current objective
-Derive transparent, rebuildable routine statistics from trusted longitudinal history without changing physical truth or exposing routine data to M4/M5 yet.
+Answer bounded usual/typical behavior questions from derived routine snapshots without turning sparse statistics into physical truth or feeding routine data into M5.
 
 ## Active directive
-SENTRY-V0.2-ROUTINE-STATISTICS-001 — completed successfully; routine statistics foundation qualified.
+SENTRY-V0.2-ROUTINE-GROUNDED-CONVERSATION-001 — completed successfully; routine-grounded conversation qualified.
+
+## V0.2 routine-grounded conversation — 2026-08-30
+- `tools/sentry_routine_intent.py` deterministically routes habitual language to one of four accepted routine types and an explicit all-days/weekday/weekend/named-weekday scope. Non-habitual questions stay on the physical-history path; unsupported habitual activity/causal questions fail closed.
+- `tools/sentry_grounding.py` adds an allow-listed, metadata-only routine fact packet with stable IDs such as `routine:office_session_start_time:weekday`. It retains current physical facts so routine patterns cannot override present state; it does not expose raw sessions, biometric data, or M5 context.
+- `tools/sentry_ask.py` returns deterministic sparse-history answers with zero Luna calls when selected snapshots are `insufficient`; `observed` and `stable` snapshots may use at most one existing low-effort Luna turn with explicit maturity wording rules. Routine source failure is non-fatal to ordinary physical queries.
+- The actual resident API remained healthy at schema 5 with Atlas mirror `ok`. Five live routine questions returned evidence-insufficient answers from the real 40-snapshot production set (all `insufficient`), with no routine claim and zero Luna calls. The accepted M4 voice path reuses `sentry_ask.py`; no fresh microphone run was required.
+- Focused routine-conversation tests passed `16/16`; full Ubuntu regression passed `128/128` with the existing multiprocessing fork deprecation warning. M5 routine isolation and continuous perception Luna-call count remain `0`.
+- Routine-grounded conversation is qualified. Routine statistics remain derived/rebuildable; routine-driven proactivity remains gated for a future Architect directive.
 
 ## V0.2 routine statistics — 2026-08-30
 - Schema version 5 adds append-only derived `routine_snapshots`; physical sessions/events remain immutable source truth.
