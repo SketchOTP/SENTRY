@@ -19,6 +19,7 @@ SENTRY-V0.2-PREFERENCE-FEEDBACK-MEMORY-001 — completed successfully; preferenc
 - Qualification used isolated databases and did not write a personal preference to production. The real production database was inspected read-only before deployment: schema 5, no preference events, no feedback rows, healthy local SQLite, and no production preference mutation.
 - Focused preference tests passed `10/10`; full Ubuntu regression passed `139/139` with existing warnings only. M5 deterministic suppression remains zero Luna; continuous perception remains zero Luna. Reactive voice remains compatible through `sentry_ask.py`.
 - Preference + feedback memory is qualified. Broader semantic memory, inferred preferences, routine-driven proactivity, and new contextual sources remain gated.
+- Implementation commit: `c58f2c7` (`feat: add explicit preference and proactive feedback memory`), pushed to `origin/main`.
 
 ## V0.2 routine-grounded conversation — 2026-08-30
 - `tools/sentry_routine_intent.py` deterministically routes habitual language to one of four accepted routine types and an explicit all-days/weekday/weekend/named-weekday scope. Non-habitual questions stay on the physical-history path; unsupported habitual activity/causal questions fail closed.

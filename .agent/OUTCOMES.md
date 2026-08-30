@@ -1065,6 +1065,7 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Completed: 2026-08-30
 - Verdict: **V0.2 PREFERENCE + FEEDBACK MEMORY QUALIFIED**
 - Starting SHA: `f2b8340a7b5de32397618822142ebd1a61691160`
+- Implementation commit: `c58f2c7` (`feat: add explicit preference and proactive feedback memory`)
 - Retrieval confidence: **ADEQUATE**
 
 ### Implementation
