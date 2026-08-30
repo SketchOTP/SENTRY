@@ -66,6 +66,18 @@
     "clock_stable_resultant_length": 0.8,
     "duration_stable_relative_mad": 0.35
   },
+  "weather": {
+    "enabled": false,
+    "provider": "nws",
+    "location_label": "home",
+    "latitude": null,
+    "longitude": null,
+    "timezone": "America/New_York",
+    "refresh_interval_seconds": 600,
+    "freshness_limit_seconds": 1800,
+    "point_cache_seconds": 86400,
+    "retry_count": 2
+  },
   "proactivity": {
     "enabled": false,
     "event_ttl_seconds": 30,

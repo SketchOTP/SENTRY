@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from tools.sentry_routine_intent import ROUTINE_TYPES, RoutineIntent, routine_keys
+from tools.sentry_weather_intent import WeatherIntent
 
 
 GROUNDING_STATES = {"supported", "partial", "unavailable"}
@@ -142,11 +143,71 @@ def _normalize_routine(snapshot: Any) -> dict[str, Any] | None:
     }
 
 
+_WEATHER_CURRENT_KEYS = {
+    "observed_at", "temperature", "apparent_temperature", "wind_chill", "relative_humidity",
+    "wind_speed", "wind_direction", "weather_description",
+}
+_WEATHER_FORECAST_KEYS = {
+    "start", "end", "temperature", "temperature_unit", "precipitation_probability",
+    "wind_speed", "wind_direction", "short_forecast",
+}
+_WEATHER_ALERT_KEYS = {
+    "id", "event", "severity", "urgency", "certainty", "effective", "onset", "expires", "ends",
+    "headline", "description", "instruction",
+}
+
+
+def _normalize_weather(response: Any) -> list[dict[str, Any]]:
+    if not isinstance(response, dict):
+        return []
+    snapshot = response.get("snapshot")
+    status = response.get("status") if response.get("status") in {"fresh", "stale", "unavailable"} else "unavailable"
+    if not isinstance(snapshot, dict):
+        snapshot = {}
+    source_data = {
+        key: response.get(key, snapshot.get(key))
+        for key in ("status", "age_seconds", "fresh_until", "provider", "location_label", "timezone", "fetched_at", "source_updated_at")
+        if response.get(key, snapshot.get(key)) is not None
+    }
+    facts = [{"fact_id": "weather:source-health", "kind": "weather_source_health", "as_of": snapshot.get("fetched_at") or _now_iso(), "data": source_data}]
+    if status == "unavailable":
+        return facts
+    current = snapshot.get("current")
+    if isinstance(current, dict) and current:
+        facts.append({
+            "fact_id": "weather:current", "kind": "weather_current", "as_of": current.get("observed_at") or snapshot.get("fetched_at") or _now_iso(),
+            "data": {key: current[key] for key in _WEATHER_CURRENT_KEYS if key in current},
+        })
+    forecast = snapshot.get("hourly")
+    if isinstance(forecast, list):
+        normalized_forecast = [
+            {key: item[key] for key in _WEATHER_FORECAST_KEYS if key in item}
+            for item in forecast[:24] if isinstance(item, dict)
+        ]
+        if normalized_forecast:
+            facts.append({
+                "fact_id": "weather:forecast:near-term", "kind": "weather_forecast", "as_of": snapshot.get("fetched_at") or _now_iso(),
+                "data": {"periods": normalized_forecast},
+            })
+    alerts = snapshot.get("alerts")
+    if isinstance(alerts, list):
+        normalized_alerts = [
+            {key: item[key] for key in _WEATHER_ALERT_KEYS if key in item}
+            for item in alerts[:10] if isinstance(item, dict)
+        ]
+        facts.append({
+            "fact_id": "weather:alerts", "kind": "weather_alerts", "as_of": snapshot.get("fetched_at") or _now_iso(),
+            "data": {"alerts": normalized_alerts},
+        })
+    return facts
+
+
 def build_fact_packet(
     responses: dict[str, dict[str, Any]],
     *,
     as_of: str | None = None,
     routine_keys_to_include: set[str] | None = None,
+    weather_response: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic, allow-listed packet from API response bodies."""
 
@@ -244,6 +305,9 @@ def build_fact_packet(
                     )
                 },
             })
+
+    if weather_response is not None:
+        facts.extend(_normalize_weather(weather_response))
 
     open_sessions = [session for session in sessions if session.get("status") == "open"]
     if open_sessions:
@@ -403,6 +467,7 @@ def retrieve_fact_packet(
     room_id: str = "office",
     timeout: float = 5.0,
     routine_intent: RoutineIntent | None = None,
+    weather_intent: WeatherIntent | None = None,
 ) -> Retrieval:
     """Read health first, then the bounded state/history API surface."""
 
@@ -428,11 +493,14 @@ def retrieve_fact_packet(
             )
             if not isinstance(responses["routines"].get("routines"), list):
                 raise ValueError("/v1/routines did not return a routines list")
+        if weather_intent is not None:
+            responses["weather"] = _get_json(base_url, "/v1/weather", params={"room_id": room_id}, timeout=timeout)
         return Retrieval(
             query_id,
             build_fact_packet(
                 responses,
                 routine_keys_to_include=set(routine_keys(routine_intent)) if routine_intent is not None else None,
+                weather_response=responses.get("weather"),
             ),
             None,
         )

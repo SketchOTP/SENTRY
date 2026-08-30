@@ -1080,3 +1080,23 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 
 ### Boundary
 - This is explicit behavioral preference memory, not inferred preference, transcript mining, general semantic memory, or routine-driven proactivity. Preference state can personalize assistant behavior but cannot override physical room/session truth. Broader memory, context, and new proactive classes remain gated.
+
+## OUTCOME-SENTRY-V0.2-WEATHER-CONTEXT-001 — Weather context foundation
+- Completed: 2026-08-30
+- Verdict: **V0.2 WEATHER CONTEXT FOUNDATION QUALIFIED**
+- Starting SHA: `bf6e2f522ad4dcd153e65f3e65faafb29fd92870`
+- Retrieval confidence: **ADEQUATE**
+
+### Implementation
+- Schema 7 adds `weather_snapshots` to the existing local SQLite/Atlas snapshot topology. Refreshes are idempotent by source fingerprint while updating freshness metadata, so repeated identical NWS responses do not create duplicate rows or leave an otherwise current snapshot stale.
+- The NWS adapter uses explicit coordinates, a stable User-Agent, 24-hour `/points` caching, bounded 429/5xx/network retries, normalized current observations, 24-hour hourly forecast, active alerts, and explicit freshness/provenance metadata.
+- `/v1/weather` remains localhost-only and metadata-only. Weather questions route deterministically into the existing M4 fact packet; stale/unavailable data fail closed without Luna, fresh data allow at most one existing low-effort Luna turn. Weather remains absent from M5.
+- Independent `sentry-weather.service` / `.timer` units are installed but only enabled for an explicitly enabled, coordinate-complete local production configuration. The production config currently has no weather section/coordinates, so the feature remains disabled there.
+
+### Evidence
+- Isolated public-coordinate NWS refresh succeeded with current observation data, 25 near-term forecast periods, zero active alerts, fresh status, complete point mapping, and no component errors. Production was not misrepresented: the local DB remains at schema 7 with zero weather rows, and the CLI reports `WEATHER LOCATION CONFIG REQUIRED`/unavailable rather than inventing a location.
+- Focused weather tests passed **11/11**; the combined weather/runtime/store suite passed **38/38**; full Ubuntu regression passed **150/150**. Schema migration, Atlas restore, API privacy, stale/fresh behavior, bounded retry, deterministic routing, and one-turn weather grounding passed. Local and Atlas production copies passed SQLite integrity checks.
+- The temporary localhost API smoke returned `status=unavailable` for the unconfigured production location and was terminated. All resident services remain inactive by operator request.
+
+### Boundary
+- Weather is external context only; it cannot override physical state, imply a person is outdoors, or trigger speech. No raw provider payload, coordinates, secrets, frames, audio, embeddings, or biometric data enter conversational facts or Git.

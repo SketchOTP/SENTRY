@@ -8,6 +8,8 @@ services:
 - `sentry-proactive.service` — bounded persisted-event polling with accepted M5 dedupe and policy.
 - `sentry-routines.timer` — derived routine-statistics refresh every six hours,
   with an initial two-minute delay after the user manager starts.
+- `sentry-weather.timer` — independent NWS weather-context refresh every ten
+  minutes, with an initial five-minute delay after the user manager starts.
 
 Perception publishes a small metadata-only heartbeat at
 `perception-data/runtime/health/perception.json`; it contains process/camera
@@ -36,6 +38,8 @@ systemctl --user is-enabled sentry-perception.service sentry-state-api.service s
 systemctl --user --no-pager --full status sentry-perception.service sentry-state-api.service sentry-proactive.service
 systemctl --user is-enabled sentry-routines.timer
 systemctl --user --no-pager --full status sentry-routines.timer sentry-routines.service
+systemctl --user is-enabled sentry-weather.timer
+systemctl --user --no-pager --full status sentry-weather.timer sentry-weather.service
 curl --fail http://127.0.0.1:48174/health
 journalctl --user -u sentry-perception.service -u sentry-state-api.service -u sentry-proactive.service --since today
 ```
@@ -61,3 +65,10 @@ Routine statistics are refreshed by `sentry-routines.service` through
 database and mirrored through the existing M2 backup path. Routine refresh is
 independent of perception and the API, and its sparse-data result may
 legitimately remain `insufficient`.
+
+Weather refresh is independent of all resident services. It is enabled only when the
+local mode-0600 production config explicitly sets `weather.enabled` and supplies latitude
+and longitude. Without those coordinates, `sentry_weather.py refresh` reports
+`WEATHER LOCATION CONFIG REQUIRED`; it does not infer a location or use a public test
+coordinate. Weather snapshots are stored in local SQLite and mirrored to Atlas as complete
+snapshots, never opened live on the SSHFS mount.

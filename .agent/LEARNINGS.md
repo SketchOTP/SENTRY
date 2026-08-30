@@ -324,3 +324,14 @@ Routine questions can safely reuse the M4 fact boundary when intent and scope ar
 
 ## LEARNING-SENTRY-027 — Explicit preference memory must be narrow, reversible, and upstream of proactivity
 The safest first personalization layer is an append-only typed preference ledger with one supported behavior key, deterministic set/allow/clear commands, explicit provenance, and idempotent request IDs. Feedback should reference a real delivered proactive action; only explicit `do_not_repeat` may create a suppress preference. M5 should evaluate this preference after physical/source validity gates but before cooldown, budget, Luna, or speech, while default/allow preserve existing behavior. Silence, non-response, routines, and repeated behavior are not feedback.
+
+## LEARNING-SENTRY-028 — External weather context must be explicit and freshness-gated
+- Date: 2026-08-30
+- Evidence source: `SENTRY-V0.2-WEATHER-CONTEXT-001`; schema-v7 migration, isolated NWS refresh, API/privacy tests, and `150/150` Ubuntu regression
+- Confidence: VERIFIED IMPLEMENTATION
+
+### Learning
+Use one bounded provider adapter with explicit operator coordinates, stable point-resource caching, bounded retry, normalized snapshots, and source freshness. Keep missing/stale weather visibly missing/stale rather than guessing or silently extending the last good value.
+
+### Safety boundary
+Weather is external context and must remain outside physical truth and M5 proactive facts. A local SQLite snapshot can safely mirror to Atlas, but the live database must remain on local ext4. No implicit geolocation or weather-driven speech is authorized by this foundation.

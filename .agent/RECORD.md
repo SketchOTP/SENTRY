@@ -408,3 +408,17 @@ Schema 6 ledger migration, deterministic conversation/API mutation and recall, r
 
 ### Boundary
 No inferred preferences, transcript mining, routine-driven proactivity, external context, or additional proactive event classes were added. Routine facts remain outside M5, perception remains at zero Luna calls, and broader memory requires a later directive.
+
+## RECORD-SENTRY-026 — V0.2 weather context foundation qualified
+- Date: 2026-08-30
+- Type: MILESTONE / V0.2 QUALIFICATION
+- Related directive/outcome: `SENTRY-V0.2-WEATHER-CONTEXT-001` / `OUTCOME-SENTRY-V0.2-WEATHER-CONTEXT-001`
+
+### Decision
+SENTRY now has a qualified, read-only NWS weather-context foundation. Production use remains explicitly disabled until the operator supplies coordinates in the local configuration.
+
+### Evidence
+Schema 7 migration, local/Atlas integrity, bounded NWS point/forecast/observation/alert normalization, 24-hour point caching, bounded retries, freshness states, localhost `/v1/weather`, deterministic M4 weather routing, stale/unavailable fail-closed behavior, independent timer isolation, and privacy tests passed. Isolated NWS transport returned current data, 25 near-term forecast periods, and zero active alerts at a public qualification coordinate. Focused weather tests passed `11/11`; the combined weather/runtime/store suite passed `38/38`; full Ubuntu regression passed `150/150`.
+
+### Boundary
+No implicit geolocation, weather-driven proactivity, emergency alerting, second provider, or changes to physical presence/identity/M5 behavior were added. Resident services were left stopped after validation per operator request.

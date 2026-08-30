@@ -381,3 +381,12 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Result: routine questions are separated from physical-history questions without an LLM classifier. `insufficient` snapshots return explicit evidence-insufficient answers with zero Luna calls; `observed` is tentative; `stable` permits habitual wording with evidence counts and variability.
 - Validation: focused routine-conversation tests `17/17`; full Ubuntu regression `129/129` with the known multiprocessing fork warning. Actual resident API was healthy at schema 5 with Atlas mirror `ok`; all 40 latest production snapshots remained `insufficient` and five live routine questions made zero Luna calls.
 - Boundary: routine data remains derived/rebuildable, cannot override current physical evidence, is not supplied to M5, and unsupported activity/causal questions fail closed. The accepted reactive voice path remains compatible through `tools/sentry_ask.py` by code path.
+
+## SENTRY-V0.2-WEATHER-CONTEXT-001 — completed
+- Status: **QUALIFIED / COMPLETED**
+- Objective: add a bounded read-only National Weather Service context source with explicit operator location, schema-v7 local snapshots, freshness gating, localhost API, and existing M4 conversation integration.
+- Scope delivered: `perception/weather.py`, `tools/sentry_weather.py`, deterministic weather intent routing, allow-listed weather facts, `/v1/weather`, independent user-systemd weather units, configuration validation, documentation, and isolated provider/runtime tests.
+- Provider boundary: NWS only; point/grid resources cache for 24 hours, refreshes use bounded retries, and normalized snapshots retain source provenance without exposing coordinates/provider URLs through the API or Luna packet.
+- Production boundary: the local mode-0600 configuration has no explicit weather coordinates, so production weather is disabled and no production weather row was seeded. Isolated public-coordinate NWS transport/normalization succeeded.
+- Validation: focused weather tests passed `11/11`; the combined weather/runtime/store suite passed `38/38`; full Ubuntu regression passed `150/150`; local and Atlas production databases passed integrity checks at schema 7 with zero weather rows. Resident SENTRY services remained stopped as requested; M5 contains no weather facts and perception remains at zero Luna calls.
+- Exclusions: no weather-driven speech/proactivity, calendar, reminders, second provider, geolocation, detector/identity changes, or additional sensor/room work.

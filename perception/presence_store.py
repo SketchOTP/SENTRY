@@ -25,7 +25,7 @@ from .storage_mirror import (
 )
 
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 PREFERENCE_KEY = "proactivity.primary_user_session_acknowledgement"
 PREFERENCE_VALUES = {"allow", "suppress"}
 FEEDBACK_TYPES = {"helpful", "not_helpful", "too_frequent", "do_not_repeat"}
@@ -326,6 +326,37 @@ class PresenceStore:
                 self._connection.execute(
                     "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
                     (6, datetime.now(timezone.utc).isoformat()),
+                )
+                migrated = True
+                applied.add(6)
+            if 7 not in applied:
+                self._connection.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS weather_snapshots (
+                        snapshot_id TEXT PRIMARY KEY,
+                        provider TEXT NOT NULL CHECK (provider = 'nws'),
+                        location_label TEXT NOT NULL,
+                        latitude REAL NOT NULL,
+                        longitude REAL NOT NULL,
+                        timezone TEXT NOT NULL,
+                        fetched_at TEXT NOT NULL,
+                        source_updated_at TEXT,
+                        fresh_until TEXT NOT NULL,
+                        source_fingerprint TEXT NOT NULL,
+                        current_json TEXT NOT NULL,
+                        hourly_json TEXT NOT NULL,
+                        alerts_json TEXT NOT NULL,
+                        source_metadata_json TEXT NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_weather_snapshots_location_time
+                        ON weather_snapshots(location_label, fetched_at DESC);
+                    CREATE INDEX IF NOT EXISTS idx_weather_snapshots_fingerprint
+                        ON weather_snapshots(source_fingerprint, fetched_at DESC);
+                    """
+                )
+                self._connection.execute(
+                    "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+                    (7, datetime.now(timezone.utc).isoformat()),
                 )
                 migrated = True
         if migrated:
@@ -801,6 +832,77 @@ class PresenceStore:
 
     def proactive_actions_for_candidate(self, candidate_key: str) -> list[dict[str, Any]]:
         return [item for item in self.proactive_actions(limit=1000) if item["candidate_key"] == candidate_key]
+
+    def latest_weather_snapshot(self, location_label: str = "home") -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT * FROM weather_snapshots WHERE location_label = ? ORDER BY fetched_at DESC LIMIT 1",
+                (location_label,),
+            ).fetchone()
+        if row is None:
+            return None
+        value = dict(row)
+        for key in ("current_json", "hourly_json", "alerts_json", "source_metadata_json"):
+            decoded_key = key[:-5]
+            value[decoded_key] = json.loads(value.pop(key) or ("[]" if decoded_key in {"hourly", "alerts"} else "{}"))
+        return value
+
+    def weather_status(self, location_label: str = "home", *, now: datetime | None = None) -> dict[str, Any]:
+        snapshot = self.latest_weather_snapshot(location_label)
+        if snapshot is None:
+            return {"status": "unavailable", "snapshot": None, "age_seconds": None}
+        evaluated = now or datetime.now(timezone.utc)
+        fetched = _parse_utc_time(snapshot.get("fetched_at"))
+        fresh_until = _parse_utc_time(snapshot.get("fresh_until"))
+        age = max(0.0, (evaluated.astimezone(timezone.utc) - fetched).total_seconds()) if fetched else None
+        status = "fresh" if fresh_until and evaluated.astimezone(timezone.utc) <= fresh_until else "stale"
+        return {"status": status, "snapshot": snapshot, "age_seconds": age}
+
+    def persist_weather_snapshot(self, snapshot: dict[str, Any]) -> dict[str, Any]:
+        required = (
+            "provider", "location_label", "latitude", "longitude", "timezone", "fetched_at",
+            "fresh_until", "source_fingerprint", "current", "hourly", "alerts", "source_metadata",
+        )
+        if any(key not in snapshot for key in required):
+            raise ValueError("weather snapshot is incomplete")
+        if snapshot["provider"] != "nws":
+            raise ValueError("unsupported weather provider")
+        with self._lock, self._connection:
+            existing = self._connection.execute(
+                "SELECT snapshot_id FROM weather_snapshots WHERE location_label = ? AND source_fingerprint = ? LIMIT 1",
+                (snapshot["location_label"], snapshot["source_fingerprint"]),
+            ).fetchone()
+            if existing is not None:
+                self._connection.execute(
+                    "UPDATE weather_snapshots SET fetched_at = ?, source_updated_at = ?, fresh_until = ?, "
+                    "current_json = ?, hourly_json = ?, alerts_json = ?, source_metadata_json = ? WHERE snapshot_id = ?",
+                    (
+                        snapshot["fetched_at"], snapshot.get("source_updated_at"), snapshot["fresh_until"],
+                        json.dumps(snapshot["current"], sort_keys=True), json.dumps(snapshot["hourly"], sort_keys=True),
+                        json.dumps(snapshot["alerts"], sort_keys=True), json.dumps(snapshot["source_metadata"], sort_keys=True),
+                        existing[0],
+                    ),
+                )
+                refreshed_id = existing[0]
+            else:
+                refreshed_id = None
+            if refreshed_id is not None:
+                snapshot_id = refreshed_id
+            else:
+                snapshot_id = str(snapshot.get("snapshot_id") or uuid.uuid4())
+                self._connection.execute(
+                    "INSERT INTO weather_snapshots(snapshot_id, provider, location_label, latitude, longitude, timezone, fetched_at, source_updated_at, fresh_until, source_fingerprint, current_json, hourly_json, alerts_json, source_metadata_json) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        snapshot_id, snapshot["provider"], snapshot["location_label"], float(snapshot["latitude"]),
+                        float(snapshot["longitude"]), snapshot["timezone"], snapshot["fetched_at"], snapshot.get("source_updated_at"),
+                        snapshot["fresh_until"], snapshot["source_fingerprint"], json.dumps(snapshot["current"], sort_keys=True),
+                        json.dumps(snapshot["hourly"], sort_keys=True), json.dumps(snapshot["alerts"], sort_keys=True),
+                        json.dumps(snapshot["source_metadata"], sort_keys=True),
+                    ),
+                )
+        self._maybe_mirror(force=True)
+        return {"written": refreshed_id is None, "skipped": refreshed_id is not None, "refreshed": True, "snapshot_id": snapshot_id, "source_fingerprint": snapshot["source_fingerprint"]}
 
     def preference_events(self, person_id: str = "primary_user", *, limit: int = 100) -> list[dict[str, Any]]:
         if limit <= 0:

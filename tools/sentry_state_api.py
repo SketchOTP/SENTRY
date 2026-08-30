@@ -85,6 +85,32 @@ class _Handler(BaseHTTPRequestHandler):
             window = float(query.get("window_seconds", ["600"])[0])
             action = store.recent_delivered_proactive_action(person_id, window_seconds=window)
             self._send(200, {"action": action})
+        elif parsed.path == "/v1/weather":
+            location_label = query.get("location_label", ["home"])[0]
+            weather = store.weather_status(location_label)
+            snapshot = weather.get("snapshot")
+            if snapshot is None:
+                self._send(200, {"status": "unavailable", "age_seconds": None, "snapshot": None, "location_label": location_label})
+                return
+            metadata = snapshot.get("source_metadata") if isinstance(snapshot.get("source_metadata"), dict) else {}
+            public_snapshot = {
+                key: snapshot[key]
+                for key in (
+                    "provider", "location_label", "timezone", "fetched_at", "source_updated_at",
+                    "fresh_until", "current", "hourly", "alerts",
+                )
+                if key in snapshot
+            }
+            public_snapshot["source_metadata"] = {
+                key: metadata[key]
+                for key in ("provider", "points_cache_status", "station_id", "component_errors")
+                if key in metadata
+            }
+            self._send(200, {
+                "status": weather["status"], "age_seconds": weather["age_seconds"],
+                "fresh_until": snapshot.get("fresh_until"), "snapshot": public_snapshot,
+                **{key: public_snapshot.get(key) for key in ("provider", "location_label", "timezone", "fetched_at")},
+            })
         else:
             self._send(404, {"error": "not_found"})
 

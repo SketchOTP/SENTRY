@@ -147,7 +147,7 @@ class RoutineStatisticsTests(unittest.TestCase):
             path = Path(directory) / "sentry.db"
             source = source_with_days()
             with PresenceStore(path) as store:
-                self.assertEqual(store.health()["schema_version"], 6)
+                self.assertEqual(store.health()["schema_version"], 7)
                 snapshots = build_snapshots(source, as_of=AS_OF, config=RoutineConfig())
                 first = store.persist_routine_snapshots(snapshots)
                 second = store.persist_routine_snapshots(build_snapshots(source, as_of=AS_OF.replace(minute=30), config=RoutineConfig()))
@@ -176,7 +176,7 @@ class RoutineStatisticsTests(unittest.TestCase):
             local.unlink()
             with PresenceStore(local, atlas_mirror_path=atlas) as restored:
                 self.assertEqual(len(restored.routine_snapshots()), 40)
-                self.assertEqual(restored.health()["schema_version"], 6)
+                self.assertEqual(restored.health()["schema_version"], 7)
 
     def test_api_returns_latest_routines_without_sensitive_data(self):
         with tempfile.TemporaryDirectory() as directory:

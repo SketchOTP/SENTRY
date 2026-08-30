@@ -31,6 +31,7 @@ from .presence_state import (
 )
 from .presence_store import PresenceStore
 from .identity import IdentityResolver, OpenCVFaceBackend, identity_config_from_mapping
+from .weather import WeatherConfig
 from .proactive import ProactivePolicyConfig
 from .routines import RoutineConfig
 
@@ -808,6 +809,7 @@ def validate_config(config: dict[str, Any]) -> None:
     PresenceStateConfig.from_mapping(presence)
     ProactivePolicyConfig.from_mapping(config.get("proactivity"))
     RoutineConfig.from_mapping(config.get("routines"))
+    WeatherConfig.from_mapping(config.get("weather"))
 
 
 def load_config(path: Path) -> dict[str, Any]:

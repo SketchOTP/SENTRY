@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: V0.2 preference + proactive feedback memory qualified after routine-grounded conversation
-- Active directive: SENTRY-V0.2-PREFERENCE-FEEDBACK-MEMORY-001 — completed successfully
-- Active task packet: none; preference/feedback implementation and evidence are recorded in the repository
-- Last accepted outcome: V0.2 preference + proactive feedback memory qualified; production preference remains default
-- Latest recorded outcome: V0.2 preference + proactive feedback memory qualified; V0.1, resident runtime, routine statistics, and routine conversation remain accepted
-- Last state sync: 2026-08-30T10:12:00-04:00
+- Current stage: V0.2 read-only weather context foundation qualified
+- Active directive: SENTRY-V0.2-WEATHER-CONTEXT-001 — completed successfully
+- Active task packet: none; weather implementation and evidence are recorded in the repository
+- Last accepted outcome: V0.2 weather context foundation qualified; production weather remains disabled until explicit coordinates are configured
+- Latest recorded outcome: V0.2 weather context foundation qualified; V0.1, resident runtime, routine statistics/conversation, and preference/feedback memory remain accepted
+- Last state sync: 2026-08-30T13:05:00-04:00
 
 ## Mandatory kernel
 Read these before substantial work:

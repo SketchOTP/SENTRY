@@ -23,6 +23,7 @@ from tools.sentry_grounding import (  # noqa: E402
 )
 from tools.sentry_routine_intent import routine_keys, select_routine_intent
 from tools.sentry_preference_intent import PreferenceIntent, select_preference_intent
+from tools.sentry_weather_intent import WeatherIntent, select_weather_intent
 
 
 def _insufficient_routine_response(fact_ids: list[str], facts: list[dict[str, Any]]) -> dict[str, Any]:
@@ -59,6 +60,27 @@ def _routine_source_unavailable_response(reason: str) -> dict[str, Any]:
         "fact_ids": [],
         "limitations": [reason],
     }
+
+
+def _weather_unavailable_response(reason: str, *, stale: bool = False) -> dict[str, Any]:
+    if stale:
+        answer = "SENTRY has weather data, but it is stale, so I won't present it as current."
+    else:
+        answer = "SENTRY weather context is currently unavailable, so I can't answer that reliably."
+    return {
+        "answer": answer,
+        "grounding": "unavailable",
+        "fact_ids": [],
+        "limitations": [reason],
+    }
+
+
+def _weather_fact_requirement(intent: WeatherIntent) -> str:
+    return {
+        "current": "weather:current",
+        "forecast": "weather:forecast:near-term",
+        "alerts": "weather:alerts",
+    }.get(intent.topic, "weather:current")
 
 
 def _preference_response(value: str, *, fact_id: str = "preference:proactivity.primary_user_session_acknowledgement") -> dict[str, Any]:
@@ -181,18 +203,23 @@ def ask(
             source_surface=source_surface, source_request_id=request_id,
         )
         return {"query_id": request_id, "as_of": None, **result, "luna_invocations": 0}
+    weather_intent = select_weather_intent(question)
     routine_intent = select_routine_intent(question)
-    if routine_intent is not None and routine_intent.unsupported:
+    if weather_intent is None and routine_intent is not None and routine_intent.unsupported:
         return {
             "query_id": None,
             "as_of": None,
             **_unsupported_routine_response(),
             "luna_invocations": 0,
         }
-    retrieval = retrieve_fact_packet(base_url, room_id=room_id, routine_intent=routine_intent)
+    retrieval = retrieve_fact_packet(
+        base_url, room_id=room_id, routine_intent=routine_intent, weather_intent=weather_intent,
+    )
     if not retrieval.available:
         unavailable = (
-            _routine_source_unavailable_response(retrieval.error or "SENTRY routine history is unavailable")
+            _weather_unavailable_response(retrieval.error or "SENTRY weather context is unavailable")
+            if weather_intent is not None
+            else _routine_source_unavailable_response(retrieval.error or "SENTRY routine history is unavailable")
             if routine_intent is not None
             else unavailable_response(retrieval.error or "SENTRY state is unavailable")
         )
@@ -205,6 +232,29 @@ def ask(
 
     assert retrieval.packet is not None
     fact_ids = {fact["fact_id"] for fact in retrieval.packet["facts"]}
+    if weather_intent is not None:
+        source_health = next((fact for fact in retrieval.packet["facts"] if fact.get("fact_id") == "weather:source-health"), None)
+        source_data = source_health.get("data", {}) if isinstance(source_health, dict) else {}
+        status = source_data.get("status")
+        if status != "fresh":
+            reason = "weather source is unavailable" if status == "unavailable" else f"weather source status is {status or 'unknown'}"
+            age = source_data.get("age_seconds")
+            if age is not None:
+                reason += f"; last snapshot age is {float(age) / 60:.1f} minutes"
+            return {
+                "query_id": retrieval.query_id,
+                "as_of": retrieval.packet["as_of"],
+                **_weather_unavailable_response(reason, stale=status == "stale"),
+                "luna_invocations": 0,
+            }
+        required_fact = _weather_fact_requirement(weather_intent)
+        if required_fact not in fact_ids:
+            return {
+                "query_id": retrieval.query_id,
+                "as_of": retrieval.packet["as_of"],
+                **_weather_unavailable_response(f"fresh weather snapshot has no {weather_intent.topic} data"),
+                "luna_invocations": 0,
+            }
     if routine_intent is not None:
         requested_ids = [f"routine:{key}" for key in routine_keys(routine_intent)]
         routine_facts = [fact for fact in retrieval.packet["facts"] if fact.get("fact_id") in requested_ids]

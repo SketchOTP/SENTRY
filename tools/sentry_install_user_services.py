@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 UNIT_ROOT = REPO_ROOT / "deploy" / "systemd" / "user"
 UNIT_NAMES = ("sentry-perception.service", "sentry-state-api.service", "sentry-proactive.service")
 ROUTINE_UNIT_NAMES = ("sentry-routines.service", "sentry-routines.timer")
+WEATHER_UNIT_NAMES = ("sentry-weather.service", "sentry-weather.timer")
 
 
 def production_config(example_path: Path) -> dict:
@@ -30,6 +31,11 @@ def _run_systemctl(*arguments: str) -> None:
     subprocess.run(["systemctl", "--user", *arguments], check=True)
 
 
+def _weather_configured(config: dict) -> bool:
+    weather = config.get("weather")
+    return isinstance(weather, dict) and bool(weather.get("enabled")) and weather.get("latitude") is not None and weather.get("longitude") is not None
+
+
 def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | None = None) -> Path:
     """Install units and create a production config without overwriting one."""
 
@@ -42,10 +48,11 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
     else:
         config_path.write_text(json.dumps(production_config(REPO_ROOT / "perception" / "config.example.json"), indent=2) + "\n", encoding="utf-8")
         config_path.chmod(0o600)
+        existing = json.loads(config_path.read_text(encoding="utf-8"))
 
     unit_dir = systemd_user_dir or (Path.home() / ".config" / "systemd" / "user")
     unit_dir.mkdir(parents=True, exist_ok=True)
-    for name in (*UNIT_NAMES, *ROUTINE_UNIT_NAMES):
+    for name in (*UNIT_NAMES, *ROUTINE_UNIT_NAMES, *WEATHER_UNIT_NAMES):
         source = UNIT_ROOT / name
         if not source.is_file():
             raise FileNotFoundError(source)
@@ -53,9 +60,15 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
     _run_systemctl("daemon-reload")
     _run_systemctl("enable", *UNIT_NAMES)
     _run_systemctl("enable", "sentry-routines.timer")
+    if _weather_configured(existing):
+        _run_systemctl("enable", "sentry-weather.timer")
+    else:
+        _run_systemctl("disable", "sentry-weather.timer")
     if start:
         _run_systemctl("restart", *UNIT_NAMES)
         _run_systemctl("start", "sentry-routines.timer")
+        if _weather_configured(existing):
+            _run_systemctl("start", "sentry-weather.timer")
     return config_path
 
 
