@@ -1097,6 +1097,7 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Isolated public-coordinate NWS refresh succeeded with current observation data, 25 near-term forecast periods, zero active alerts, fresh status, complete point mapping, and no component errors. Production was not misrepresented: the local DB remains at schema 7 with zero weather rows, and the CLI reports `WEATHER LOCATION CONFIG REQUIRED`/unavailable rather than inventing a location.
 - Focused weather tests passed **11/11**; the combined weather/runtime/store suite passed **38/38**; full Ubuntu regression passed **150/150**. Schema migration, Atlas restore, API privacy, stale/fresh behavior, bounded retry, deterministic routing, and one-turn weather grounding passed. Local and Atlas production copies passed SQLite integrity checks.
 - The temporary localhost API smoke returned `status=unavailable` for the unconfigured production location and was terminated. All resident services remain inactive by operator request.
+- Final commit: `9a528fa` (`feat: add read-only NWS weather context`), pushed to `origin/main`.
 
 ### Boundary
 - Weather is external context only; it cannot override physical state, imply a person is outdoors, or trigger speech. No raw provider payload, coordinates, secrets, frames, audio, embeddings, or biometric data enter conversational facts or Git.

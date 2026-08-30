@@ -422,3 +422,4 @@ Schema 7 migration, local/Atlas integrity, bounded NWS point/forecast/observatio
 
 ### Boundary
 No implicit geolocation, weather-driven proactivity, emergency alerting, second provider, or changes to physical presence/identity/M5 behavior were added. Resident services were left stopped after validation per operator request.
+- Final commit: `9a528fa` (`feat: add read-only NWS weather context`), pushed to `origin/main`.

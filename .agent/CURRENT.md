@@ -1,6 +1,6 @@
 # Current Project State
 
-Last updated: 2026-08-30T13:05:00-04:00
+Last updated: 2026-08-30T14:20:00-04:00
 
 ## Current stage
 V0.2 — read-only weather context foundation qualified
@@ -18,6 +18,7 @@ SENTRY-V0.2-WEATHER-CONTEXT-001 — completed successfully; weather context foun
 - `sentry-weather.service` / `sentry-weather.timer` are independent user-systemd units. The installer copies them but enables the timer only when local weather configuration is explicitly enabled with coordinates. `Linger=no` remains the startup boundary.
 - Production configuration was inspected without coordinates, so production weather remains disabled and no production weather rows were seeded. Isolated public-coordinate NWS transport/normalization succeeded; it is not a local-weather claim.
 - Focused weather tests passed 11/11; the combined weather/runtime/store suite passed 38/38; the complete Ubuntu regression passed 150/150. Perception remains outside the weather path with zero Luna calls; services were left stopped by operator request.
+- Implementation commit: `9a528fa` (`feat: add read-only NWS weather context`), pushed to `origin/main`.
 
 ## V0.2 preference + proactive feedback memory — 2026-08-30
 - Schema version 6 adds append-only `preference_events` and `proactive_feedback` ledgers. The sole supported key is `proactivity.primary_user_session_acknowledgement`, with typed `allow`/`suppress` values and `default` when unset.
