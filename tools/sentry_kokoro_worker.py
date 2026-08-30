@@ -22,8 +22,8 @@ def main() -> int:
     text = str(request.get("text", "")).strip()
     if not text:
         raise ValueError("text is required")
-    voice = str(request.get("voice", "af_heart"))
-    speed = float(request.get("speed", 1.0))
+    voice = str(request.get("voice", "am_michael"))
+    speed = float(request.get("speed", 0.9))
     language = "b" if voice.startswith("b") else "a"
     pipeline = KPipeline(lang_code=language, repo_id="hexgrad/Kokoro-82M")
     chunks = [np.asarray(audio, dtype=np.float32) for _, _, audio in pipeline(text, voice=voice, speed=speed, split_pattern=r"\n+")]

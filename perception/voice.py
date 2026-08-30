@@ -194,6 +194,81 @@ class NullSpeaker:
         return False
 
 
+class LocalVoiceIndicator:
+    """Show a temporary local Zenity window for operator speech timing."""
+
+    def __init__(self, *, executable: str | None = None) -> None:
+        self.executable = executable or shutil.which("zenity")
+        self.process: subprocess.Popen[str] | None = None
+
+    @property
+    def available(self) -> bool:
+        return bool(self.executable and (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")))
+
+    def open(self) -> bool:
+        if not self.available:
+            return False
+        try:
+            self.process = subprocess.Popen(
+                [
+                    self.executable,
+                    "--progress",
+                    "--title=SENTRY Reactive Voice",
+                    "--text=GET READY",
+                    "--percentage=0",
+                    "--no-cancel",
+                    "--auto-close",
+                    "--width=560",
+                ],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+            return True
+        except OSError:
+            self.process = None
+            return False
+
+    def update(self, message: str, percentage: int | None = None) -> None:
+        process = self.process
+        if process is None or process.stdin is None or process.poll() is not None:
+            return
+        try:
+            process.stdin.write(f"# {message}\n")
+            if percentage is not None:
+                process.stdin.write(f"{max(0, min(100, percentage))}\n")
+            process.stdin.flush()
+        except (BrokenPipeError, OSError, ValueError):
+            self.close()
+
+    def finish(self) -> None:
+        process = self.process
+        if process is None:
+            return
+        self.update("DONE", 100)
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.terminate()
+        finally:
+            self.process = None
+
+    def close(self) -> None:
+        process = self.process
+        self.process = None
+        if process is None:
+            return
+        try:
+            process.terminate()
+            process.wait(timeout=1)
+        except (OSError, subprocess.TimeoutExpired):
+            try:
+                process.kill()
+            except OSError:
+                pass
+
+
 class KokoroSpeaker:
     """Use an installed local Kokoro runtime and PipeWire playback in memory."""
 
@@ -202,8 +277,8 @@ class KokoroSpeaker:
         *,
         python_executable: str | None = None,
         worker_script: str | Path | None = None,
-        voice: str = "af_heart",
-        speed: float = 1.0,
+        voice: str = "am_michael",
+        speed: float = 0.9,
         player: str | None = None,
         timeout_seconds: int = 300,
     ) -> None:

@@ -9,7 +9,7 @@ PipeWire microphone
   -> in-memory 16 kHz PCM
   -> local OpenAI Whisper (CPU, tiny.en)
   -> existing M4 localhost fact retrieval and grounded Luna turn
-  -> local Kokoro synthesis -> PipeWire speaker playback
+  -> local Kokoro synthesis (am_michael, 0.9x) -> PipeWire speaker playback
 ```
 
 ## Runtime
@@ -38,10 +38,15 @@ starting the localhost state API:
   --kokoro-python /path/to/local/kokoro/python
 ```
 
-Press Enter, speak one question, and SENTRY returns structured metadata for
-the transcript, M4 grounding classification, Luna invocation count, and local
-delivery result. Audio, Whisper tensors, and embeddings are not included in
-that result.
+Press Enter, watch the visible countdown, and speak only after `START SPEAKING
+NOW`. SENTRY returns structured metadata for the transcript, M4 grounding
+classification, Luna invocation count, and local delivery result. Audio,
+Whisper tensors, and embeddings are not included in that result.
+
+When a graphical Ubuntu session is available, a temporary Zenity window titled
+`SENTRY Reactive Voice` is shown locally. It displays `GET READY`, the countdown,
+`SPEAK NOW`, and `DONE`; it is closed after the request and stores no media.
+Use `--no-indicator` only for headless runs.
 
 ## Qualification evidence
 
