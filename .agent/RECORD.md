@@ -430,10 +430,10 @@ No implicit geolocation, weather-driven proactivity, emergency alerting, second 
 - Related directive/outcome: `SENTRY-V0.2-CONTEXTUAL-WEATHER-PROACTIVITY-001` / `OUTCOME-SENTRY-V0.2-CONTEXTUAL-WEATHER-PROACTIVITY-001`
 
 ### Decision
-SENTRY can combine a valid current primary-user session event with fresh cached precipitation context through the existing restrained-proactivity path. Production contextual weather remains disabled because the operator has not configured explicit coordinates.
+SENTRY can combine a valid current primary-user session event with fresh cached precipitation context through the existing restrained-proactivity path. Production contextual weather remains disabled because the operator has not configured explicit coordinates. Implementation commit: `57764c5`.
 
 ### Evidence
-Physical and preference gates precede weather; the bounded 120-minute event-time horizon requires at least 60% numeric precipitation probability. Unconfigured, unavailable, stale, insufficient, and irrelevant weather all persisted deterministic zero-Luna suppressions. Real isolated NWS data classified at 32% as not relevant. An 80% normalized fixture produced one bounded speech action and replay dedupe prevented another Luna call or delivery. Contextual tests passed `14/14`; full regression passed `164/164`.
+Physical and preference gates precede weather; the bounded 120-minute event-time horizon requires at least 60% numeric precipitation probability. Unconfigured, unavailable, stale, insufficient, and irrelevant weather all persisted deterministic zero-Luna suppressions. Real isolated NWS data classified at 32% as not relevant. An 80% normalized fixture produced one bounded speech action and replay dedupe prevented another Luna call or delivery. Contextual tests passed `14/14`; combined weather/M5/context tests passed `39/39`; full regression passed `166/166`.
 
 ### Boundary
 No schema 8, new event class, departure inference, weather-alert speech, routine facts, production coordinates, or resident-service startup was introduced. Weather remains cache-only and perception remains at zero Luna calls. Implementation and records are committed/pushed at the final SHA recorded in Authority.

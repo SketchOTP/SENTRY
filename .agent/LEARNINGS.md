@@ -340,7 +340,7 @@ Weather is external context and must remain outside physical truth and M5 proact
 
 ## LEARNING-SENTRY-029 — Contextual weather must remain a cache-only deterministic gate
 - Date: 2026-08-30
-- Evidence source: `SENTRY-V0.2-CONTEXTUAL-WEATHER-PROACTIVITY-001`; isolated NWS/fixture proof; implementation commit `3f0d4ab`
+- Evidence source: `SENTRY-V0.2-CONTEXTUAL-WEATHER-PROACTIVITY-001`; isolated NWS/fixture proof; implementation commit `57764c5`
 - Confidence: VERIFIED
 
 ### Learning

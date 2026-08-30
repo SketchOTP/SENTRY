@@ -17,7 +17,7 @@ SENTRY-V0.2-CONTEXTUAL-WEATHER-PROACTIVITY-001 — completed successfully; conte
 - New persisted suppression reasons are `weather_unconfigured`, `weather_unavailable`, `weather_stale`, `weather_insufficient`, and `weather_not_relevant`. None invokes Luna. Relevant weather adds only bounded `weather-context-health` and `weather-near-term-precipitation` facts; routine facts and alerts remain absent.
 - The production weather configuration remains absent, production weather rows remain zero, and the production candidate is therefore expected to suppress as `weather_unconfigured`. No production coordinates or physical history were changed.
 - Isolated real-NWS proof fetched a fresh public-coordinate snapshot with 25 forecast periods, zero alerts, no component errors, and a 32% maximum probability in the next 120 minutes; it correctly suppressed as `weather_not_relevant` with zero Luna calls. A separate normalized relevant fixture at 80% produced one bounded speech decision and one delivery; replay returned `duplicate` with zero additional Luna calls.
-- Contextual weather tests passed 14/14; the combined contextual/M5/weather suite passed 39/39; the complete Ubuntu regression passed 164/164. Resident services were left stopped by operator request.
+- Contextual weather tests passed 14/14; the combined contextual/M5/weather suite passed 39/39; the complete Ubuntu regression passed 166/166. Resident services were left stopped by operator request. Implementation commit: `57764c5`.
 
 ## V0.2 weather context — 2026-08-30
 - Schema version 7 adds `weather_snapshots` as derived external-context records. Local SQLite remains authoritative on ext4; Atlas receives complete snapshots only through the accepted backup mirror.

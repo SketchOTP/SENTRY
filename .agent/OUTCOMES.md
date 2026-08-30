@@ -1114,7 +1114,7 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - No schema expansion was required. Existing `proactive_actions` records persist all deterministic suppression, Luna, speech, and dedupe outcomes. The M5 prompt now prohibits outdoor/departure/commute inference.
 
 ### Evidence
-- Contextual tests passed **14/14**; combined contextual/M5/weather tests passed **39/39**; full Ubuntu regression passed **164/164**.
+- Contextual tests passed **14/14**; combined contextual/M5/weather tests passed **39/39**; full Ubuntu regression passed **166/166**.
 - Real isolated NWS refresh at a public coordinate produced a fresh snapshot with 25 forecast periods, zero active alerts, no component errors, and 32% maximum near-term precipitation probability. The cached processor classified it as `weather_not_relevant` with zero Luna calls.
 - A separate normalized 80% fixture produced exactly one low-effort-eligible judge call, one bounded speech delivery, and one persisted action. Replay after processor restart returned `duplicate` with zero additional Luna calls.
 - Physical gates, explicit preference, weather-failure isolation, M5 weather-fact isolation, privacy allow-listing, and production unconfigured behavior were covered. Local and Atlas production copies remained schema 7/integrity-checked with zero weather rows.
