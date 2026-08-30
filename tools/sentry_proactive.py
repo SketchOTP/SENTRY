@@ -14,7 +14,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from perception.presence_store import PresenceStore
-from perception.proactive import ProactivePolicyConfig, ProactiveProcessor, SpeechDispatcher
+from perception.proactive import ProactivePolicyConfig, ProactiveProcessor, SpeechDispatcher, WeatherContextPolicy
 from perception.sentry_perception import load_config
 
 
@@ -48,9 +48,10 @@ def main(argv: list[str] | None = None) -> int:
         database = args.database or Path(storage["database_path"]).expanduser()
         mirror = storage.get("atlas_mirror_path")
         policy = ProactivePolicyConfig.from_mapping(config.get("proactivity"))
+        weather_policy = WeatherContextPolicy.from_mapping(config.get("weather"))
         speech = SpeechDispatcher() if not args.no_speech else SpeechDispatcher(executable="")
         with PresenceStore(database, atlas_mirror_path=mirror, mirror_interval_seconds=float(storage.get("mirror_interval_seconds", 60.0))) as store:
-            processor = ProactiveProcessor(store, policy, speech=speech)
+            processor = ProactiveProcessor(store, policy, speech=speech, weather_policy=weather_policy)
             if args.watch:
                 stop_event = threading.Event()
                 signal.signal(signal.SIGINT, lambda *_: stop_event.set())

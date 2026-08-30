@@ -335,3 +335,19 @@ Use one bounded provider adapter with explicit operator coordinates, stable poin
 
 ### Safety boundary
 Weather is external context and must remain outside physical truth and M5 proactive facts. A local SQLite snapshot can safely mirror to Atlas, but the live database must remain on local ext4. No implicit geolocation or weather-driven speech is authorized by this foundation.
+
+---
+
+## LEARNING-SENTRY-029 — Contextual weather must remain a cache-only deterministic gate
+- Date: 2026-08-30
+- Evidence source: `SENTRY-V0.2-CONTEXTUAL-WEATHER-PROACTIVITY-001`; isolated NWS/fixture proof; implementation commit `3f0d4ab`
+- Confidence: VERIFIED
+
+### Learning
+External weather can be safely added to the existing proactive path only after physical and user-policy gates, by consuming a fresh local snapshot and applying a transparent event-time horizon/probability rule. Provider availability must never block or alter perception, and stale/unconfigured context must fail silent with a persisted reason and zero Luna calls.
+
+### Why it matters
+This preserves the boundary between physical truth, explicit behavior preferences, external context, and model phrasing while allowing a useful contextual candidate when precipitation is objectively relevant.
+
+### Recheck trigger
+Recheck if weather is added to proactive policy, if a second provider or alert semantics are proposed, or if production coordinates are configured.

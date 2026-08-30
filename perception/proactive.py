@@ -17,13 +17,15 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from .presence_store import PREFERENCE_KEY, PresenceStore
+from .weather import WeatherConfig
 
 
 SUPPRESSION_REASONS = {
     "disabled", "unsupported_event", "non_primary", "stale", "room_not_occupied",
     "source_unhealthy", "restart_reconciled", "duplicate", "already_handled_session",
     "cooldown", "hourly_budget", "startup_suppression", "speech_busy", "judge_silent",
-    "judge_invalid", "delivery_failed", "user_preference",
+    "judge_invalid", "delivery_failed", "user_preference", "weather_unconfigured",
+    "weather_unavailable", "weather_stale", "weather_insufficient", "weather_not_relevant",
 }
 _ALLOWED_DECISIONS = {"speak", "silent"}
 _BANNED_UTTERANCE_PATTERNS = (
@@ -90,6 +92,39 @@ class ProactivePolicyConfig:
             judge_timeout_seconds=int(values.get("judge_timeout_seconds", 120)),
             max_utterance_words=int(values.get("max_utterance_words", 20)),
             max_utterance_chars=int(values.get("max_utterance_chars", 160)),
+        )
+
+
+@dataclass(frozen=True)
+class WeatherContextPolicy:
+    """Deterministic policy for consuming an already-cached weather snapshot."""
+
+    configured: bool = False
+    location_label: str = "home"
+    horizon_minutes: int = 120
+    precipitation_probability_threshold: float = 60.0
+
+    def __post_init__(self) -> None:
+        if self.horizon_minutes <= 0:
+            raise ValueError("weather context horizon must be positive")
+        if not 0 <= self.precipitation_probability_threshold <= 100:
+            raise ValueError("weather context precipitation threshold must be 0..100")
+        if not self.location_label:
+            raise ValueError("weather context location_label must not be empty")
+
+    @classmethod
+    def from_mapping(cls, values: dict[str, Any] | None) -> "WeatherContextPolicy":
+        weather = WeatherConfig.from_mapping(values)
+        contextual = values.get("contextual_proactivity", {}) if isinstance(values, dict) else {}
+        if contextual is None:
+            contextual = {}
+        if not isinstance(contextual, dict):
+            raise ValueError("weather contextual_proactivity must be an object")
+        return cls(
+            configured=weather.enabled and weather.latitude is not None and weather.longitude is not None,
+            location_label=weather.location_label,
+            horizon_minutes=int(contextual.get("horizon_minutes", 120)),
+            precipitation_probability_threshold=float(contextual.get("precipitation_probability_threshold", 60)),
         )
 
 
@@ -215,12 +250,14 @@ class ProactiveProcessor:
         judge: Callable[..., dict[str, Any]] | None = None,
         speech: SpeechDispatcher | Any | None = None,
         started_at: datetime | None = None,
+        weather_policy: WeatherContextPolicy | None = None,
     ) -> None:
         self.store = store
         self.config = config or ProactivePolicyConfig()
         self._judge = judge
         self.speech = speech or SpeechDispatcher()
         self.started_at = _utc(started_at or datetime.now(timezone.utc))
+        self.weather_policy = weather_policy
         self._seen_event_ids: set[str] = set()
 
     def _candidate_key(self, event: dict[str, Any]) -> str:
@@ -289,7 +326,79 @@ class ProactiveProcessor:
             return "hourly_budget", candidate_key, context
         if getattr(self.speech, "is_speaking", False):
             return "speech_busy", candidate_key, context
+        if self.weather_policy is not None:
+            weather_reason, weather_context = self._weather_context(event, now)
+            if weather_reason is not None:
+                return weather_reason, candidate_key, context
+            context["weather_context"] = weather_context
         return None, candidate_key, context
+
+    def _weather_context(self, event: dict[str, Any], now: datetime) -> tuple[str | None, dict[str, Any] | None]:
+        policy = self.weather_policy
+        if policy is None:
+            return None, None
+        if not policy.configured:
+            return "weather_unconfigured", None
+        status = self.store.weather_status(policy.location_label, now=now)
+        state = status.get("status")
+        if state == "unavailable" or not isinstance(status.get("snapshot"), dict):
+            return "weather_unavailable", None
+        if state != "fresh":
+            return "weather_stale", None
+        snapshot = status["snapshot"]
+        occurred_at = _parse_time(event.get("occurred_at")) or now
+        horizon_end = occurred_at + timedelta(minutes=policy.horizon_minutes)
+        periods = snapshot.get("hourly") if isinstance(snapshot.get("hourly"), list) else []
+        candidates: list[dict[str, Any]] = []
+        saw_overlapping_period = False
+        saw_overlapping_probability = False
+        for period in periods:
+            if not isinstance(period, dict):
+                continue
+            start = _parse_time(period.get("start"))
+            end = _parse_time(period.get("end"))
+            if start is None:
+                continue
+            if end is None or end <= start:
+                end = start + timedelta(hours=1)
+            if start >= horizon_end or end <= occurred_at:
+                continue
+            saw_overlapping_period = True
+            probability = period.get("precipitation_probability")
+            if isinstance(probability, bool):
+                continue
+            try:
+                probability = float(probability)
+            except (TypeError, ValueError):
+                continue
+            if not 0 <= probability <= 100:
+                continue
+            saw_overlapping_probability = True
+            candidates.append({
+                "start": period.get("start"),
+                "end": period.get("end"),
+                "precipitation_probability": probability,
+                "short_forecast": period.get("short_forecast") if isinstance(period.get("short_forecast"), str) else None,
+            })
+        if not saw_overlapping_period:
+            return "weather_not_relevant", None
+        if not saw_overlapping_probability or not candidates:
+            return "weather_insufficient", None
+        relevant = max(candidates, key=lambda item: item["precipitation_probability"])
+        if relevant["precipitation_probability"] < policy.precipitation_probability_threshold:
+            return "weather_not_relevant", None
+        return None, {
+            "status": "fresh",
+            "location_label": snapshot.get("location_label", policy.location_label),
+            "fetched_at": snapshot.get("fetched_at"),
+            "horizon_minutes": policy.horizon_minutes,
+            "threshold": policy.precipitation_probability_threshold,
+            "max_precipitation_probability": relevant["precipitation_probability"],
+            "earliest_relevant_period_start": relevant.get("start"),
+            "forecast_period_start": relevant.get("start"),
+            "forecast_period_end": relevant.get("end"),
+            "short_forecast": relevant.get("short_forecast"),
+        }
 
     def _persist_suppression(
         self, event: dict[str, Any], now: datetime, candidate_key: str, reason: str

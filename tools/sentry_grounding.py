@@ -447,6 +447,34 @@ def build_proactive_fact_packet(
             "data": {"actions": recent_actions},
         }
     )
+    weather_context = policy.get("weather_context")
+    if isinstance(weather_context, dict):
+        facts.append(
+            {
+                "fact_id": "weather-context-health",
+                "kind": "weather_context_health",
+                "as_of": evaluated_at.isoformat(),
+                "data": {
+                    "status": "fresh",
+                    "location_label": weather_context.get("location_label"),
+                    "fetched_at": weather_context.get("fetched_at"),
+                },
+            }
+        )
+        facts.append(
+            {
+                "fact_id": "weather-near-term-precipitation",
+                "kind": "weather_near_term_precipitation",
+                "as_of": evaluated_at.isoformat(),
+                "data": {
+                    "forecast_period_start": weather_context.get("forecast_period_start"),
+                    "forecast_period_end": weather_context.get("forecast_period_end"),
+                    "precipitation_probability": weather_context.get("max_precipitation_probability"),
+                    "short_forecast": weather_context.get("short_forecast"),
+                    "horizon_minutes": weather_context.get("horizon_minutes"),
+                },
+            }
+        )
     return packet
 
 

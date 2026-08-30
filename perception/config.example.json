@@ -76,7 +76,11 @@
     "refresh_interval_seconds": 600,
     "freshness_limit_seconds": 1800,
     "point_cache_seconds": 86400,
-    "retry_count": 2
+    "retry_count": 2,
+    "contextual_proactivity": {
+      "horizon_minutes": 120,
+      "precipitation_probability_threshold": 60
+    }
   },
   "proactivity": {
     "enabled": false,

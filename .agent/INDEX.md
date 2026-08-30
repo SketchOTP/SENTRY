@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: V0.2 read-only weather context foundation qualified
-- Active directive: SENTRY-V0.2-WEATHER-CONTEXT-001 — completed successfully
-- Active task packet: none; weather implementation and evidence are recorded in the repository
-- Last accepted outcome: V0.2 weather context foundation qualified; production weather remains disabled until explicit coordinates are configured
-- Latest recorded outcome: V0.2 weather context foundation qualified; V0.1, resident runtime, routine statistics/conversation, and preference/feedback memory remain accepted
-- Last state sync: 2026-08-30T14:20:00-04:00; weather implementation recorded at `9a528fa`
+- Current stage: V0.2 contextual weather proactivity qualified
+- Active directive: SENTRY-V0.2-CONTEXTUAL-WEATHER-PROACTIVITY-001 — completed successfully
+- Active task packet: none; contextual weather implementation and evidence are recorded in the repository
+- Last accepted outcome: V0.2 contextual weather proactivity qualified; production weather remains disabled until explicit coordinates are configured
+- Latest recorded outcome: V0.2 contextual weather proactivity qualified; V0.1, resident runtime, routine statistics/conversation, preference/feedback memory, and weather context remain accepted
+- Last state sync: 2026-08-30T18:35:00-04:00; contextual implementation recorded at `3f0d4ab`
 
 ## Mandatory kernel
 Read these before substantial work:

@@ -391,3 +391,12 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Validation: focused weather tests passed `11/11`; the combined weather/runtime/store suite passed `38/38`; full Ubuntu regression passed `150/150`; local and Atlas production databases passed integrity checks at schema 7 with zero weather rows. Resident SENTRY services remained stopped as requested; M5 contains no weather facts and perception remains at zero Luna calls.
 - Final commit: `9a528fa` (`feat: add read-only NWS weather context`), pushed to `origin/main`.
 - Exclusions: no weather-driven speech/proactivity, calendar, reminders, second provider, geolocation, detector/identity changes, or additional sensor/room work.
+
+## SENTRY-V0.2-CONTEXTUAL-WEATHER-PROACTIVITY-001 — completed
+- Status: **QUALIFIED / COMPLETED**
+- Objective: combine the accepted `person.identified` current-session candidate with cached fresh precipitation context through the existing deterministic M5 gates and optional single Luna judgment.
+- Gate contract: physical/source validity, startup, explicit preference, dedupe, cooldown, budget, and speech-busy gates precede weather. Weather is local-cache-only; the event-to-event+120-minute window requires numeric precipitation `>=60`.
+- Suppressions: `weather_unconfigured`, `weather_unavailable`, `weather_stale`, `weather_insufficient`, and `weather_not_relevant` are persisted and invoke zero Luna calls. Severe alerts, routines, departure inference, and new event classes remain excluded.
+- Validation: contextual weather tests passed `14/14`; the combined contextual/M5/weather suite passed `39/39`; full Ubuntu regression passed `164/164`. Real public-coordinate NWS refresh was fresh and error-free; its 32% near-term maximum correctly produced `weather_not_relevant` with zero Luna calls. An 80% normalized fixture produced one valid speech decision and replay deduped without a second Luna call.
+- Production boundary: weather configuration is absent, weather rows remain zero, and production contextual weather proactivity remains disabled with expected `weather_unconfigured` behavior. Resident services remained stopped by operator request.
+- Final implementation/documentation commit is recorded after push.
