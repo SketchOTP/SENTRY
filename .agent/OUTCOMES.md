@@ -1139,7 +1139,8 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Isolated qualification passed schema migration, empty/active-session creation, one-pending enforcement, request idempotence, same-session exclusion, distinct-session delivery, preference interaction, weather priority, non-primary/stale/restart rejection, speech success/failure, crash/replay safety, API/CLI behavior, cancellation, and Atlas restore for pending/delivered state.
 - Focused reminder tests passed **14/14**. The full Ubuntu regression passed **180/180** after the implementation. No continuous perception Luna calls were introduced; reminder operations use zero Luna calls.
 - The actual production database was migrated read-only with respect to reminder content: local SQLite is on ext4, Atlas remains snapshot-only on SSHFS, schema is 8, reminder count is 0, pending count is 0, and no production reminder was seeded. Resident services were left inactive by operator request.
+- Implementation commit: `dcd36d35b9542cb161da7dcf37939191c5c79663` (`feat: add next-session event reminders`).
 
 ### Boundary
 - This is one explicit next-session office reminder, not a scheduler, alarm, recurrence engine, weather/leave trigger, or inferred personal arrival event. Reminder text is local metadata and is not sent to Luna; raw audio, frames, embeddings, and biometric data remain absent from persistence.
-- Final implementation and documentation commit SHAs are recorded in the GitHub history after push.
+- Final documentation commit SHA will be recorded after the required Notion synchronization and push.
