@@ -1144,3 +1144,37 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 ### Boundary
 - This is one explicit next-session office reminder, not a scheduler, alarm, recurrence engine, weather/leave trigger, or inferred personal arrival event. Reminder text is local metadata and is not sent to Luna; raw audio, frames, embeddings, and biometric data remain absent from persistence.
 - Final documentation commit: `38ec6f6c5d7e7e188f1517a24f69c4e47523cf13` (`docs: record event reminder implementation evidence`).
+
+## OUTCOME-SENTRY-V0.3-ALWAYS-AVAILABLE-VOICE-QUALIFY-001 — Partial live qualification
+- Date: 2026-08-31
+- Verdict: **PARTIAL / ARCHITECT CORRECTION REQUIRED**
+- Starting SHA: `7e69b6352d02e717194a8098f7d37614788535a6`
+- Retrieval confidence: **ADEQUATE**
+
+### Evidence
+- Preserved the uncommitted V0.3 listener implementation. Focused always-on voice tests passed `13/13` after adding metadata-only bounded dispatch-latency samples.
+- The initial Zenity cue launched off the active display because host desktop scaling made its placement incorrect. The local status helper now positions the window using the active X11 window; the operator confirmed the visual indicator works.
+- A temporary PipeWire listener/API run recorded four wake detections and command dispatches, three rejected non-wake segments, zero known non-wake Luna calls, and measured dispatch samples between `1.516s` and `1.619s`. The structured 20 intended/20 negative/15-minute ambient-plus-perception protocol is incomplete and is not claimed passed.
+- The operator identified incorrect current-time answers. Direct production-DB inspection showed room state `empty`, camera `online`, and `updated_at=2026-08-30T14:24:29.186671+00:00`, with a later `system.stopped` event. State API health reported live SQLite but did not represent perception freshness. M4 still supplied the stale state as a current fact to Luna. M4 also lacks an explicit Eastern/local 12-hour presentation contract for time answers.
+
+### Boundary
+- The stale-current-state and time-format defects are outside the active V0.3 voice-only authorization. No M4 code, production configuration, schema, or accepted subsystem was changed to hide the issue.
+- All temporary listener/API/status processes were stopped. `sentry-voice.service` is not installed/enabled; no `pw-record`, raw audio, audio file, or ambient transcript artifact remains.
+
+## OUTCOME-SENTRY-V0.3-M4-CURRENT-STATE-TRUTHFULNESS-001 — Current-state truthfulness
+- Completed: 2026-08-31
+- Verdict: **V0.3 M4 CURRENT-STATE TRUTHFULNESS QUALIFIED**
+- Starting SHA: `7e69b6352d02e717194a8098f7d37614788535a6`
+- Implementation SHA: `98fc71ab76c18468745321ee63a706249efeea4`
+- Retrieval confidence: **ADEQUATE**
+
+### Evidence
+- `/health` now separates healthy local SQLite from perception runtime truth. Its bounded heartbeat status is `fresh`, `stopped`, `stale`, `missing`, or `malformed`; `current_physical_available` requires parsed, alive, <=75-second, `online` source evidence. Degraded/offline source does not establish current occupancy.
+- M4 omits current state, people, and open-session facts when the runtime is unavailable. Present-tense occupancy/person/elapsed-session questions return deterministic unavailable with zero Luna calls. Historical events, sessions, primary confirmation, last confirmed empty, routines, and weather retain their independent source semantics.
+- Live production read proof with perception stopped: schema-8 SQLite and Atlas mirror were healthy; `/health` reported `perception.status=stopped` and `process_alive=false`; “Is anyone in the office?” returned no current claim and zero Luna calls. Historical “When did I come into the office?” remained partially grounded and rendered its evidence in Eastern 12-hour form.
+- A bounded perception run wrote a fresh heartbeat and `/health` changed to `fresh`; clean shutdown wrote `process_alive=false` again. The camera was briefly degraded during initialization, which correctly kept current occupancy unavailable rather than asserting `empty`.
+- UTC/offset source timestamps remain unchanged. Deterministic `zoneinfo` local displays cover EDT, EST, spring DST, and both fall-back 1:30 AM offsets.
+
+### Validation and boundary
+- Focused M4 suite passed **16/16**; affected suites passed **96/96**; full Ubuntu regression passed **201/201**. No schema migration, physical-history rewrite, reminder/weather/routine/preference/M5 alteration, or continuous perception Luna call was introduced.
+- V0.3 always-on voice implementation remains preserved but uncommitted and `IMPLEMENTED_UNVERIFIED`; its live reliability qualification was not resumed. All temporary SENTRY processes were stopped at completion per operator request.

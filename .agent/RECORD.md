@@ -451,3 +451,17 @@ Schema 8 migration, deterministic create/query/cancel, one-pending enforcement, 
 
 ### Boundary
 Reminder body is explicit user text limited to 120 characters and is stored only as local metadata mirrored through the accepted SQLite snapshot path. Create/query/cancel/delivery use zero Luna calls; perception remains at zero Luna calls. Timed, recurring, weather, leave-house, routine-driven, and multi-reminder behavior remain gated. Resident services remain stopped by operator request. Implementation is `dcd36d3`; final documentation is `38ec6f6`.
+
+## RECORD-SENTRY-029 — V0.3 M4 current-state truthfulness qualified
+- Date: 2026-08-31
+- Type: CORRECTIVE QUALIFICATION
+- Related directive: `SENTRY-V0.3-M4-CURRENT-STATE-TRUTHFULNESS-001`
+
+### Decision
+Current physical claims now require fresh live perception rather than merely a readable historical database. Stopped perception invalidates only current physical claims; it does not invalidate historical query evidence.
+
+### Evidence
+The existing perception heartbeat is parsed by the localhost state API with a 75-second freshness limit. Health distinguishes `fresh`, `stopped`, `stale`, `missing`, and `malformed` perception states while retaining independent database health. Current room state, people, and open-session facts are only constructed for fresh alive online perception. Clear present-tense questions fail deterministically with zero Luna calls otherwise. Historical session/event/identity facts remain available. User-facing fact packet timestamps include deterministic `America/New_York` 12-hour AM/PM display fields while raw source timestamps remain unchanged. Focused M4 tests passed 16/16; affected tests passed 96/96; full regression passed 201/201. Implementation commit: `98fc71a`.
+
+### Boundary
+Schema remains 8. No physical history, detector, identity, M5, routine, preference, reminder, weather, or voice architecture was changed. The uncommitted V0.3 always-on voice implementation was preserved and its paused qualification was not resumed.

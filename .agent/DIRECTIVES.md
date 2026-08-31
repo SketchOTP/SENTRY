@@ -411,3 +411,18 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Validation: focused reminder suite passed `14/14`; full Ubuntu regression passed `180/180`; isolated Atlas pending/delivered restore, speech success/failure, claimed-crash reconciliation, replay dedupe, API/CLI, and privacy checks passed. Production migrated to schema 8 with zero reminder rows and was not seeded.
 - Exclusions: no general scheduler, timed/recurring/weather/leave-house trigger, additional event class, routine-driven behavior, new preference, identity/detector change, or resident-service startup.
 - Source: Architect directive supplied as `SENTRY-V0.2-EVENT-REMINDERS-001`; accepted contextual-weather baseline `3e0075e7912cf0be165b57f46f3bcff27d053367`.
+
+## SENTRY-V0.3-ALWAYS-AVAILABLE-VOICE-QUALIFY-001 — status update — 2026-08-31
+- Status: **IMPLEMENTED_UNVERIFIED / LIVE QUALIFICATION PAUSED**.
+- Scope: preserve the existing uncommitted local voice implementation and obtain the remaining live reliability evidence; no new user-facing capability or grounding redesign is authorized.
+- Observed blocker: current-time voice questions exposed that M4 treats an old persisted `room_state.updated_at` as a current fact when perception is stopped. It also has no explicit local/Eastern 12-hour time rendering contract. This lies outside the voice-only authorization, so Codex paused rather than silently modifying M4 or masking it by counting a live-perception workaround as a fix.
+- Boundary: temporary listener/API processes were stopped; no resident service was enabled; raw audio/transcripts were not persisted. The working tree must be preserved for a narrowly authorized correction or Architect decision.
+
+## SENTRY-V0.3-M4-CURRENT-STATE-TRUTHFULNESS-001 — completed
+- Status: **QUALIFIED / COMPLETED**.
+- Objective delivered: separate perception-runtime freshness from healthy local SQLite so only fresh, alive, online observation supports M4 current physical claims; preserve historical grounding when perception is stopped.
+- Contract: `/health` retains `ok` and `db_available` for database health and adds `perception.status` (`fresh`, `stopped`, `stale`, `missing`, `malformed`), heartbeat metadata, camera/room summary, `current_physical_available`, and a reason. The production unit passes the canonical heartbeat file, 75-second threshold, and `America/New_York` display timezone explicitly.
+- Grounding: current room state/people/open-session facts are omitted unless current physical evidence is available. Clear present-tense occupancy, identity, and session-duration questions fail deterministically with zero Luna calls when it is not. Historical events/sessions/identification/last-empty facts remain independently usable.
+- Time: source timestamps remain unchanged; `zoneinfo` produces bounded local display forms in 12-hour AM/PM Eastern presentation. EST, EDT, spring/fall DST, malformed/missing/stale/stopped heartbeat, and degraded/offline camera cases are covered.
+- Validation: focused M4 tests passed `16/16`; affected grounding/routine/weather/preference/reminder/proactive/resident/reactive/voice suites passed `96/96`; full Ubuntu regression passed `201/201`. Schema remains 8, no physical history was rewritten, services were restored inactive, and continuous perception Luna calls remain zero.
+- Final implementation commit: `98fc71ab76c18468745321ee63a706249efeea4` (`fix: gate M4 current claims on perception freshness`). V0.3 voice working-tree changes remain intentionally uncommitted and preserved; voice qualification was not resumed.

@@ -1,15 +1,30 @@
 # Current Project State
 
-Last updated: 2026-08-30T19:30:00-04:00
+Last updated: 2026-08-31T12:46:58-04:00
 
 ## Current stage
-V0.2 — event-triggered reminders qualified
+V0.3 — M4 current-state truthfulness qualified; always-available voice qualification remains paused
 
 ## Current objective
-Fulfil one explicit next-office-session reminder from a future persisted primary-user identity event with durable, restart-safe, deterministic local delivery.
+Return the qualified M4 current-state truthfulness repair to Architect; do not resume V0.3 voice qualification in this directive.
 
 ## Active directive
-SENTRY-V0.2-EVENT-REMINDERS-001 — completed successfully; event-triggered reminders qualified.
+SENTRY-V0.3-M4-CURRENT-STATE-TRUTHFULNESS-001 — QUALIFIED; V0.3 always-available voice remains IMPLEMENTED_UNVERIFIED and paused pending Architect continuation.
+
+## V0.3 M4 current-state truthfulness — 2026-08-31
+- `GET /health` now reports database health independently from a bounded `perception` runtime object: `fresh`, `stopped`, `stale`, `missing`, or `malformed`, including heartbeat time/age, process state, camera/room summary, `current_physical_available`, and a reason. Production state API service passes the canonical heartbeat path, a 75-second freshness threshold, and `America/New_York` explicitly.
+- Only parsed, alive, fresh heartbeat evidence with an `online` camera permits current room state, people, and open-session facts. Fresh `degraded`/`offline` source remains current-occupancy unavailable. Stopped/missing/stale/malformed perception omits those current facts without changing SQLite database health.
+- Clearly current questions return a deterministic unavailable response with zero Luna calls when live physical evidence is absent. Historical sessions/events/first identification/last confirmed empty evidence remains available, so stopped perception does not erase history.
+- Source timestamps remain unchanged. M4 fact packets add deterministic `*_local_display` values via `zoneinfo`; normal user-facing clock answers use Eastern 12-hour AM/PM with date/timezone where appropriate. EDT, EST, and both DST transitions are regression-covered.
+- Production proof: with perception stopped, `/health` reported healthy schema-8 SQLite and `perception.status=stopped`; “Is anyone in the office?” returned current-state unavailable with zero Luna calls. A historical question remained partially grounded and answered with Eastern 12-hour display. A bounded perception process emitted a fresh heartbeat, then its clean shutdown restored `process_alive=false`.
+- Focused M4 tests passed 16/16; affected focused suites passed 96/96; complete Ubuntu regression passed 201/201. Schema remains 8; no physical history was rewritten; continuous perception remains at zero Luna calls. M4 implementation commit: `98fc71ab76c18468745321ee63a706249efeea4`.
+
+## V0.3 always-available voice — 2026-08-31
+- The uncommitted working tree based on `7e69b6352d02e717194a8098f7d37614788535a6` contains the Architect-authorized local PipeWire → Silero VAD → bounded in-memory utterance → Whisper `tiny.en` → start-anchored `hey sentry` → existing `sentry_ask.py` → Kokoro/PipeWire listener, with an opt-in systemd unit, shared flock-based speech-activity gate, pre-speech buffer, and metadata-only diagnostics.
+- Focused always-on voice tests pass `13/13`. A visible Zenity indicator initially appeared off the active display under this host's desktop scaling; it was corrected to use active-window X11 placement, and the operator confirmed the repaired indicator works. The listener and API were always temporary and were stopped after the test.
+- Live listener metadata observed four wake detections/command dispatches and three rejected non-wake segments. Dispatch-latency samples were `1.516–1.619s`. These counts are not accepted wake-reliability evidence because the required structured 20/20/15-minute protocol was not completed.
+- Qualification blocker: with perception intentionally stopped, the actual local DB's last room-state record was `empty` at `2026-08-30T14:24:29.186671+00:00`, while `system.stopped` was also persisted. `/health` reported only SQLite availability. M4 nonetheless presented this stale room record to Luna as current for “Is anyone in the office?” and did not establish a local/Eastern 12-hour time-presentation contract for “What time did I come in?”. This is a truthful current-state/formatting defect outside the V0.3 voice-only directive. No M4 code was changed.
+- All SENTRY units are inactive; `sentry-voice.service` is not installed/enabled; no `pw-record`, state API, or always-on listener process remains. No audio or transcript artifact was retained.
 
 ## V0.2 event-triggered reminders — 2026-08-30
 - Schema version 8 adds one bounded `event_reminders` table for `primary_user` / `office` / `next_primary_user_office_session`, with a partial unique index enforcing one pending reminder and request provenance for idempotent creation/cancellation.
