@@ -1176,5 +1176,5 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - UTC/offset source timestamps remain unchanged. Deterministic `zoneinfo` local displays cover EDT, EST, spring DST, and both fall-back 1:30 AM offsets.
 
 ### Validation and boundary
-- Focused M4 suite passed **16/16**; affected suites passed **96/96**; full Ubuntu regression passed **201/201**. No schema migration, physical-history rewrite, reminder/weather/routine/preference/M5 alteration, or continuous perception Luna call was introduced.
+- Focused M4 suite passed **16/16**; affected suites passed **96/96**; full Ubuntu regression passed **201/201**. No schema migration, physical-history rewrite, reminder/weather/routine/preference/M5 alteration, or continuous perception Luna call was introduced. The short authorized fresh-heartbeat process observed a real person and consequently persisted normal production `system.started`, camera-state, session-8, and `system.stopped` events; nothing was seeded, backfilled, or manually changed.
 - V0.3 always-on voice implementation remains preserved but uncommitted and `IMPLEMENTED_UNVERIFIED`; its live reliability qualification was not resumed. All temporary SENTRY processes were stopped at completion per operator request.
