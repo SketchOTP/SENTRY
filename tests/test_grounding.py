@@ -1,6 +1,7 @@
 import unittest
 import json
 import tempfile
+from datetime import datetime, timezone
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
@@ -19,6 +20,17 @@ def api_responses(state="occupied"):
             "db_available": True,
             "schema_version": 3,
             "atlas_mirror": {"status": "ok"},
+            "display_timezone": "America/New_York",
+            "perception": {
+                "status": "fresh",
+                "heartbeat_updated_at": "2026-08-29T16:00:00+00:00",
+                "age_seconds": 0.0,
+                "process_alive": True,
+                "camera_state": "online",
+                "room_state": state,
+                "current_physical_available": True,
+                "reason": None,
+            },
         },
         "state": {
             "room_id": "office",
@@ -122,6 +134,15 @@ class GroundingTests(unittest.TestCase):
                         })
                     server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
                     server.store = store
+                    heartbeat = Path(directory) / "perception.json"
+                    heartbeat.write_text(json.dumps({
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "process_alive": True,
+                        "summary": {"camera_state": "offline" if state == "offline" else state if state == "degraded" else "online", "room_state": state},
+                    }), encoding="utf-8")
+                    server.perception_heartbeat = heartbeat
+                    server.perception_freshness_seconds = 75.0
+                    server.display_timezone = "America/New_York"
                     thread = Thread(target=server.serve_forever, daemon=True)
                     thread.start()
                     try:
@@ -129,11 +150,16 @@ class GroundingTests(unittest.TestCase):
                         retrieval = retrieve_fact_packet(f"http://127.0.0.1:{server.server_port}")
                         self.assertTrue(retrieval.available)
                         ids = {fact["fact_id"] for fact in retrieval.packet["facts"]}
-                        self.assertIn("current-room-state", ids)
-                        self.assertIn("current-room-people", ids)
-                        current = next(fact for fact in retrieval.packet["facts"] if fact["fact_id"] == "current-room-state")
-                        self.assertEqual(current["data"]["state"], state)
-                        response = {"answer": f"Fixture {name} is {state}.", "grounding": expected_grounding, "fact_ids": ["current-room-state"], "limitations": []}
+                        if state in {"degraded", "offline"}:
+                            self.assertNotIn("current-room-state", ids)
+                            self.assertNotIn("current-room-people", ids)
+                            response = {"answer": "Current occupancy is unavailable.", "grounding": "unavailable", "fact_ids": [], "limitations": ["camera is unavailable"]}
+                        else:
+                            self.assertIn("current-room-state", ids)
+                            self.assertIn("current-room-people", ids)
+                            current = next(fact for fact in retrieval.packet["facts"] if fact["fact_id"] == "current-room-state")
+                            self.assertEqual(current["data"]["state"], state)
+                            response = {"answer": f"Fixture {name} is {state}.", "grounding": expected_grounding, "fact_ids": ["current-room-state"], "limitations": []}
                         self.assertIsNone(validate_grounded_response(response, ids))
                     finally:
                         server.shutdown()

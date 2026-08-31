@@ -10,6 +10,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from tools.sentry_routine_intent import ROUTINE_TYPES, RoutineIntent, routine_keys
 from tools.sentry_weather_intent import WeatherIntent
@@ -49,6 +50,22 @@ def _elapsed_seconds(started_at: Any, as_of: datetime) -> float | None:
     return max(0.0, (as_of - started).total_seconds())
 
 
+def _local_display(value: Any, display_timezone: str, *, include_date: bool = True) -> str | None:
+    """Format an existing authoritative timestamp without changing its source value."""
+
+    timestamp = _parse_time(value)
+    if timestamp is None:
+        return None
+    try:
+        local = timestamp.astimezone(ZoneInfo(display_timezone))
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError("display timezone must be a valid IANA timezone") from exc
+    clock = f"{local.strftime('%I').lstrip('0') or '0'}:{local.strftime('%M %p %Z')}"
+    if not include_date:
+        return clock
+    return f"{local.strftime('%B')} {local.day}, {local.year} at {clock}"
+
+
 def _get_json(base_url: str, path: str, *, params: dict[str, str] | None = None, timeout: float = 5.0) -> dict[str, Any]:
     query = f"?{urlencode(params)}" if params else ""
     request = Request(f"{base_url.rstrip('/')}{path}{query}", headers={"Accept": "application/json"})
@@ -80,7 +97,7 @@ def _normalize_people(state: dict[str, Any], persons: list[dict[str, Any]]) -> l
     return output
 
 
-def _normalize_sessions(sessions: Any) -> list[dict[str, Any]]:
+def _normalize_sessions(sessions: Any, display_timezone: str) -> list[dict[str, Any]]:
     allowed = (
         "session_id", "room_id", "started_at", "ended_at", "status", "start_reason",
         "end_reason", "recovered_after_restart", "end_time_uncertain",
@@ -88,17 +105,25 @@ def _normalize_sessions(sessions: Any) -> list[dict[str, Any]]:
     output = []
     for session in sessions or []:
         if isinstance(session, dict):
-            output.append({key: session[key] for key in allowed if key in session})
+            item = {key: session[key] for key in allowed if key in session}
+            for source_key, display_key in (("started_at", "started_at_local_display"), ("ended_at", "ended_at_local_display")):
+                display = _local_display(item.get(source_key), display_timezone)
+                if display is not None:
+                    item[display_key] = display
+            output.append(item)
     return output
 
 
-def _normalize_events(events: Any) -> list[dict[str, Any]]:
+def _normalize_events(events: Any, display_timezone: str) -> list[dict[str, Any]]:
     allowed = ("event_id", "event_type", "occurred_at", "room_id", "session_id", "source", "confidence", "schema_version")
     output = []
     for event in events or []:
         if not isinstance(event, dict):
             continue
         item = {key: event[key] for key in allowed if key in event}
+        display = _local_display(item.get("occurred_at"), display_timezone)
+        if display is not None:
+            item["occurred_at_local_display"] = display
         payload = event.get("payload")
         if isinstance(payload, dict):
             item["payload"] = {key: payload[key] for key in _ALLOWED_EVENT_PAYLOAD if key in payload}
@@ -217,7 +242,17 @@ def build_fact_packet(
     as_of_value = evaluated_at.isoformat()
     health = responses.get("health", {})
     state = responses.get("state", {})
-    sessions = _normalize_sessions(responses.get("sessions", {}).get("sessions", []))
+    display_timezone = health.get("display_timezone", "America/New_York")
+    if not isinstance(display_timezone, str):
+        raise ValueError("display timezone must be a valid IANA timezone")
+    try:
+        ZoneInfo(display_timezone)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError("display timezone must be a valid IANA timezone") from exc
+    perception = health.get("perception") if isinstance(health.get("perception"), dict) else {}
+    current_physical_available = bool(perception.get("current_physical_available"))
+    perception_as_of = perception.get("heartbeat_updated_at") if isinstance(perception.get("heartbeat_updated_at"), str) else as_of_value
+    sessions = _normalize_sessions(responses.get("sessions", {}).get("sessions", []), display_timezone)
     persons = [
         {
             key: item[key]
@@ -227,7 +262,7 @@ def build_fact_packet(
         for item in responses.get("persons", {}).get("persons", [])
         if isinstance(item, dict)
     ]
-    events = _normalize_events(responses.get("events", {}).get("events", []))
+    events = _normalize_events(responses.get("events", {}).get("events", []), display_timezone)
     current_people = _normalize_people(state, persons)
 
     facts: list[dict[str, Any]] = [
@@ -243,21 +278,20 @@ def build_fact_packet(
             },
         },
         {
-            "fact_id": "current-room-state",
-            "kind": "room_state",
-            "as_of": state.get("updated_at") or as_of_value,
+            "fact_id": "perception-runtime",
+            "kind": "perception_runtime_health",
+            "as_of": perception_as_of,
             "data": {
-                "room_id": state.get("room_id", "office"),
-                "state": state.get("state", "unknown"),
-                "camera_state": state.get("camera_state"),
-                "person_count": state.get("person_count", 0),
+                "status": perception.get("status", "missing"),
+                "heartbeat_updated_at": perception.get("heartbeat_updated_at"),
+                "age_seconds": perception.get("age_seconds"),
+                "process_alive": bool(perception.get("process_alive")),
+                "camera_state": perception.get("camera_state"),
+                "room_state": perception.get("room_state"),
+                "current_physical_available": current_physical_available,
+                "reason": perception.get("reason"),
+                "display_timezone": display_timezone,
             },
-        },
-        {
-            "fact_id": "current-room-people",
-            "kind": "current_people",
-            "as_of": state.get("updated_at") or as_of_value,
-            "data": {"people": current_people},
         },
         {
             "fact_id": "enrolled-persons",
@@ -278,6 +312,27 @@ def build_fact_packet(
             "data": {"events": events},
         },
     ]
+
+    if current_physical_available:
+        facts[2:2] = [
+            {
+                "fact_id": "current-room-state",
+                "kind": "room_state",
+                "as_of": perception_as_of,
+                "data": {
+                    "room_id": state.get("room_id", "office"),
+                    "state": state.get("state", "unknown"),
+                    "camera_state": state.get("camera_state"),
+                    "person_count": state.get("person_count", 0),
+                },
+            },
+            {
+                "fact_id": "current-room-people",
+                "kind": "current_people",
+                "as_of": perception_as_of,
+                "data": {"people": current_people},
+            },
+        ]
 
     if routine_keys_to_include is not None:
         routine_items = []
@@ -310,7 +365,7 @@ def build_fact_packet(
         facts.extend(_normalize_weather(weather_response))
 
     open_sessions = [session for session in sessions if session.get("status") == "open"]
-    if open_sessions:
+    if current_physical_available and open_sessions:
         session = open_sessions[0]
         facts.append(
             {
@@ -320,6 +375,7 @@ def build_fact_packet(
                 "data": {
                     "session_id": session.get("session_id"),
                     "started_at": session.get("started_at"),
+                    "started_at_local_display": session.get("started_at_local_display"),
                     "elapsed_seconds": _elapsed_seconds(session.get("started_at"), evaluated_at),
                 },
             }
@@ -339,7 +395,9 @@ def build_fact_packet(
                 "as_of": as_of_value,
                 "data": {
                     "first_identified_at": identified[0].get("occurred_at"),
+                    "first_identified_at_local_display": _local_display(identified[0].get("occurred_at"), display_timezone),
                     "most_recent_identified_at": identified[-1].get("occurred_at"),
+                    "most_recent_identified_at_local_display": _local_display(identified[-1].get("occurred_at"), display_timezone),
                     "person_id": "primary_user",
                     "display_name": next(
                         (item.get("display_name") for item in persons if item.get("person_id") == "primary_user"),
@@ -359,6 +417,7 @@ def build_fact_packet(
                 "as_of": as_of_value,
                 "data": {
                     "occurred_at": latest_empty.get("occurred_at"),
+                    "occurred_at_local_display": _local_display(latest_empty.get("occurred_at"), display_timezone),
                     "end_time_uncertain": bool((latest_empty.get("payload") or {}).get("end_time_uncertain")),
                     "recovered_after_restart": bool((latest_empty.get("payload") or {}).get("recovered_after_restart")),
                 },
@@ -388,7 +447,22 @@ def build_proactive_fact_packet(
     persons = store.persons()
     events = store.events(event.get("room_id", "office"), limit=100)
     responses = {
-        "health": {"ok": True, "db_available": True, "schema_version": getattr(store, "health", lambda: {})().get("schema_version")},
+        "health": {
+            "ok": True,
+            "db_available": True,
+            "schema_version": getattr(store, "health", lambda: {})().get("schema_version"),
+            "display_timezone": "America/New_York",
+            "perception": {
+                "status": "fresh",
+                "process_alive": True,
+                "current_physical_available": True,
+                "camera_state": "online",
+                "room_state": state_record.state if state_record else "unknown",
+                "heartbeat_updated_at": evaluated_at.isoformat(),
+                "age_seconds": 0.0,
+                "reason": None,
+            },
+        },
         "state": state_record.__dict__ if state_record else {"room_id": event.get("room_id", "office"), "state": "unknown"},
         "sessions": {"sessions": sessions},
         "persons": {"persons": persons},

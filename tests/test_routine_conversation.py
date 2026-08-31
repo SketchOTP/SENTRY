@@ -9,7 +9,15 @@ from tools.sentry_routine_intent import RoutineIntent, select_routine_intent
 
 def api_responses(state="empty"):
     return {
-        "health": {"ok": True, "db_available": True, "schema_version": 5, "atlas_mirror": {"status": "ok"}},
+        "health": {
+            "ok": True, "db_available": True, "schema_version": 5, "atlas_mirror": {"status": "ok"},
+            "display_timezone": "America/New_York",
+            "perception": {
+                "status": "fresh", "heartbeat_updated_at": "2026-08-30T16:00:00+00:00",
+                "age_seconds": 0.0, "process_alive": True, "camera_state": "online",
+                "room_state": state, "current_physical_available": True, "reason": None,
+            },
+        },
         "state": {"room_id": "office", "state": state, "camera_state": "online", "updated_at": "2026-08-30T16:00:00+00:00", "person_count": 0, "people": []},
         "sessions": {"sessions": []},
         "persons": {"persons": []},

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import uuid
 from pathlib import Path
@@ -83,6 +84,37 @@ def _weather_fact_requirement(intent: WeatherIntent) -> str:
         "forecast": "weather:forecast:near-term",
         "alerts": "weather:alerts",
     }.get(intent.topic, "weather:current")
+
+
+def _is_current_physical_question(question: str) -> bool:
+    """Recognize only clear present-tense office-state questions.
+
+    This intentionally favors the ordinary M4 path for ambiguous or historical
+    wording so stale perception cannot become a current-state claim.
+    """
+
+    normalized = re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]+", " ", question.lower())).strip()
+    patterns = (
+        r"^is anyone in (?:the )?office$",
+        r"^who is in (?:here|the office)$",
+        r"^are you seeing me$",
+        r"^am i in (?:the )?office$",
+        r"^how long have i been in (?:here|the office)$",
+    )
+    return any(re.fullmatch(pattern, normalized) is not None for pattern in patterns)
+
+
+def _current_physical_unavailable_response(packet: dict[str, Any]) -> dict[str, Any]:
+    runtime = next((fact for fact in packet.get("facts", []) if fact.get("fact_id") == "perception-runtime"), {})
+    data = runtime.get("data", {}) if isinstance(runtime, dict) else {}
+    status = data.get("status", "unavailable")
+    reason = data.get("reason") or "live perception cannot establish current occupancy"
+    return {
+        "answer": "I can't tell the office's current occupancy because live perception isn't available right now.",
+        "grounding": "unavailable",
+        "fact_ids": [],
+        "limitations": [f"current physical evidence is {status}: {reason}"],
+    }
 
 
 def _preference_response(value: str, *, fact_id: str = "preference:proactivity.primary_user_session_acknowledgement") -> dict[str, Any]:
@@ -303,6 +335,15 @@ def ask(
 
     assert retrieval.packet is not None
     fact_ids = {fact["fact_id"] for fact in retrieval.packet["facts"]}
+    runtime = next((fact for fact in retrieval.packet["facts"] if fact.get("fact_id") == "perception-runtime"), None)
+    runtime_data = runtime.get("data", {}) if isinstance(runtime, dict) else {}
+    if _is_current_physical_question(question) and not runtime_data.get("current_physical_available"):
+        return {
+            "query_id": retrieval.query_id,
+            "as_of": retrieval.packet["as_of"],
+            **_current_physical_unavailable_response(retrieval.packet),
+            "luna_invocations": 0,
+        }
     if weather_intent is not None:
         source_health = next((fact for fact in retrieval.packet["facts"] if fact.get("fact_id") == "weather:source-health"), None)
         source_data = source_health.get("data", {}) if isinstance(source_health, dict) else {}

@@ -5,15 +5,98 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from perception.presence_store import PresenceStore
+
+
+PERCEPTION_RUNTIME_STATUSES = {"fresh", "stopped", "stale", "missing", "malformed"}
+
+
+def _parse_timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed.astimezone(timezone.utc)
+
+
+def perception_runtime_health(
+    heartbeat_path: Path | None,
+    *,
+    freshness_seconds: float,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    """Report perception-runtime freshness independently from SQLite health."""
+
+    evaluated_at = now or datetime.now(timezone.utc)
+    base: dict[str, object] = {
+        "status": "missing",
+        "heartbeat_updated_at": None,
+        "age_seconds": None,
+        "process_alive": False,
+        "camera_state": None,
+        "room_state": None,
+        "current_physical_available": False,
+        "reason": "perception heartbeat is missing",
+    }
+    if heartbeat_path is None or not heartbeat_path.is_file():
+        return base
+    try:
+        raw = json.loads(heartbeat_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {**base, "status": "malformed", "reason": "perception heartbeat is malformed"}
+    if not isinstance(raw, dict):
+        return {**base, "status": "malformed", "reason": "perception heartbeat is malformed"}
+    updated_at = _parse_timestamp(raw.get("updated_at"))
+    process_alive = raw.get("process_alive")
+    summary = raw.get("summary")
+    if updated_at is None or type(process_alive) is not bool or not isinstance(summary, dict):
+        return {**base, "status": "malformed", "reason": "perception heartbeat fields are invalid"}
+    camera_state = summary.get("camera_state")
+    room_state = summary.get("room_state")
+    if not isinstance(camera_state, str) or not isinstance(room_state, str):
+        return {**base, "status": "malformed", "reason": "perception heartbeat state is invalid"}
+    age_seconds = max(0.0, (evaluated_at - updated_at).total_seconds())
+    common = {
+        "heartbeat_updated_at": updated_at.isoformat(),
+        "age_seconds": age_seconds,
+        "process_alive": process_alive,
+        "camera_state": camera_state,
+        "room_state": room_state,
+    }
+    if not process_alive:
+        return {**base, **common, "status": "stopped", "reason": "perception process is stopped"}
+    if age_seconds > freshness_seconds:
+        return {**base, **common, "status": "stale", "reason": "perception heartbeat is stale"}
+    if camera_state in {"offline", "degraded"}:
+        return {
+            **base,
+            **common,
+            "status": "fresh",
+            "reason": f"camera state is {camera_state}",
+        }
+    if camera_state != "online":
+        return {**base, **common, "status": "fresh", "reason": "camera state cannot establish current occupancy"}
+    return {
+        **base,
+        **common,
+        "status": "fresh",
+        "current_physical_available": True,
+        "reason": None,
+    }
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -52,12 +135,18 @@ class _Handler(BaseHTTPRequestHandler):
         store: PresenceStore = self.server.store  # type: ignore[attr-defined]
         if parsed.path == "/health":
             health = store.health()
+            perception = perception_runtime_health(
+                getattr(self.server, "perception_heartbeat", None),
+                freshness_seconds=float(getattr(self.server, "perception_freshness_seconds", 75.0)),
+            )
             self._send(
                 200,
                 {
                     "ok": bool(health["db_available"]),
                     "service": "sentry-state",
                     "room_id": room_id,
+                    "perception": perception,
+                    "display_timezone": getattr(self.server, "display_timezone", "America/New_York"),
                     **health,
                 },
             )
@@ -192,10 +281,22 @@ def serve(
     port: int = 48174,
     *,
     atlas_mirror_path: Path | None = None,
+    perception_heartbeat: Path | None = None,
+    perception_freshness_seconds: float = 75.0,
+    display_timezone: str = "America/New_York",
 ) -> None:
+    if perception_freshness_seconds <= 0:
+        raise ValueError("perception freshness seconds must be positive")
+    try:
+        ZoneInfo(display_timezone)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError("display timezone must be a valid IANA timezone") from exc
     with PresenceStore(database_path, atlas_mirror_path=atlas_mirror_path) as store:
         server = ThreadingHTTPServer((host, port), _Handler)
         server.store = store  # type: ignore[attr-defined]
+        server.perception_heartbeat = perception_heartbeat  # type: ignore[attr-defined]
+        server.perception_freshness_seconds = perception_freshness_seconds  # type: ignore[attr-defined]
+        server.display_timezone = display_timezone  # type: ignore[attr-defined]
         try:
             server.serve_forever()
         finally:
@@ -208,10 +309,24 @@ def main() -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=48174)
     parser.add_argument("--atlas-mirror", type=Path, default=Path("perception-data/runtime/backups/sentry.db"))
+    parser.add_argument("--perception-heartbeat", type=Path)
+    parser.add_argument("--perception-freshness-seconds", type=float, default=75.0)
+    parser.add_argument("--display-timezone", default="America/New_York")
     args = parser.parse_args()
     if args.host not in {"127.0.0.1", "localhost", "::1"}:
         parser.error("the state API must remain localhost-only")
-    serve(args.database, args.host, args.port, atlas_mirror_path=args.atlas_mirror)
+    try:
+        serve(
+            args.database,
+            args.host,
+            args.port,
+            atlas_mirror_path=args.atlas_mirror,
+            perception_heartbeat=args.perception_heartbeat,
+            perception_freshness_seconds=args.perception_freshness_seconds,
+            display_timezone=args.display_timezone,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
     return 0
 
 

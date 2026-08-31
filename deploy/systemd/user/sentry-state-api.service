@@ -7,7 +7,7 @@ StartLimitBurst=5
 [Service]
 Type=simple
 WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
-ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_state_api.py --host 127.0.0.1 --port 48174 --database %h/.local/share/sentry/sentry.db --atlas-mirror /srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/backups/sentry.db
+ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_state_api.py --host 127.0.0.1 --port 48174 --database %h/.local/share/sentry/sentry.db --atlas-mirror /srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/backups/sentry.db --perception-heartbeat /srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/health/perception.json --perception-freshness-seconds 75 --display-timezone America/New_York
 Restart=on-failure
 RestartSec=10s
 KillMode=control-group
