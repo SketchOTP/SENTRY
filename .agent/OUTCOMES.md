@@ -1247,3 +1247,19 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 - Live result: `Sentry` produced four wake detections and four dispatches; visible `LISTENING` and `ARMED` prompts worked; no persistent audio/transcript was produced. Wake-to-dispatch metadata samples were 1.676–1.737 seconds.
 - Failure: operator-intended reminder/preference commands did not retain enough semantic fidelity through Whisper `tiny.en` to select their existing deterministic handlers. The responses were truthfully bounded but unrelated to the intended request. A bare-token dispatch was corrected to `ARMED`, but the remaining command-STT issue stays unresolved.
 - Services/processes: all inactive at handoff; always-on voice remains disabled in local config. Full regression and commit/push are intentionally **NOT RUN / NOT CREATED**.
+
+## OUTCOME-SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-RECORDS-001 — Final acceptance reconciliation
+- Completed: 2026-08-31
+- Verdict: **V0.3 CONVERSATIONAL ORCHESTRATION FULLY ACCEPTED**
+- Starting SHA: `881e449ef8546f10afdefa6843636bbef573009e`
+- Retrieval confidence: **ADEQUATE**
+- Evidence level: **E4_REGRESSION_PROTECTED** for text orchestration; **E5_OPERATIONALLY_OBSERVED** for five spoken smoke requests
+
+### Result
+The Architect accepted the substantive conversational-orchestration result at implementation commit `7d605afc5a1804373447621b611648716368b440`. This records-only reconciliation corrects stale mutable Authority pointers that previously described the committed implementation as uncommitted/pending review and incorrectly named M4 as the last accepted outcome.
+
+### Validation and boundary
+- Current Authority pointers: corrected to the accepted orchestration state, `104/104` focused suites, `212/212` full regression, and the continuing V0.3 voice-unqualified boundary.
+- Historical ledger evidence: preserved; earlier pending/review and Vosk-selection entries remain historical facts with superseding current-state notes where needed.
+- Runtime implementation/tests/configuration/schema/services: **unchanged**; no runtime test was required or run.
+- Notion: synchronized with the Architect's final acceptance and this records-only reconciliation.

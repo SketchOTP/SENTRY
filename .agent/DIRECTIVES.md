@@ -459,3 +459,9 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 
 ### Final candidate-1 result — 2026-08-31
 - The corrected full-capture v3 model used all 40 explicit local positive clips and all 40 explicit local negative clips. Its held-out validation failed before Stage A: at the selected threshold of `0.95`, it produced 22 negative false positives and 66.7% positive recall. Candidate 1 is therefore rejected for this clean local data route. Candidate order is exhausted; return to Architect without integration.
+
+## SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-RECORDS-001 — completed
+- Status: **COMPLETE — records-only reconciliation**.
+- Scope: correct stale mutable Authority pointers after the Architect accepted the already committed `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001` result. No runtime implementation, tests, schema, service, configuration, or architecture changed.
+- Result: `INDEX.md`, `CURRENT.md`, and durable profile pointers now identify conversational orchestration as the last accepted outcome, preserve `7d605af` as its implementation commit, retain `104/104` focused and `212/212` full-regression evidence, and state that V0.3 always-available voice remains implemented/unqualified.
+- Source: Architect directive supplied 2026-08-31 after GitHub/Notion review of `7d605afc5a1804373447621b611648716368b440` and `881e449ef8546f10afdefa6843636bbef573009e`.

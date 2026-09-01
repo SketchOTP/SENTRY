@@ -1,21 +1,25 @@
 # Current Project State
 
-Last updated: 2026-09-01T01:58:00-04:00
+Last updated: 2026-08-31T22:05:15-04:00
 
 ## Current stage
-V0.3 — conversational orchestration qualified at `7d605af`; always-available voice remains implemented/unverified
+V0.3 — conversational orchestration fully accepted at implementation commit
+`7d605afc5a1804373447621b611648716368b440`; always-available voice remains
+implemented/unqualified
 
 ## Current objective
-Replace deterministic pre-Luna natural-language routing with bounded
-Luna-directed orchestration over existing approved local SENTRY capabilities.
-Do not create durable conversational memory or claim that always-available
-voice is qualified.
+Conversational orchestration is accepted. No successor implementation directive
+is active; the next decision returns to the Architect for a bounded final V0.3
+always-available voice acceptance decision. Do not create durable
+conversational memory or claim that always-available voice is qualified.
 
 ## Active directive
-No successor directive is active. `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001`
-is complete at implementation commit `7d605af` pending Architect review.
-Vosk remains the operator-selected single-token wake authority, and V0.3
-always-available voice is still not accepted as a whole.
+`SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-RECORDS-001` is complete. The
+Architect accepted the orchestration implementation at `7d605af` and its
+records commit `881e449` after `16/16` natural-language, `104/104` focused,
+and `212/212` full-regression evidence. Vosk remains the operator-selected
+single-token wake authority, and V0.3 always-available voice is still not
+accepted as a whole.
 
 ## V0.3 conversational orchestration — 2026-08-31
 - `tools/sentry_ask.py` now sends normal user text through `ConversationOrchestrator`, rather than using reminder/preference/weather/routine selectors as the primary natural-language router. The old selectors remain compatibility helpers only.
@@ -36,7 +40,7 @@ always-available voice is still not accepted as a whole.
 - Focused M4 tests passed 16/16; affected focused suites passed 96/96; complete Ubuntu regression passed 201/201. Schema remains 8; no prior physical history was rewritten. The bounded fresh-heartbeat proof ran the real production pipeline and therefore persisted its normal `system.started`, camera-state, observed occupied session 8, and `system.stopped` events; no event/session was seeded or manually edited. Continuous perception remains at zero Luna calls. M4 implementation commit: `98fc71ab76c18468745321ee63a706249efeea4`.
 
 ## V0.3 always-available voice — 2026-08-31
-- The uncommitted working tree based on `7e69b6352d02e717194a8098f7d37614788535a6` contains the Architect-authorized local PipeWire → Silero VAD → bounded in-memory utterance → Whisper `tiny.en` → start-anchored `hey sentry` → existing `sentry_ask.py` → Kokoro/PipeWire listener, with an opt-in systemd unit, shared flock-based speech-activity gate, pre-speech buffer, and metadata-only diagnostics.
+- The committed V0.3 implementation at `7d605af` contains the Architect-authorized local PipeWire → Vosk single-token wake → Silero VAD/endpointing → bounded in-memory utterance → Whisper `tiny.en` command STT → existing `sentry_ask.py` → Kokoro/PipeWire listener, with an opt-in systemd unit, shared flock-based speech-activity gate, pre-speech buffer, and metadata-only diagnostics. This implementation remains unqualified as an always-available resident interface.
 - Focused always-on voice tests pass `13/13`. A visible Zenity indicator initially appeared off the active display under this host's desktop scaling; it was corrected to use active-window X11 placement, and the operator confirmed the repaired indicator works. The listener and API were always temporary and were stopped after the test.
 - Live listener metadata observed four wake detections/command dispatches and three rejected non-wake segments. Dispatch-latency samples were `1.516–1.619s`. These counts are not accepted wake-reliability evidence because the required structured 20/20/15-minute protocol was not completed.
 - Qualification blocker: with perception intentionally stopped, the actual local DB's last room-state record was `empty` at `2026-08-30T14:24:29.186671+00:00`, while `system.stopped` was also persisted. `/health` reported only SQLite availability. M4 nonetheless presented this stale room record to Luna as current for “Is anyone in the office?” and did not establish a local/Eastern 12-hour time-presentation contract for “What time did I come in?”. This is a truthful current-state/formatting defect outside the V0.3 voice-only directive. No M4 code was changed.
@@ -55,6 +59,9 @@ always-available voice is still not accepted as a whole.
 - Vosk 0.3.45 and the isolated official `vosk-model-small-en-us-0.15` model archive (SHA-256 `30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498`) were installed outside Git. The restricted vocabulary is `["sentry", "[unk]"]`; final-result-only decoding was its one permitted decoder adjustment. Its valid Stage-A screens achieved 10/10 prompted wakes and 0/10 non-wake detections for phrases not containing the owner-selected word.
 - Owner clarification: uttering “Sentry” inside ordinary conversation is acceptable as a wake. This relaxes the Architect directive's original difficult-negative examples that contained the same one-word wake token; it must be surfaced to Architect and is not silently counted as the directive's original 20/20 false-wake proof.
 - Stage B began but the operator stopped it after five prompts as excessive. The required 20-positive, 20-negative, 15-minute ambient, latency, resource, and queued-command-audio evidence is therefore **not complete**. No detector is formally selected, no listener integration/service enablement occurred, no raw audio/transcript was retained, and all SENTRY/evaluator processes are inactive.
+
+### Superseded current-state note — 2026-08-31
+- The preceding selection evidence is historical. The owner subsequently selected Vosk and its integration was committed as part of `7d605af`. The current boundary is not "no listener integration"; it is that the integrated Vosk always-on interface remains implemented/unqualified and opt-in/inactive pending its separate final acceptance decision.
 
 ## V0.2 event-triggered reminders — 2026-08-30
 - Schema version 8 adds one bounded `event_reminders` table for `primary_user` / `office` / `next_primary_user_office_session`, with a partial unique index enforcing one pending reminder and request provenance for idempotent creation/cancellation.

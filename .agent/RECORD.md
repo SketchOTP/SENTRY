@@ -532,3 +532,17 @@ The selected Vosk wake engine was integrated into the preserved one-stream liste
 
 ### Boundary
 Vosk remains the sole wake authority, audio remains RAM-only, and `Hey Sentry` is obsolete. The selected integration did not enable always-on voice: local config is still opt-in/disabled, and all temporary API, perception, voice, PipeWire capture, and indicator processes were stopped. No commit/push was created; the dirty tree is preserved. Do not solve the command-STT failure by silently replacing Whisper or broadening deterministic intents.
+
+## RECORD-SENTRY-041 — Conversational orchestration fully accepted after records reconciliation
+- Date: 2026-08-31
+- Type: GOVERNANCE RECONCILIATION / ACCEPTANCE
+- Related directives/outcomes: `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001` and `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-RECORDS-001`
+
+### Decision
+The Architect fully accepted bounded conversational orchestration at implementation commit `7d605afc5a1804373447621b611648716368b440`. The subsequent `881e449ef8546f10afdefa6843636bbef573009e` records commit documented qualification but left stale mutable Authority pointers. This records-only correction supersedes those stale pointers without rewriting their historical evidence.
+
+### Evidence
+Accepted evidence remains: natural-language matrix `16/16`, focused affected suites `104/104`, full Ubuntu regression `212/212`, and five operator-observed spoken cross-domain requests. The architecture remains bounded Luna planner → host-validated local tools → grounded synthesis, with RAM-only recent-turn context and no arbitrary capability or durable conversational memory.
+
+### Boundary
+V0.3 always-available Vosk voice remains implemented/unqualified and opt-in. This acceptance neither qualifies the voice interface nor authorizes turn-taking, persistent memory, or any runtime change.
