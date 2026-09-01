@@ -1,8 +1,14 @@
 # SENTRY
 
-SENTRY is a persistent, room-aware AI presence. The long-term goal is an embodied household intelligence that understands who is present, learns routines and preferences, maintains memory of physical events, and can decide when useful information should be spoken proactively.
+SENTRY is a persistent, one-room AI resident for the office. Its product goal is
+to become deeply useful, natural, private, and reliable in that one room:
+trusted physical awareness, grounded conversation, explicit memory and
+preferences, relevant context, and restrained assistance.
 
-The project intentionally begins much smaller: **one office, one Ubuntu Linux host, one V4L2 webcam, microphone, and speakers**. The office prototype must prove that persistent perception and proactive behavior are reliable before any whole-home expansion.
+**Owner scope lock:** whole-home/multi-room expansion, second cameras,
+cross-camera Re-ID, distributed sensing, ESP32/mmWave/BLE/Wi-Fi CSI, Home
+Assistant expansion, and TV embodiment are **SUPERSEDED BY OWNER DIRECTION**.
+They are not expected future phases unless the owner explicitly reopens them.
 
 ## Current status
 
@@ -61,7 +67,9 @@ The current local perception slice is documented in [`docs/M1_PERCEPTION.md`](do
 
 ## Explicitly out of V0.1
 
-Do not expand the first build with ESP32s, mmWave, BLE room positioning, Wi-Fi CSI, Home Assistant, Frigate, multiple rooms/cameras, a TV avatar, autonomous smart-home control, or full routine learning. Those are later phases.
+Do not expand the product with ESP32s, mmWave, BLE room positioning, Wi-Fi CSI,
+Home Assistant, Frigate, multiple rooms/cameras, or TV embodiment. Those
+directions are superseded, not deferred milestones.
 
 ## V0.2 Resident Runtime
 
@@ -92,6 +100,10 @@ The read-only NWS weather foundation is documented in [`docs/V0.2_WEATHER_CONTEX
 
 The one-shot reminder capability is documented in [`docs/V0.2_EVENT_REMINDERS.md`](docs/V0.2_EVENT_REMINDERS.md). It supports one explicit `next_primary_user_office_session` reminder for the primary user, excludes the creation session, claims before speech, survives restart without replay, and keeps unsupported scheduler shapes out of scope.
 
+## V0.3 Always-Available Voice
+
+The optional, unqualified local listener is documented in [`docs/V0.3_ALWAYS_ON_VOICE.md`](docs/V0.3_ALWAYS_ON_VOICE.md). The preserved working tree adds `PipeWire → local Vosk “Sentry” wake detection → VAD/Whisper tiny.en command capture → bounded conversational orchestration → Kokoro/PipeWire`, while keeping ambient audio ephemeral and never enabling continuous listening without explicit local configuration. `Sentry` is the owner-selected wake token; ordinary conversational uses of that word are accepted activations.
+
 ## Reuse strategy
 
 ### Accepted V0.1 reasoning layer
@@ -119,8 +131,9 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 11. **V0.2 — Preference + feedback memory**: one explicit reversible acknowledgement preference, auditable proactive feedback, and deterministic M5 suppression (qualified).
 12. **V0.2 — Read-only weather context**: explicit-location NWS snapshots, freshness-gated localhost weather facts, and an independent refresh timer (qualified; production location not configured).
 13. **V0.2 — Event-triggered reminders**: one explicit next-office-session reminder with deterministic intent/API handling, same-session exclusion, durable claim-before-speech delivery, and restart-safe dedupe (qualified).
+14. **V0.3.1 — Always-available voice foundation**: optional local Vosk `Sentry` wake detection, VAD/Whisper command capture, bounded conversational orchestration, and shared TTS capture suppression (implemented but unqualified).
 
-M6, V0.2 resident runtime, routine statistics/conversation, preference memory, weather context/proactivity, and event-triggered reminders have passed. Routine facts entering proactive judgment, general scheduling, or multi-room hardware work requires a new Architect directive and remains outside the accepted office-only V0.1/V0.2 boundary.
+M6 and V0.2 are accepted. Routine facts entering proactive judgment and general scheduling require a new Architect directive. Multi-room and whole-home hardware are superseded by the permanent one-room product scope.
 
 ## Key acceptance targets
 

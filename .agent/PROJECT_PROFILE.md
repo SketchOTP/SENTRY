@@ -15,7 +15,7 @@
 ## Technical profile
 - Language: Python 3.12 runtime for the local M1 slice.
 - Frameworks: no application framework; OpenCV provides local V4L2 capture/frame handling and OpenVINO provides local 0202 inference.
-- Major dependencies: `opencv-python-headless==4.12.0.88`, `openvino==2026.3.1`, `psutil==7.0.0`.
+- Major dependencies: `opencv-python-headless==4.12.0.88`, `openvino==2026.3.1`, `psutil==7.0.0`; the preserved V0.3 working tree additionally uses local `vosk==0.3.45` for the operator-selected wake token `Sentry`.
 - Test command: `python -m unittest discover -s tests -v`.
 - Runtime environment: Ubuntu Linux x86_64 host on the canonical Atlas share. The Linux NexiGo N60 V4L2 path and pinned local runtime are established; M1 practical presence, M2/M3, M4, M5, M6, and the V0.2 resident runtime are accepted within recorded boundaries.
 
@@ -26,10 +26,12 @@
 - Notion is the strategic project record; GitHub is the committed repository record.
 
 ## Compatibility commitments
-- Preserve the office-only V0.1 boundary and milestone order beginning at M0.
+- Preserve the owner-locked one-office-room product boundary. Historical
+  whole-home, multi-room, distributed sensing, and TV embodiment directions
+  are superseded unless the owner explicitly reauthorizes them.
 - Preserve explicit degraded/offline states, conservative `unknown` identity behavior, local physical-event history, and restrained proactive speech as the implementation evolves.
-- M5 uses a post-persistence proactive processor with one allowed event class (`person.identified` for `primary_user`), deterministic suppression, one bounded low-effort Luna judgment for survivors, and local Speech Dispatcher delivery. Reactive voice is accepted through explicit PipeWire capture, local Whisper `tiny.en` STT, the existing M4 grounded query path, and an installed local Kokoro runtime for local PipeWire playback. M6 passed the owner/operator-approved 30-minute final soak; V0.1 is accepted within the office-only boundary.
-- V0.2 resident runtime uses separate native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. Units are enabled for the authenticated user session and use bounded `Restart=on-failure` recovery; routine learning is not implemented.
+- M5 uses a post-persistence proactive processor with one allowed event class (`person.identified` for `primary_user`), deterministic suppression, one bounded low-effort Luna judgment for survivors, and local Speech Dispatcher delivery. User-initiated PTT and optional V0.3 Vosk voice converge on bounded conversational orchestration: Luna plans only approved typed localhost capabilities, the host validates/executes them, then Luna synthesizes grounded facts. Local Whisper `tiny.en` remains the STT component and Kokoro remains local PipeWire playback. M6 passed the owner/operator-approved 30-minute final soak; V0.1 is accepted within the office-only boundary.
+- V0.2 resident runtime uses separate native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. Units are enabled for the authenticated user session and use bounded `Restart=on-failure` recovery. V0.3's optional Vosk listener is deliberately opt-in and currently unqualified.
 - Do not treat the suggested repository shape in the project scope as permission to create unneeded empty runtime modules.
 
 ## Safety / operational constraints

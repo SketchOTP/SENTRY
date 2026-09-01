@@ -11,6 +11,7 @@ from unittest.mock import patch
 from perception.presence_store import PresenceStore
 from perception.proactive import ProactivePolicyConfig, ProactiveProcessor, WeatherContextPolicy
 from tools.sentry_ask import ask
+from tools.sentry_conversation_tools import ConversationToolHost
 from tools.sentry_reminder_intent import ReminderIntent, select_reminder_intent
 from tools.sentry_state_api import _Handler
 
@@ -240,7 +241,7 @@ class EventReminderTests(unittest.TestCase):
             with PresenceStore(local, atlas_mirror_path=atlas) as restored:
                 self.assertEqual(restored.event_reminder(pending["reminder_id"])["status"], "delivered")
 
-    def test_api_and_ask_create_query_cancel_without_luna(self):
+    def test_bounded_reminder_tools_create_query_cancel_through_existing_api(self):
         with tempfile.TemporaryDirectory() as directory, PresenceStore(Path(directory) / "sentry.db") as store:
             server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
             server.store = store
@@ -248,27 +249,25 @@ class EventReminderTests(unittest.TestCase):
             thread.start()
             try:
                 base_url = f"http://127.0.0.1:{server.server_port}"
-                created = ask("Remind me next time I come into the office to call Mom.", base_url=base_url)
-                self.assertEqual(created["luna_invocations"], 0)
+                host = ConversationToolHost(base_url=base_url, source_request_id="reminder-tool-1")
+                created = host.execute("create_next_office_reminder", {"message": "call Mom"})
+                self.assertEqual(created["status"], "succeeded")
                 self.assertEqual(store.event_reminders()[0]["message"], "call Mom")
-                queried = ask("Do I have an office reminder?", base_url=base_url)
-                self.assertEqual(queried["luna_invocations"], 0)
-                self.assertIn("call Mom", queried["answer"])
-                cancelled = ask("Cancel my office reminder.", base_url=base_url)
-                self.assertEqual(cancelled["luna_invocations"], 0)
+                queried = host.execute("get_office_reminders", {})
+                self.assertEqual(queried["facts"][0]["data"]["reminders"][0]["message"], "call Mom")
+                cancelled = host.execute("cancel_pending_office_reminder", {})
+                self.assertEqual(cancelled["status"], "succeeded")
                 self.assertEqual(store.event_reminders()[0]["status"], "cancelled")
             finally:
                 server.shutdown()
                 server.server_close()
                 thread.join(timeout=3)
 
-    def test_unsupported_reminder_shapes_are_deterministic_and_do_not_call_luna(self):
-        with patch("tools.sentry_ask.invoke_grounded_query") as invoke:
-            for question in ("Remind me at 5 PM.", "Remind me every Monday.", "Remind me when it rains.", "Remind me when I leave the house."):
-                result = ask(question)
-                self.assertEqual(result["luna_invocations"], 0)
-                self.assertIn("next distinct office session", result["answer"])
-        invoke.assert_not_called()
+    def test_unsupported_scheduler_shapes_remain_outside_the_reminder_tool_contract(self):
+        self.assertEqual(select_reminder_intent("Remind me at 5 PM."), ReminderIntent("unsupported"))
+        self.assertEqual(select_reminder_intent("Remind me every Monday."), ReminderIntent("unsupported"))
+        self.assertEqual(select_reminder_intent("Remind me when it rains."), ReminderIntent("unsupported"))
+        self.assertEqual(select_reminder_intent("Remind me when I leave the house."), ReminderIntent("unsupported"))
 
     def test_no_reminder_preserves_contextual_weather_path_and_no_routines(self):
         with tempfile.TemporaryDirectory() as directory:

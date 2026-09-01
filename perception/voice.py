@@ -26,6 +26,8 @@ from typing import Any, Callable, Protocol
 
 import numpy as np
 
+from .speech_activity import SpeechActivityGate
+
 
 class AudioRecorder(Protocol):
     def record(self, duration_seconds: float) -> np.ndarray: ...
@@ -283,6 +285,7 @@ class KokoroSpeaker:
         speed: float = 0.9,
         player: str | None = None,
         timeout_seconds: int = 300,
+        speech_activity: SpeechActivityGate | None = None,
     ) -> None:
         self.python_executable = python_executable or _discover_kokoro_python()
         self.worker_script = Path(worker_script) if worker_script else Path(__file__).resolve().parents[1] / "tools" / "sentry_kokoro_worker.py"
@@ -290,6 +293,7 @@ class KokoroSpeaker:
         self.speed = min(1.3, max(0.75, float(speed)))
         self.player = player or shutil.which("pw-play")
         self.timeout_seconds = timeout_seconds
+        self.speech_activity = speech_activity or SpeechActivityGate()
         self._lock = threading.RLock()
         self._process: subprocess.Popen[bytes] | None = None
 
@@ -297,49 +301,57 @@ class KokoroSpeaker:
     def available(self) -> bool:
         return bool(self.player and self.python_executable and Path(self.worker_script).is_file())
 
+    @property
+    def is_speaking(self) -> bool:
+        with self._lock:
+            return self._process is not None and self._process.poll() is None
+
     def speak(self, text: str) -> bool:
         if not self.available or not isinstance(text, str) or not text.strip():
             return False
         try:
-            synth = subprocess.run(
-                [self.python_executable, str(self.worker_script)],
-                input=(json.dumps({"text": text, "voice": self.voice, "speed": self.speed}) + "\n").encode("utf-8"),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=self.timeout_seconds,
-                check=False,
-            )
-            if synth.returncode != 0:
-                return False
-            response = json.loads(synth.stdout.decode("utf-8"))
-            audio = base64.b64decode(response["audioBase64"], validate=True)
-            if not audio:
-                return False
-            pcm, sample_rate, channels = _decode_wav(audio)
-            process = subprocess.Popen(
-                [
-                    self.player,
-                    "--rate",
-                    str(sample_rate),
-                    "--channels",
-                    str(channels),
-                    "--format",
-                    "s16",
-                    "--media-role",
-                    "Communication",
-                    "-",
-                ],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-            )
-            with self._lock:
-                self._process = process
-            process.communicate(pcm, timeout=self.timeout_seconds)
-            with self._lock:
-                if self._process is process:
-                    self._process = None
-            return process.returncode == 0
+            with self.speech_activity.acquire() as acquired:
+                if not acquired:
+                    return False
+                synth = subprocess.run(
+                    [self.python_executable, str(self.worker_script)],
+                    input=(json.dumps({"text": text, "voice": self.voice, "speed": self.speed}) + "\n").encode("utf-8"),
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=self.timeout_seconds,
+                    check=False,
+                )
+                if synth.returncode != 0:
+                    return False
+                response = json.loads(synth.stdout.decode("utf-8"))
+                audio = base64.b64decode(response["audioBase64"], validate=True)
+                if not audio:
+                    return False
+                pcm, sample_rate, channels = _decode_wav(audio)
+                process = subprocess.Popen(
+                    [
+                        self.player,
+                        "--rate",
+                        str(sample_rate),
+                        "--channels",
+                        str(channels),
+                        "--format",
+                        "s16",
+                        "--media-role",
+                        "Communication",
+                        "-",
+                    ],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                )
+                with self._lock:
+                    self._process = process
+                process.communicate(pcm, timeout=self.timeout_seconds)
+                with self._lock:
+                    if self._process is process:
+                        self._process = None
+                return process.returncode == 0
         except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
             self.cancel()
             return False
@@ -456,6 +468,9 @@ class ReactiveVoiceLoop:
         self.transcriber = transcriber
         self.speaker = speaker
         self.ask_fn = ask_fn
+        # RAM-only conversation identity lets repeated explicit requests from
+        # this loop resolve bounded follow-ups without creating durable memory.
+        self.conversation_id = f"reactive-{uuid.uuid4()}"
 
     def run_once(self) -> ReactiveVoiceResult:
         request_id = str(uuid.uuid4())
@@ -474,6 +489,7 @@ class ReactiveVoiceLoop:
                 room_id=self.config.room_id,
                 effort=self.config.effort,
                 timeout_seconds=self.config.timeout_seconds,
+                conversation_id=self.conversation_id,
             )
         except Exception as exc:  # noqa: BLE001 - preserve explicit bridge failure
             return ReactiveVoiceResult(request_id, "failed", transcript, None, None, 0, "not_attempted", str(exc))

@@ -35,13 +35,13 @@ class VoiceTests(unittest.TestCase):
         result = self.loop(ask).run_once()
         self.assertEqual(result.status, "answered")
         self.assertEqual(result.delivery, "delivered")
-        ask.assert_called_once_with(
-            "Is anyone in the office?",
-            base_url="http://127.0.0.1:48174",
-            room_id="office",
-            effort="low",
-            timeout_seconds=120,
-        )
+        ask.assert_called_once()
+        self.assertEqual(ask.call_args.args, ("Is anyone in the office?",))
+        self.assertEqual(ask.call_args.kwargs["base_url"], "http://127.0.0.1:48174")
+        self.assertEqual(ask.call_args.kwargs["room_id"], "office")
+        self.assertEqual(ask.call_args.kwargs["effort"], "low")
+        self.assertEqual(ask.call_args.kwargs["timeout_seconds"], 120)
+        self.assertTrue(ask.call_args.kwargs["conversation_id"].startswith("reactive-"))
         self.speaker.speak.assert_called_once_with("The office is occupied.")
         self.recorder.record.assert_called_once_with(1.0)
         self.transcriber.transcribe.assert_called_once()

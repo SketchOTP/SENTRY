@@ -6,6 +6,16 @@ No external discovery was required for this governance-only bootstrap. The direc
 
 ---
 
+## EXTERNAL-SENTRY-013 — OpenAI constrained response schema and tool-orchestration boundary
+- Date: 2026-08-31
+- Freshness: Official OpenAI Responses API reference and GPT-5.6 model guidance reviewed during `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001`; installed OAuth Codex CLI behavior reproduced on the same host.
+- Sources: [OpenAI Responses API reference](https://developers.openai.com/api/reference/cli/resources/responses/methods/create) and [GPT-5.6 model guidance](https://developers.openai.com/api/docs/guides/latest-model).
+- Finding: current OpenAI guidance supports structured outputs and typed tool selection, with the application retaining autonomy boundaries and validation. The installed OAuth `codex exec` path supports `--output-schema` but does not offer a safe per-invocation host function catalog. Its strict schema endpoint also rejects `oneOf` in array item schemas.
+- Disposition: ADOPT the bounded two-phase fallback: strict planner JSON → host-side typed local execution → strict grounded synthesis. All model-selected calls remain allow-listed and revalidated; no credentials, remote tool service, or arbitrary capability is added.
+- Recheck trigger: a later installed OAuth CLI safely exposes a request-scoped function-tool catalog, or official strict-schema support changes.
+
+---
+
 ## EXTERNAL-SENTRY-001 — DAWN M0 integration surface investigation
 - Date: 2026-08-24
 - Freshness: DAWN `main` at `a0c0b13c65f1b02a3416d846f6a0d331244eee9d`; current project Notion fetched 2026-08-24
@@ -120,3 +130,25 @@ No external discovery was required for this governance-only bootstrap. The direc
 - Relevance: SENTRY needed a small versioned local metadata store and read-only localhost query surface without introducing a framework or dependency.
 - Disposition: **BUILD using the standard library**. `sqlite3` supplies the local database connection/migrations; `ThreadingHTTPServer` supplies the bounded localhost read surface. SQLite cross-thread access is serialized by the store lock because Python documents that disabling `check_same_thread` requires user serialization for writes.
 - Boundary: this does not establish suitability of SQLite locking on every network/shared filesystem. The canonical Atlas path remains authoritative and that mount behavior is a later measured operational concern.
+
+## EXTERNAL-SENTRY-011 — Dedicated wake-engine provenance and clean-route evaluation
+- Date: 2026-08-31
+- Freshness: upstream project licensing/repositories and package artifacts checked during `SENTRY-V0.3-WAKE-RELIABILITY-SELECTION-001`.
+- Sources: [openWakeWord README](https://github.com/dscripka/openWakeWord/blob/main/README.md?plain=1), [micro-wake-word](https://github.com/OHF-Voice/micro-wake-word), [microWakeWord data sources](https://github.com/kahrendt/microWakeWord/blob/main/documentation/data_sources.md), [pymicro-features](https://github.com/rhasspy/pymicro-features), and [Porcupine documentation](https://picovoice.ai/docs/porcupine/).
+- Findings: openWakeWord runtime code supports custom models but bundled classifiers are not acceptable for SENTRY's clean route; microWakeWord code/framework is Apache-2.0 but its standard recipes include non-commercial sources such as WHAM!, so published/default artifacts cannot be adopted without per-artifact provenance; Porcupine requires an AccessKey.
+- Disposition: **REJECT BOTH CUSTOM CANDIDATES FOR THIS CAPTURE SET; PORCUPINE NOT AVAILABLE.** The local openWakeWord-compatible model had clean input provenance but failed live recall. The local microWakeWord-style model had clean input provenance but failed held-out negative safety. No bundled model, default recipe data, unknown community weight, cloud audio, account, or credential was adopted.
+- Recheck trigger: Architect authorizes a materially different, fully licensed and provenance-auditable data/model route or supplies an already-authorized proprietary credential. Any future route must start with a new bounded selection directive and must retain the current negative evidence.
+
+### Superseding implementation correction
+- The custom openWakeWord-compatible candidate remains under evaluation rather than rejected for the full available data set: v2 used only 10 positive clips because the local trainer accepted one positive directory. This is a local selection bug, not an external provenance finding. The permitted correction is to train from all approved local-positive directories; no upstream asset or license disposition changes.
+
+### Final local evaluation result
+- The corrected v3 custom openWakeWord-compatible model consumed all 40 positive and 40 negative explicit local clips, then failed held-out validation with 22 negative false positives and 66.7% recall. The external provenance conclusion remains unchanged; the rejection now concerns model/data sufficiency rather than licensing or input selection.
+
+## EXTERNAL-SENTRY-012 — Pretrained PocketSphinx and Vosk wake evaluation
+- Date: 2026-08-31
+- Freshness: official PocketSphinx configuration documentation and the official Vosk model table were checked during `SENTRY-V0.3-WAKE-RELIABILITY-PRETRAINED-KWS-001`.
+- Sources: [PocketSphinx 5.1.1 configuration](https://pocketsphinx.readthedocs.io/en/stable/config_params.html), [PocketSphinx source](https://github.com/cmusphinx/pocketsphinx), [CMUSphinx models](https://github.com/cmusphinx/models), [CMUdict](https://github.com/cmusphinx/cmudict), and [Vosk official models](https://alphacephei.com/vosk/models).
+- Findings: PocketSphinx exposes dedicated `keyphrase`, `kws`, `kws_delay`, and `kws_threshold` controls for continuous KWS. The source artifact is BSD-style; its bundled CMUdict entry is `sentry S EH N T R IY`. Vosk 0.3.45 was used only in an isolated evaluator, and the official model table identifies `vosk-model-small-en-us-0.15` as Apache-2.0 with dynamic vocabulary support.
+- Artifact evidence: PocketSphinx 5.1.1 source SHA-256 `675778b309a22dfc9b7d37f7621976bba491d2a5f8c59696bd77fd6d07271355`; isolated native library SHA-256 `ae6a577b4015b7d1936dac2962df85e0c020075bd71b6e8b535a217cfc661bfd`; Vosk small-en-us model archive SHA-256 `30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498`.
+- Disposition: PocketSphinx is rejected because contextual uses of the one-word target caused detections. Vosk is a promising but **not formally selected** isolated candidate: Stage A passed only under the owner's explicitly relaxed single-word policy, and full Stage B/ambient qualification was stopped early. No external model is integrated into SENTRY.

@@ -1,10 +1,10 @@
 import json
-import tempfile
 import threading
 import time
+import tempfile
+from pathlib import Path
 import unittest
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from unittest.mock import patch
 
 from perception.presence_store import PresenceStore
@@ -14,6 +14,7 @@ from perception.proactive import (
     SpeechDispatcher,
     validate_proactive_judgment,
 )
+from perception.speech_activity import SpeechActivityGate
 from tools.sentry_grounding import build_proactive_fact_packet
 
 
@@ -278,17 +279,22 @@ class ProactivePolicyTests(unittest.TestCase):
     def test_speech_dispatcher_cancel_uses_bounded_local_backend(self):
         fake_process = type("Process", (), {"poll": lambda self: None, "wait": lambda self: 0, "terminate": lambda self: None})()
         with patch("perception.proactive.subprocess.Popen", return_value=fake_process) as popen, patch("perception.proactive.subprocess.run") as run:
-            dispatcher = SpeechDispatcher("/usr/bin/spd-say")
-            thread = threading.Thread(target=lambda: dispatcher.speak("short test"))
-            thread.start()
-            for _ in range(50):
-                if dispatcher.is_speaking:
-                    break
-                time.sleep(0.001)
-            self.assertTrue(dispatcher.cancel())
-            thread.join(timeout=1)
-            self.assertTrue(run.called)
-            self.assertEqual(popen.call_args.args[0][0], "/usr/bin/spd-say")
+            with tempfile.TemporaryDirectory() as directory:
+                dispatcher = SpeechDispatcher("/usr/bin/spd-say", speech_activity=SpeechActivityGate(Path(directory) / "speech.lock"))
+                thread = threading.Thread(target=lambda: dispatcher.speak("short test"))
+                thread.start()
+                for _ in range(50):
+                    # The cross-process speech gate is acquired immediately,
+                    # before the dispatcher child is spawned.  Wait for the
+                    # child itself so this cancellation test does not race
+                    # the new self-trigger protection.
+                    if popen.called:
+                        break
+                    time.sleep(0.001)
+                self.assertTrue(dispatcher.cancel())
+                thread.join(timeout=1)
+                self.assertTrue(run.called)
+                self.assertEqual(popen.call_args.args[0][0], "/usr/bin/spd-say")
 
 
 if __name__ == "__main__":

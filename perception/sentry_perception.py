@@ -810,6 +810,8 @@ def validate_config(config: dict[str, Any]) -> None:
     ProactivePolicyConfig.from_mapping(config.get("proactivity"))
     RoutineConfig.from_mapping(config.get("routines"))
     WeatherConfig.from_mapping(config.get("weather"))
+    from .always_on_voice import AlwaysOnVoiceConfig
+    AlwaysOnVoiceConfig.from_mapping(config.get("voice"))
 
 
 def load_config(path: Path) -> dict[str, Any]:

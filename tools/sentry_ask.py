@@ -9,8 +9,6 @@ import sys
 import uuid
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError
-from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -27,6 +25,14 @@ from tools.sentry_routine_intent import routine_keys, select_routine_intent
 from tools.sentry_preference_intent import PreferenceIntent, select_preference_intent
 from tools.sentry_reminder_intent import ReminderIntent, select_reminder_intent
 from tools.sentry_weather_intent import WeatherIntent, select_weather_intent
+from tools.sentry_local_api import post_json as _post_json
+from tools.sentry_conversation_orchestrator import ConversationOrchestrator
+
+
+# The natural-language primary path is Luna-directed orchestration.  The older
+# deterministic intent helpers below remain available for compatibility/unit
+# coverage, but they are not consulted before normal conversation reaches Luna.
+_ORCHESTRATOR = ConversationOrchestrator()
 
 
 def _insufficient_routine_response(fact_ids: list[str], facts: list[dict[str, Any]]) -> dict[str, Any]:
@@ -125,27 +131,6 @@ def _preference_response(value: str, *, fact_id: str = "preference:proactivity.p
     else:
         answer = "You have no explicit greeting preference saved, so SENTRY is using its default acknowledgement policy."
     return {"answer": answer, "grounding": "supported", "fact_ids": [fact_id], "limitations": []}
-
-
-def _post_json(base_url: str, path: str, payload: dict[str, Any], *, timeout: float = 5.0) -> dict[str, Any]:
-    request = Request(
-        f"{base_url.rstrip('/')}{path}",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Accept": "application/json", "Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urlopen(request, timeout=timeout) as response:  # noqa: S310 - URL is operator-configured localhost
-            value = json.loads(response.read().decode("utf-8"))
-    except HTTPError as exc:
-        try:
-            error_value = json.loads(exc.read().decode("utf-8"))
-        except (ValueError, UnicodeDecodeError):
-            error_value = {}
-        raise ValueError(error_value.get("error", f"{path} returned HTTP {exc.code}")) from exc
-    if not isinstance(value, dict):
-        raise ValueError(f"{path} did not return a JSON object")
-    return value
 
 
 def _reminder_response(intent: ReminderIntent, *, base_url: str, room_id: str, source_surface: str, source_request_id: str) -> dict[str, Any]:
@@ -275,140 +260,17 @@ def ask(
     effort: str = "low",
     timeout_seconds: int = 120,
     source_surface: str = "sentry_ask",
+    conversation_id: str | None = None,
 ) -> dict[str, Any]:
-    reminder_intent = select_reminder_intent(question)
-    request_id = str(uuid.uuid4())
-    if reminder_intent is not None:
-        if reminder_intent.kind == "unsupported":
-            result = {
-                "answer": "I only support reminders for your next distinct office session right now.",
-                "grounding": "unavailable", "fact_ids": [],
-                "limitations": ["scheduled, recurring, weather, and leave-the-house reminders are not supported"],
-            }
-        else:
-            result = _reminder_response(
-                reminder_intent, base_url=base_url, room_id=room_id,
-                source_surface=source_surface, source_request_id=request_id,
-            )
-        return {"query_id": request_id, "as_of": None, **result, "luna_invocations": 0}
-    preference_intent = select_preference_intent(question)
-    if preference_intent is not None:
-        if preference_intent.kind == "unsupported_memory":
-            return {
-                "query_id": request_id, "as_of": None,
-                "answer": "I don't support storing that kind of preference yet.",
-                "grounding": "unavailable", "fact_ids": [],
-                "limitations": ["only primary-user session acknowledgement preferences are supported"],
-                "luna_invocations": 0,
-            }
-        result = _deterministic_preference_result(
-            preference_intent, base_url=base_url, person_id="primary_user",
-            source_surface=source_surface, source_request_id=request_id,
-        )
-        return {"query_id": request_id, "as_of": None, **result, "luna_invocations": 0}
-    weather_intent = select_weather_intent(question)
-    routine_intent = select_routine_intent(question)
-    if weather_intent is None and routine_intent is not None and routine_intent.unsupported:
-        return {
-            "query_id": None,
-            "as_of": None,
-            **_unsupported_routine_response(),
-            "luna_invocations": 0,
-        }
-    retrieval = retrieve_fact_packet(
-        base_url, room_id=room_id, routine_intent=routine_intent, weather_intent=weather_intent,
-    )
-    if not retrieval.available:
-        unavailable = (
-            _weather_unavailable_response(retrieval.error or "SENTRY weather context is unavailable")
-            if weather_intent is not None
-            else _routine_source_unavailable_response(retrieval.error or "SENTRY routine history is unavailable")
-            if routine_intent is not None
-            else unavailable_response(retrieval.error or "SENTRY state is unavailable")
-        )
-        return {
-            "query_id": retrieval.query_id,
-            "as_of": None,
-            **unavailable,
-            "luna_invocations": 0,
-        }
-
-    assert retrieval.packet is not None
-    fact_ids = {fact["fact_id"] for fact in retrieval.packet["facts"]}
-    runtime = next((fact for fact in retrieval.packet["facts"] if fact.get("fact_id") == "perception-runtime"), None)
-    runtime_data = runtime.get("data", {}) if isinstance(runtime, dict) else {}
-    if _is_current_physical_question(question) and not runtime_data.get("current_physical_available"):
-        return {
-            "query_id": retrieval.query_id,
-            "as_of": retrieval.packet["as_of"],
-            **_current_physical_unavailable_response(retrieval.packet),
-            "luna_invocations": 0,
-        }
-    if weather_intent is not None:
-        source_health = next((fact for fact in retrieval.packet["facts"] if fact.get("fact_id") == "weather:source-health"), None)
-        source_data = source_health.get("data", {}) if isinstance(source_health, dict) else {}
-        status = source_data.get("status")
-        if status != "fresh":
-            reason = "weather source is unavailable" if status == "unavailable" else f"weather source status is {status or 'unknown'}"
-            age = source_data.get("age_seconds")
-            if age is not None:
-                reason += f"; last snapshot age is {float(age) / 60:.1f} minutes"
-            return {
-                "query_id": retrieval.query_id,
-                "as_of": retrieval.packet["as_of"],
-                **_weather_unavailable_response(reason, stale=status == "stale"),
-                "luna_invocations": 0,
-            }
-        required_fact = _weather_fact_requirement(weather_intent)
-        if required_fact not in fact_ids:
-            return {
-                "query_id": retrieval.query_id,
-                "as_of": retrieval.packet["as_of"],
-                **_weather_unavailable_response(f"fresh weather snapshot has no {weather_intent.topic} data"),
-                "luna_invocations": 0,
-            }
-    if routine_intent is not None:
-        requested_ids = [f"routine:{key}" for key in routine_keys(routine_intent)]
-        routine_facts = [fact for fact in retrieval.packet["facts"] if fact.get("fact_id") in requested_ids]
-        if not routine_facts or all(fact["data"].get("maturity_status") == "insufficient" for fact in routine_facts):
-            return {
-                "query_id": retrieval.query_id,
-                "as_of": retrieval.packet["as_of"],
-                **_insufficient_routine_response([fact["fact_id"] for fact in routine_facts], routine_facts),
-                "luna_invocations": 0,
-            }
-    invocation = invoke_grounded_query(
+    return _ORCHESTRATOR.ask(
         question,
-        retrieval.packet,
+        base_url=base_url,
+        room_id=room_id,
         effort=effort,
         timeout_seconds=timeout_seconds,
+        source_surface=source_surface,
+        conversation_id=conversation_id,
     )
-    if not invocation.get("ok"):
-        return {
-            "query_id": retrieval.query_id,
-            "as_of": retrieval.packet["as_of"],
-            **unavailable_response("bounded Luna invocation failed"),
-            "luna_invocations": 1,
-            "luna_error": invocation.get("error"),
-        }
-    result = invocation.get("result")
-    validation_error = validate_grounded_response(result, fact_ids)
-    if validation_error:
-        return {
-            "query_id": retrieval.query_id,
-            "as_of": retrieval.packet["as_of"],
-            **unavailable_response(f"bounded Luna response failed validation: {validation_error}"),
-            "luna_invocations": 1,
-        }
-    return {
-        "query_id": retrieval.query_id,
-        "as_of": retrieval.packet["as_of"],
-        **result,
-        "model": invocation.get("model"),
-        "reasoning_effort": invocation.get("reasoning_effort"),
-        "usage": invocation.get("usage", {}),
-        "luna_invocations": 1,
-    }
 
 
 def main() -> int:
@@ -418,6 +280,7 @@ def main() -> int:
     parser.add_argument("--room-id", default="office")
     parser.add_argument("--effort", choices=("none", "low", "medium", "high", "xhigh", "max"), default="low")
     parser.add_argument("--timeout-seconds", type=int, default=120)
+    parser.add_argument("--conversation-id", help="RAM-only caller/session conversation context identifier")
     args = parser.parse_args()
     result = ask(
         args.question,
@@ -425,6 +288,7 @@ def main() -> int:
         room_id=args.room_id,
         effort=args.effort,
         timeout_seconds=args.timeout_seconds,
+        conversation_id=args.conversation_id,
     )
     print(json.dumps(result, ensure_ascii=True, sort_keys=True))
     return 0 if result["grounding"] != "unavailable" or result["limitations"] else 1

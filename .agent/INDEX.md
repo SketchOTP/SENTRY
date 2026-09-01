@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: V0.3 M4 current-state truthfulness qualified; V0.3 always-available voice remains implemented/unverified and paused
-- Active directive: SENTRY-V0.3-M4-CURRENT-STATE-TRUTHFULNESS-001 — completed successfully; return to Architect before resuming voice qualification
+- Current stage: V0.3 conversational orchestration qualified in the working tree; Vosk always-on voice remains implemented/unqualified
+- Active directive: none — `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001` is complete pending governed commit/Architect review
 - Active task packet: none; M4 repair and evidence are recorded in the repository
 - Last accepted outcome: V0.3 M4 current-state truthfulness qualified; stale persisted room state cannot become a current physical claim
-- Latest recorded outcome: V0.1/V0.2 accepted through event reminders; M4 freshness/local-time repair qualified at schema 8; V0.3 voice working tree preserved but uncommitted
-- Last state sync: 2026-08-31T12:46:58-04:00; implementation `98fc71a`
+- Latest recorded outcome: the bounded Luna planner/host/synthesis layer replaces primary deterministic routing; text tooling and five operator-observed spoken domain requests selected relevant evidence without an irrelevant M4 fallback. No V0.3 voice acceptance claim is made.
+- Last state sync: 2026-08-31T21:35:00-04:00; committed HEAD `c183c82`
 
 ## Mandatory kernel
 Read these before substantial work:

@@ -82,6 +82,25 @@
       "precipitation_probability_threshold": 60
     }
   },
+  "voice": {
+    "always_on_enabled": false,
+    "microphone_source": null,
+    "sample_rate": 16000,
+    "wake_engine": "vosk",
+    "wake_token": "sentry",
+    "vosk_model_path": "/home/USER/.local/share/sentry/models/vosk-model-small-en-us-0.15",
+    "vosk_grammar": ["sentry", "[unk]"],
+    "wake_debounce_ms": 1000,
+    "vad_backend": "silero_vad",
+    "vad_threshold": 0.35,
+    "pre_speech_ms": 1000,
+    "minimum_speech_ms": 250,
+    "end_silence_ms": 1000,
+    "maximum_utterance_seconds": 12,
+    "followup_window_seconds": 8,
+    "post_speech_rearm_ms": 500,
+    "whisper_model": "tiny.en"
+  },
   "proactivity": {
     "enabled": false,
     "event_ttl_seconds": 30,

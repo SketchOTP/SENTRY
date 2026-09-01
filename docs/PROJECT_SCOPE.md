@@ -1,16 +1,34 @@
 # SENTRY — Formal Project Scope
 
+> **Owner scope supersession — 2026-08-31.** SENTRY is permanently a
+> **one-office-room product** unless the owner explicitly reverses that
+> decision. Any historical text below that describes whole-home expansion,
+> multiple rooms/cameras, cross-camera identity handoff, distributed sensing,
+> ESP32/mmWave/BLE/Wi-Fi CSI, Home Assistant expansion, or living-room TV
+> embodiment is **SUPERSEDED BY OWNER DIRECTION** and retained only as project
+> history. It is not an expected later milestone.
+
 ## 1. Executive Summary
 
-SENTRY is intended to become an embodied household intelligence rather than a conventional voice assistant or security camera. Its long-term purpose is to maintain an evolving understanding of a physical environment: who is present, where they are, what normally happens, what has changed, what people prefer, and when it is useful to speak or act without being explicitly prompted.
+SENTRY is intended to become an embodied intelligence for the single office,
+rather than a conventional voice assistant or security camera. Its long-term
+purpose is to maintain an evolving, privacy-preserving understanding of that
+room: what is present, what normally happens, what the primary user explicitly
+prefers, and when it is useful to speak or remain silent.
 
-The project will **not** begin at whole-home scale. Version 0.1 is a single-room proof of concept located in the office. It runs on the current Ubuntu Linux host and uses only the existing V4L2 webcam, microphone, speakers, canonical Atlas storage, and available GPU/CPU resources. No ESP32s, Home Assistant, Frigate, mmWave, BLE room tracking, Wi-Fi CSI, dedicated Raspberry Pi, TV avatar, or additional cameras are required for the first acceptance gate. Historical Windows/DirectShow evidence remains immutable historical evidence; all future live qualification is Linux/V4L2.
+The complete physical product scope is the office. It runs on the current Ubuntu
+Linux host and uses the existing V4L2 webcam, microphone, speakers, canonical
+Atlas storage, and available GPU/CPU resources. No additional room, camera,
+sensor node, Home Assistant integration, or TV embodiment is planned under this
+scope lock. Historical Windows/DirectShow evidence remains immutable history;
+future live qualification is Linux/V4L2.
 
 The critical hypothesis to prove is:
 
 > A continuously running AI system can observe one room accurately enough to know whether a person is present, identify the primary user when visual evidence is sufficient, maintain reliable entry/exit sessions and history, expose that live state to a conversational AI, and occasionally initiate useful speech based on context without becoming noisy or intrusive.
 
-If this is not compelling and reliable in one room, the project must not expand simply by adding hardware.
+The goal is to improve depth and naturalness in this one room, not to expand by
+adding hardware.
 
 ## 2. Project Links
 
@@ -22,23 +40,28 @@ If this is not compelling and reliable in one room, the project must not expand 
 
 ## 3. Product Vision
 
-The eventual SENTRY system should feel like an AI resident with a persistent presence rather than software that only wakes when spoken to.
+The mature SENTRY system should feel like a persistent AI resident of the
+office rather than software that only wakes when spoken to.
 
 The mature system is expected to:
 
-- Maintain a live world model of rooms, people, devices, and relevant environmental state.
-- Recognize consenting household members using multiple evidence sources rather than a single fragile identifier.
+- Maintain a live office world model of room state, people, and relevant local environmental context.
+- Recognize the enrolled primary user conservatively and retain `unknown`/
+  `unresolved` boundaries for other visible people.
 - Learn routines statistically from observed history instead of requiring every routine to be manually programmed.
-- Remember household facts, preferences, relationships, prior events, and learned patterns.
-- Understand transitions such as arriving, leaving, going to work, returning home, settling into a room, or unusual activity.
-- Use weather, calendar, reminders, household state, and other tools as context.
+- Remember explicit office-user facts/preferences, prior events, and learned patterns under bounded provenance.
+- Understand only physically supported office-session transitions; it does not infer home arrival, departure, work, or outdoor intent.
+- Use bounded weather, calendar, and reminder context only where explicitly authorized for the office resident.
 - Decide whether information is useful **before** interrupting someone.
 - Speak naturally, maintain a stable personality, and learn bounded preferences about how each person wants it to behave.
-- Eventually inhabit a persistent visual presence on the main living-room television while its sensing and reasoning remain distributed and server-controlled.
+- Maintain privacy, local diagnostics, and a useful speech-first interface in the office.
 
-Example long-term behavior:
+Example one-room long-term behavior:
 
-> A household member is observed following their normal weekday departure sequence. The front-door transition occurs around their usual work departure time. SENTRY knows heavy rain begins shortly. The person has not already been told. SENTRY concludes the information is relevant and says something concise such as, “Rain starts in about twenty minutes. You may want a jacket.”
+> The primary user asks for an office reminder. During a later distinct office
+> session, SENTRY confirms their identity and delivers exactly that reminder
+> once, while preserving the distinction between confirmed office presence and
+> an inferred home arrival.
 
 This example is a **future behavioral target**, not a V0.1 requirement.
 
@@ -98,13 +121,18 @@ Do **not** implement these before the one-room acceptance gate unless they are s
 - Security alarm replacement.
 - Medical, emergency, or safety-critical monitoring.
 
-These are later capabilities, not reasons to inflate the first build.
+These are superseded directions, not deferred product phases.
 
 ## 5. Build-vs-Reuse Strategy
 
 SENTRY should not recreate mature assistant infrastructure unnecessarily.
 
-### 5.1 D.A.W.N. as the Preferred Assistant Foundation
+### 5.1 D.A.W.N. as Historical Prior Art
+
+> **SUPERSEDED BY OWNER DIRECTION / IMPLEMENTATION HISTORY.** DAWN is not the
+> expected SENTRY runtime. The current office product uses SENTRY-owned local
+> services and the bounded OAuth Luna bridge. This section remains to preserve
+> the original evaluation rationale only.
 
 The first implementation should evaluate **D.A.W.N.** as the conversational/persistent assistant layer because it already provides substantial pieces SENTRY would otherwise have to build: voice interaction, local/cloud LLM options, persistent memory, user concepts, tools including weather, scheduler functionality, Web UI voice modes, Home Assistant/MQTT paths for future expansion, and a proactive-attention framework.
 
@@ -335,7 +363,9 @@ The LLM must not invent answers when SENTRY is offline or history is missing. It
 
 ## 14. Voice and Audio
 
-For V0.1, avoid writing a new audio stack unless DAWN cannot meet the requirement.
+> **SUPERSEDED BY OWNER DIRECTION / accepted implementation.** Native local
+> PipeWire, Vosk, Silero VAD, Whisper, and Kokoro are the V0.3 experimental
+> voice path. DAWN browser audio is historical prior art only.
 
 Preferred path:
 
@@ -411,7 +441,8 @@ After the V0.1 system has trustworthy observations, add derived routine features
 
 Routine learning should begin with transparent statistics, not a black-box model. Store sample count, time window, variance, and confidence. A pattern should not be treated as a “routine” after one or two occurrences.
 
-The eventual whole-home system can extend this to room transitions and departure/arrival patterns.
+Routine statistics remain office-only and do not establish home arrival,
+departure, or cross-room transitions.
 
 ## 17. Privacy, Security, and Data Boundaries
 
@@ -739,6 +770,8 @@ The coder must document before changing any of these:
 
 ### V1 — Multi-room household perception
 
+> **SUPERSEDED BY OWNER DIRECTION — not a future SENTRY milestone.**
+
 - ESP32/mmWave room presence.
 - BLE identity evidence.
 - Home Assistant integration.
@@ -746,6 +779,8 @@ The coder must document before changing any of these:
 - Cross-room transition/world model.
 
 ### V2 — Household resident
+
+> **SUPERSEDED BY OWNER DIRECTION — not a future SENTRY milestone.**
 
 - Main living-room TV embodiment/avatar.
 - Stable personality and household relationships.
@@ -755,6 +790,9 @@ The coder must document before changing any of these:
 - Appropriate proactive household speech.
 
 ### Experimental future research
+
+> **SUPERSEDED BY OWNER DIRECTION where it implies additional rooms, cameras,
+> distributed sensing, or household expansion.**
 
 - Wi-Fi CSI sensing.
 - Sound-event classification.
@@ -777,7 +815,8 @@ SENTRY V0.1 is complete only when all of the following are true:
 - The AI can speak proactively because of a real SENTRY event.
 - Cooldowns prevent repetitive or annoying announcements.
 - Camera/AI failures are represented explicitly.
-- A 72-hour soak test passes with documented results.
+- The owner-approved 30-minute V0.1 acceptance soak passed; future reliability
+  testing must be explicitly authorized.
 - Installation, configuration, troubleshooting, and architecture are documented well enough that an AI coder with no conversation history can continue the project from the repository alone.
 
 ## 30. AI Coder Handoff / Operating Directive

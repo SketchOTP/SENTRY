@@ -11,6 +11,7 @@ from unittest.mock import patch
 from perception.presence_store import PREFERENCE_KEY, PresenceStore
 from perception.proactive import ProactivePolicyConfig, ProactiveProcessor
 from tools.sentry_ask import ask
+from tools.sentry_conversation_tools import ConversationToolHost
 from tools.sentry_preference_intent import PreferenceIntent, select_preference_intent
 from tools.sentry_state_api import _Handler
 
@@ -130,14 +131,10 @@ class PreferenceMemoryTests(unittest.TestCase):
         self.assertEqual(select_preference_intent("Don't do that again."), PreferenceIntent("feedback", feedback_type="do_not_repeat"))
         self.assertEqual(select_preference_intent("Remember that I like blue."), PreferenceIntent("unsupported_memory"))
 
-    def test_ask_refuses_arbitrary_memory_without_luna_or_api_write(self):
-        with patch("tools.sentry_ask.invoke_grounded_query") as invoke:
-            result = ask("Remember that I like blue.")
-        invoke.assert_not_called()
-        self.assertEqual(result["luna_invocations"], 0)
-        self.assertIn("don't support", result["answer"])
+    def test_general_memory_remains_outside_the_supported_preference_vocabulary(self):
+        self.assertEqual(select_preference_intent("Remember that I like blue."), PreferenceIntent("unsupported_memory"))
 
-    def test_ask_preference_write_and_recall_are_deterministic(self):
+    def test_bounded_preference_tool_write_and_recall_use_existing_api_semantics(self):
         with tempfile.TemporaryDirectory() as directory:
             with PresenceStore(Path(directory) / "sentry.db") as store:
                 server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
@@ -146,14 +143,13 @@ class PreferenceMemoryTests(unittest.TestCase):
                 thread.start()
                 try:
                     base_url = f"http://127.0.0.1:{server.server_port}"
-                    saved = ask("Don't greet me when I come in.", base_url=base_url)
-                    self.assertEqual(saved["grounding"], "supported")
-                    self.assertEqual(saved["luna_invocations"], 0)
+                    host = ConversationToolHost(base_url=base_url, source_request_id="preference-tool-1")
+                    saved = host.execute("set_acknowledgement_preference", {"value": "suppress"})
+                    self.assertEqual(saved["status"], "succeeded")
                     self.assertEqual(store.preference_value(), "suppress")
-                    recalled = ask("Do I have arrival greetings disabled?", base_url=base_url)
-                    self.assertEqual(recalled["grounding"], "supported")
-                    self.assertEqual(recalled["luna_invocations"], 0)
-                    self.assertIn("disabled", recalled["answer"])
+                    recalled = host.execute("get_acknowledgement_preference", {})
+                    self.assertEqual(recalled["status"], "supported")
+                    self.assertEqual(recalled["facts"][0]["data"]["current_value"], "suppress")
                 finally:
                     server.shutdown()
                     server.server_close()

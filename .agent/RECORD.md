@@ -4,6 +4,22 @@ Use this ledger for major architecture decisions, strategic reversals, project m
 
 ---
 
+## RECORD-SENTRY-040 — Natural conversation moved behind bounded capability orchestration
+- Date: 2026-08-31
+- Type: ARCHITECTURE DECISION / IMPLEMENTATION
+- Related directive: `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001`
+
+### Context
+The deterministic pre-Luna phrase router could supply Luna with irrelevant M4 facts for natural questions about reminders, preferences, weather, routines, or proactive behavior.
+
+### Decision / event
+Normal `sentry_ask` conversation now uses a strict Luna planning turn over a fixed local capability catalog, followed by host validation/execution and a strict Luna synthesis turn. The installed OAuth CLI could not safely provide native request-scoped function tools, so this retains the host as the sole executor.
+
+### Consequence
+Natural user wording selects relevant existing evidence instead of template aliases. The model receives neither arbitrary execution nor raw storage. Conversation context is RAM-only and bounded; durable personal memory remains out of scope. The change does not itself accept V0.3 always-available voice.
+
+---
+
 ## RECORD-SENTRY-001 — Authority 3.0 governance bootstrap
 - Date: 2026-08-24
 - Type: GOVERNANCE
@@ -465,3 +481,54 @@ The existing perception heartbeat is parsed by the localhost state API with a 75
 
 ### Boundary
 Schema remains 8. No physical history, detector, identity, M5, routine, preference, reminder, weather, or voice architecture was changed. The uncommitted V0.3 always-on voice implementation was preserved and its paused qualification was not resumed.
+
+## RECORD-SENTRY-030 — V0.3.1A dedicated wake selection blocked
+- Date: 2026-08-31
+- Type: ARCHITECTURE-GATE FAILURE
+- Related directive/outcome: `SENTRY-V0.3-WAKE-RELIABILITY-SELECTION-001` / `OUTCOME-SENTRY-V0.3-WAKE-RELIABILITY-SELECTION-001`
+
+### Decision
+No dedicated `Hey Sentry` detector is selected for integration. The earlier ASR-text matcher remains a permanent architectural negative; the two permitted provenance-clean custom alternatives did not meet their reliability gates, and the proprietary fallback is unavailable without a pre-existing credential.
+
+### Evidence
+The custom openWakeWord-compatible candidate failed Stage A at 8/10 positives, then 5/10 after the one authorized threshold adjustment. The custom microWakeWord-style candidate failed its held-out validation with 35 negative false positives. Bounded local configuration discovery found no Picovoice AccessKey. No candidate entered Stage B or the 15-minute ambient test. All services/processes were stopped; no wake integration or acceptance commit was made.
+
+### Boundary
+The pre-existing dirty V0.3 voice work and evaluation harnesses are preserved uncommitted. The project must return to the Architect rather than broaden training data, change wake architecture, adopt a bundled model, create a vendor credential, or integrate an unqualified candidate.
+
+### Superseding correction
+The candidate-1 selection failure was premature. Its manifest proves the original trainer silently omitted 30 of 40 available explicit positive captures. The narrow multi-positive-directory correction is within the authorized custom-openWakeWord route; candidate 1 must be retrained and Stage A repeated before the selection gate can be declared exhausted.
+
+### Final result
+The corrected full-capture candidate used all 40 positive and 40 negative explicit local clips, but held-out validation produced 22 false positive negatives and 66.7% recall. This restores the selection-blocked disposition: no candidate is qualified for integration, and the next move requires Architect direction rather than additional threshold tuning.
+
+## RECORD-SENTRY-031 — Pretrained wake evaluation partial result
+- Date: 2026-08-31
+- Type: WAKE-SELECTION EVIDENCE
+- Related directive: `SENTRY-V0.3-WAKE-RELIABILITY-PRETRAINED-KWS-001`
+
+### Decision
+The owner changed the wake target to the single word `Sentry` and accepts conversational use of that word as an intentional wake. PocketSphinx is rejected because it fired in contextual speech containing the word. Vosk passed abbreviated Stage A but has not earned formal integration selection.
+
+### Evidence
+PocketSphinx 5.1.1 native keyphrase KWS reached 9/10 prompted positives after one KWS delay adjustment, then detected 2/10 contextual sentences containing “Sentry”. Vosk 0.3.45 with official small US English 0.15 and `["sentry", "[unk]"]` grammar reached 10/10 prompted positives and 0/10 negative phrases that omitted the token after its permitted final-result decoder adjustment. The Vosk Stage-B run was stopped after five prompts at owner request. Focused evaluator tests pass 16/16; all test/service processes were stopped and no audio/transcript was persisted.
+
+### Boundary
+The Architect's original 20-positive/20-negative/15-minute acceptance protocol is incomplete, and the owner clarification changes its strict negative definition. No detector is selected or integrated until the Architect explicitly accepts a revised qualification rule or directs the remaining evidence.
+
+## RECORD-SENTRY-032 — V0.3 Vosk wake integration, unqualified command-STT boundary
+- Date: 2026-08-31
+- Type: INTEGRATION EVIDENCE / ARCHITECT RETURN
+- Related directive: `SENTRY-V0.3-VOSK-WAKE-INTEGRATION-001`
+
+### Decision
+The selected Vosk wake engine was integrated into the preserved one-stream listener, but the full hands-free interface is **not qualified**. Vosk wakes and the visible `ARMED` interaction are working; downstream command transcription is not yet reliable enough to preserve existing deterministic command semantics.
+
+### Evidence
+- Runtime/model: local `vosk==0.3.45`, official `vosk-model-small-en-us-0.15`, final-result-only grammar `["sentry", "[unk]"]`; model archive SHA-256 `30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498` and extracted-tree digest `db0b1a1f1433570e8da340a2d3e02066c77d360e4c6bc32c92781af52c7bfada`.
+- The live office microphone produced four Vosk wake detections. The listener dispatched four requests with metadata-only wake-to-dispatch latencies of 1.676, 1.696, 1.737, and 1.734 seconds. A recovered bare-token path initially sent an incomplete request; it was fixed to enter `ARMED` without dispatch.
+- Three operator-intended deterministic routes (one reminder query and two greeting-preference queries) did not reach their expected deterministic handlers after local Whisper `tiny.en` command STT. They instead returned bounded unrelated M4/unsupported-memory responses. No ambient transcript or audio was logged/persisted, so the precise STT substitutions were not retained.
+- Focused Vosk/always-on tests pass **16/16** after the bare-token correction. Full regression was not run because live command correctness failed before qualification.
+
+### Boundary
+Vosk remains the sole wake authority, audio remains RAM-only, and `Hey Sentry` is obsolete. The selected integration did not enable always-on voice: local config is still opt-in/disabled, and all temporary API, perception, voice, PipeWire capture, and indicator processes were stopped. No commit/push was created; the dirty tree is preserved. Do not solve the command-STT failure by silently replacing Whisper or broadening deterministic intents.

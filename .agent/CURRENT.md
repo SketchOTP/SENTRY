@@ -1,15 +1,31 @@
 # Current Project State
 
-Last updated: 2026-08-31T12:46:58-04:00
+Last updated: 2026-08-31T21:35:00-04:00
 
 ## Current stage
-V0.3 — M4 current-state truthfulness qualified; always-available voice qualification remains paused
+V0.3 — conversational orchestration qualified in the working tree; always-available voice remains implemented/unverified
 
 ## Current objective
-Return the qualified M4 current-state truthfulness repair to Architect; do not resume V0.3 voice qualification in this directive.
+Replace deterministic pre-Luna natural-language routing with bounded
+Luna-directed orchestration over existing approved local SENTRY capabilities.
+Do not create durable conversational memory or claim that always-available
+voice is qualified.
 
 ## Active directive
-SENTRY-V0.3-M4-CURRENT-STATE-TRUTHFULNESS-001 — QUALIFIED; V0.3 always-available voice remains IMPLEMENTED_UNVERIFIED and paused pending Architect continuation.
+No successor directive is active. `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001`
+is complete in the working tree pending its governed commit/Architect review.
+Vosk remains the operator-selected single-token wake authority, and V0.3
+always-available voice is still not accepted as a whole.
+
+## V0.3 conversational orchestration — 2026-08-31
+- `tools/sentry_ask.py` now sends normal user text through `ConversationOrchestrator`, rather than using reminder/preference/weather/routine selectors as the primary natural-language router. The old selectors remain compatibility helpers only.
+- The OAuth `codex exec` surface was inspected: it supports strict output schemas, but not a request-scoped host function catalog. SENTRY therefore uses the authorized bounded two-phase form: one strict Luna planner → host-validated localhost tool calls → one strict Luna synthesis. Hard limits are three local tools, one mutation, and two Luna invocations per request.
+- The fixed capability set is current office state, bounded office history, reminders, acknowledgement preference, recent proactive action/feedback, routine snapshots, and cached weather. It exposes no database, filesystem, shell, network, audio, coordinates, enrollment data, or arbitrary tool execution.
+- Planning schema compatibility required a closed nullable argument envelope because the installed strict-schema endpoint rejects array-item `oneOf`; null fields are removed before the normal per-tool validation. The host still independently rejects unsupported tools, arguments, over-budget plans, and more than one mutation.
+- Conversation context is process-RAM-only, per caller/session, capped at four prior user/assistant turns, and expires after ten minutes. It is not logged, persisted, embedded, or available after restart.
+- Text live proof used the real localhost API without production mutation. Natural queries selected only the relevant reminder, preference, proactive-history, routine, weather, current-state, or two-domain reminder+current-state tools. A follow-up “What was it again?” reused RAM context and selected reminder evidence. Weather and current-state unavailability were stated truthfully rather than replaced with M4 history.
+- Five observed Vosk/Whisper spoken requests crossed the same path: reminder, greeting preference, recent proactive explanation, historical first-seen time, and weather. The operator reported each as answered correctly; no unrelated physical-state fallback occurred. A final metadata-only diagnostic sample recorded a 1,580.098 ms speech-end-to-dispatch interval and 10,253.513 ms STT-complete-to-grounded-answer interval, with two Luna calls and successful local speech.
+- Temporary API, perception, listener, status window, and capture processes were stopped after testing. The actual temporary perception run preserved normal observed history only; no synthetic physical event or production reminder/preference was created.
 
 ## V0.3 M4 current-state truthfulness — 2026-08-31
 - `GET /health` now reports database health independently from a bounded `perception` runtime object: `fresh`, `stopped`, `stale`, `missing`, or `malformed`, including heartbeat time/age, process state, camera/room summary, `current_physical_available`, and a reason. Production state API service passes the canonical heartbeat path, a 75-second freshness threshold, and `America/New_York` explicitly.
@@ -25,6 +41,20 @@ SENTRY-V0.3-M4-CURRENT-STATE-TRUTHFULNESS-001 — QUALIFIED; V0.3 always-availab
 - Live listener metadata observed four wake detections/command dispatches and three rejected non-wake segments. Dispatch-latency samples were `1.516–1.619s`. These counts are not accepted wake-reliability evidence because the required structured 20/20/15-minute protocol was not completed.
 - Qualification blocker: with perception intentionally stopped, the actual local DB's last room-state record was `empty` at `2026-08-30T14:24:29.186671+00:00`, while `system.stopped` was also persisted. `/health` reported only SQLite availability. M4 nonetheless presented this stale room record to Luna as current for “Is anyone in the office?” and did not establish a local/Eastern 12-hour time-presentation contract for “What time did I come in?”. This is a truthful current-state/formatting defect outside the V0.3 voice-only directive. No M4 code was changed.
 - All SENTRY units are inactive; `sentry-voice.service` is not installed/enabled; no `pw-record`, state API, or always-on listener process remains. No audio or transcript artifact was retained.
+
+## V0.3.1A dedicated wake reliability selection — 2026-08-31
+- **Status: BLOCKED / NEEDS ARCHITECT DECISION.** The already-failed `VAD → Whisper full utterance → text starts with hey sentry` wake boundary remains superseded. The preserved uncommitted listener components remain valuable, but no dedicated wake detector has qualified for integration.
+- Candidate 1, custom local openWakeWord-compatible inference, has clean input provenance: 40 usable positive and 40 usable negative explicit prompted local clips plus generated Gaussian noise. Model v2's Stage-A result was invalidated because it used only 10 positive clips. After correcting repeated positive-directory handling, full-capture model v3 failed held-out validation at its best threshold: 22 negative false positives and 66.7% positive recall. Candidate 1 is now rejected without an additional live Stage-A run. An earlier apparent 107 detection count was traced to evaluator lifecycle/debounce instrumentation and is not retained as a false-wake result.
+- Candidate 2, a custom local microWakeWord-style TensorFlow Lite classifier using the complete explicit capture data, generated noise, and an Apache microfrontend, failed held-out validation with 35 negative false positives at threshold `0.50` despite 1.0 positive recall. It remains rejected before consuming more live operator time.
+- Candidate 3, Porcupine, remains unavailable under the directive because no existing authorized Picovoice AccessKey/configuration was found. No account, secret, or network audio service was added.
+- No main-listener integration, systemd activation, full regression, or acceptance commit has run. Candidate harness/training files and the pre-existing V0.3 voice implementation remain uncommitted in the working tree. All SENTRY services and temporary audio/evaluator processes are inactive outside the bounded retraining/evaluation step.
+
+## V0.3.1A pretrained KWS selection — 2026-08-31
+- Wake-word correction: the owner selected the exact one-word wake token **“Sentry”**; “Hey Sentry” is historical/obsolete for this selection run. The live evaluator visibly displayed `GET READY` then `SPEAK NOW` with the exact required utterance on every prompted attempt.
+- PocketSphinx 5.1.1 was built in an isolated evaluator prefix from its source archive (SHA-256 `675778b309a22dfc9b7d37f7621976bba491d2a5f8c59696bd77fd6d07271355`). Its bundled CMUdict maps `sentry` to `S EH N T R IY`. After its one permitted KWS result-delay correction, the valid prompted positive screen achieved 9/10, but PocketSphinx triggered on two ordinary sentences containing “Sentry”. It is rejected for the directive's strict no-false-wake definition.
+- Vosk 0.3.45 and the isolated official `vosk-model-small-en-us-0.15` model archive (SHA-256 `30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498`) were installed outside Git. The restricted vocabulary is `["sentry", "[unk]"]`; final-result-only decoding was its one permitted decoder adjustment. Its valid Stage-A screens achieved 10/10 prompted wakes and 0/10 non-wake detections for phrases not containing the owner-selected word.
+- Owner clarification: uttering “Sentry” inside ordinary conversation is acceptable as a wake. This relaxes the Architect directive's original difficult-negative examples that contained the same one-word wake token; it must be surfaced to Architect and is not silently counted as the directive's original 20/20 false-wake proof.
+- Stage B began but the operator stopped it after five prompts as excessive. The required 20-positive, 20-negative, 15-minute ambient, latency, resource, and queued-command-audio evidence is therefore **not complete**. No detector is formally selected, no listener integration/service enablement occurred, no raw audio/transcript was retained, and all SENTRY/evaluator processes are inactive.
 
 ## V0.2 event-triggered reminders — 2026-08-30
 - Schema version 8 adds one bounded `event_reminders` table for `primary_user` / `office` / `next_primary_user_office_session`, with a partial unique index enforcing one pending reminder and request provenance for idempotent creation/cancellation.
@@ -266,3 +296,12 @@ SENTRY-V0.3-M4-CURRENT-STATE-TRUTHFULNESS-001 — QUALIFIED; V0.3 always-availab
 The asymmetric-evidence calibration found no qualifying operating band. Architect decision is required before any Phase 3 production change or further live marker; do not increase the 15-second grace, change the tracker, model-shop, or begin M2.
 
 This file is a mutable snapshot. Do not use it to erase historical outcomes or decisions.
+
+## Superseding current snapshot — V0.3 Vosk wake integration, unqualified
+
+- Date: 2026-08-31
+- Active directive: `SENTRY-V0.3-VOSK-WAKE-INTEGRATION-001`.
+- Status: **IMPLEMENTED_UNVERIFIED / RETURN TO ARCHITECT**. The dirty V0.3 listener now constructs local Vosk `0.3.45` with official `vosk-model-small-en-us-0.15`, grammar `["sentry", "[unk]"]`, and final-result-only wake handling. Vosk is the only live wake authority; Whisper is downstream command STT only.
+- Positive evidence: the live office microphone woke four times on the configured single token `Sentry`; the visual state indicator showed `LISTENING` and the explicit `ARMED` follow-up prompt; Vosk wake-to-dispatch latency samples were 1.676 s, 1.696 s, 1.737 s, and 1.734 s. A bare recovered wake-token defect was fixed so it now arms instead of sending `Sentry` as a question. Focused Vosk/voice tests pass **16/16**.
+- Blocking evidence: three ordinary deterministic command attempts (reminder query and two supported preference queries) were dispatched but did not reach their intended deterministic route; responses fell through to unrelated bounded M4/unsupported-memory behavior. No raw audio or transcript was retained, so the exact Whisper substitutions are intentionally unknown. This is a command-STT reliability failure, not a Vosk wake-decision failure.
+- Boundary: the directive forbids replacing the existing Whisper `tiny.en` command STT or changing broader conversation semantics. Do not claim V0.3 qualification, commit, or push. Preserve the dirty implementation for Architect review. The local production configuration remains `always_on_enabled=false`; Vosk model remains local and ignored; all SENTRY services, listener, `pw-record`, and visual indicator are inactive.

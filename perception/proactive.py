@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from .presence_store import PREFERENCE_KEY, PresenceStore
+from .speech_activity import SpeechActivityGate
 from .weather import WeatherConfig
 
 
@@ -144,11 +145,12 @@ class ProactiveOutcome:
 class SpeechDispatcher:
     """Small bounded Speech Dispatcher adapter with cancellation."""
 
-    def __init__(self, executable: str | None = None, *, application_name: str = "SENTRY") -> None:
+    def __init__(self, executable: str | None = None, *, application_name: str = "SENTRY", speech_activity: SpeechActivityGate | None = None) -> None:
         self.executable = executable or shutil.which("spd-say")
         self.application_name = application_name
         self._lock = threading.RLock()
         self._process: subprocess.Popen[str] | None = None
+        self.speech_activity = speech_activity or SpeechActivityGate()
 
     @property
     def available(self) -> bool:
@@ -157,33 +159,36 @@ class SpeechDispatcher:
     @property
     def is_speaking(self) -> bool:
         with self._lock:
-            return self._process is not None and self._process.poll() is None
+            return (self._process is not None and self._process.poll() is None) or self.speech_activity.is_active()
 
     def speak(self, text: str) -> bool:
         if not self.available:
             return False
         if not isinstance(text, str) or not text.strip():
             return False
-        with self._lock:
-            if self.is_speaking:
+        with self.speech_activity.acquire() as acquired:
+            if not acquired:
                 return False
-            try:
-                self._process = subprocess.Popen(
-                    [self.executable, "--wait", "--priority", "notification", "--application-name", self.application_name, text],
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                )
-            except OSError:
-                self._process = None
-                return False
-            process = self._process
-        returncode = process.wait()
-        with self._lock:
-            if self._process is process:
-                self._process = None
-        return returncode == 0
+            with self._lock:
+                if self._process is not None and self._process.poll() is None:
+                    return False
+                try:
+                    self._process = subprocess.Popen(
+                        [self.executable, "--wait", "--priority", "notification", "--application-name", self.application_name, text],
+                        stdin=subprocess.DEVNULL,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                    )
+                except OSError:
+                    self._process = None
+                    return False
+                process = self._process
+            returncode = process.wait()
+            with self._lock:
+                if self._process is process:
+                    self._process = None
+            return returncode == 0
 
     def cancel(self) -> bool:
         if not self.available:

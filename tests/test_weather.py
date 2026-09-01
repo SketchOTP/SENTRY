@@ -174,37 +174,27 @@ class WeatherTests(unittest.TestCase):
         self.assertEqual(select_weather_intent("What's it like outside?"), WeatherIntent("current"))
         self.assertIsNone(select_weather_intent("When did I come in today?"))
 
-    @patch("tools.sentry_ask.invoke_grounded_query")
+    def test_weather_tool_arguments_are_bounded_even_with_habitual_wording(self):
+        from tools.sentry_conversation_tools import ConversationToolHost
+        self.assertIsNone(ConversationToolHost.validate_call("get_weather", {"topic": "forecast"}))
+        self.assertEqual(ConversationToolHost.validate_call("get_weather", {"topic": "network"}), "weather topic is not supported")
+
     @patch("tools.sentry_grounding._get_json")
-    def test_weather_takes_precedence_over_unsupported_habitual_wording(self, get_json, invoke):
+    def test_weather_unavailable_fact_is_explicit(self, get_json):
         base = {"health": {"ok": True, "db_available": True, "schema_version": 7}, "state": {}, "sessions": {"sessions": []}, "persons": {"persons": []}, "events": {"events": []}}
         weather = {"status": "unavailable", "snapshot": None}
         get_json.side_effect = [base["health"], base["state"], base["sessions"], base["persons"], base["events"], weather]
-        result = ask("What's the weather normally like?")
-        invoke.assert_not_called()
-        self.assertIn("weather context", result["answer"])
+        packet = build_fact_packet(base, weather_response=weather)
+        source = next(fact for fact in packet["facts"] if fact["fact_id"] == "weather:source-health")
+        self.assertEqual(source["data"]["status"], "unavailable")
 
-    @patch("tools.sentry_ask.invoke_grounded_query")
-    @patch("tools.sentry_grounding._get_json")
-    def test_unavailable_weather_is_deterministic_and_does_not_call_luna(self, get_json, invoke):
-        base = {"health": {"ok": True, "db_available": True, "schema_version": 7}, "state": {}, "sessions": {"sessions": []}, "persons": {"persons": []}, "events": {"events": []}}
-        get_json.side_effect = [base["health"], base["state"], base["sessions"], base["persons"], base["events"], {"status": "unavailable", "snapshot": None}]
-        result = ask("What's the weather?")
-        invoke.assert_not_called()
-        self.assertEqual(result["luna_invocations"], 0)
-        self.assertIn("weather context", result["answer"])
-
-    @patch("tools.sentry_ask.invoke_grounded_query")
-    @patch("tools.sentry_grounding._get_json")
-    def test_fresh_weather_uses_at_most_one_luna_turn(self, get_json, invoke):
+    def test_fresh_weather_fact_packet_is_bounded_for_conversation_tools(self):
         base = {"health": {"ok": True, "db_available": True, "schema_version": 7}, "state": {}, "sessions": {"sessions": []}, "persons": {"persons": []}, "events": {"events": []}}
         weather = {"status": "fresh", "age_seconds": 2, "fresh_until": NOW.isoformat(), "provider": "nws", "location_label": "fixture", "timezone": "America/New_York", "fetched_at": NOW.isoformat(), "snapshot": snapshot()}
-        get_json.side_effect = [base["health"], base["state"], base["sessions"], base["persons"], base["events"], weather]
-        invoke.return_value = {"ok": True, "model": "gpt-5.6-luna", "reasoning_effort": "low", "usage": {}, "result": {"answer": "It is clear.", "grounding": "supported", "fact_ids": ["weather:current"], "limitations": []}}
-        result = ask("What's the weather?")
-        invoke.assert_called_once()
-        self.assertEqual(result["luna_invocations"], 1)
-        self.assertIn("weather:source-health", {fact["fact_id"] for fact in invoke.call_args.args[1]["facts"]})
+        packet = build_fact_packet(base, weather_response=weather)
+        ids = {fact["fact_id"] for fact in packet["facts"]}
+        self.assertIn("weather:source-health", ids)
+        self.assertIn("weather:current", ids)
 
 
 if __name__ == "__main__":

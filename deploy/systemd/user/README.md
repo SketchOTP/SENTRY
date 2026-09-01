@@ -10,6 +10,9 @@ services:
   with an initial two-minute delay after the user manager starts.
 - `sentry-weather.timer` — independent NWS weather-context refresh every ten
   minutes, with an initial five-minute delay after the user manager starts.
+- `sentry-voice.service` — optional always-available local microphone listener.
+  It is installed but remains disabled unless the local mode-0600 config sets
+  `voice.always_on_enabled` to `true`.
 
 Perception publishes a small metadata-only heartbeat at
 `perception-data/runtime/health/perception.json`; it contains process/camera
@@ -40,6 +43,9 @@ systemctl --user is-enabled sentry-routines.timer
 systemctl --user --no-pager --full status sentry-routines.timer sentry-routines.service
 systemctl --user is-enabled sentry-weather.timer
 systemctl --user --no-pager --full status sentry-weather.timer sentry-weather.service
+systemctl --user is-enabled sentry-voice.service
+systemctl --user --no-pager --full status sentry-voice.service
+python tools/sentry_voice_status.py
 curl --fail http://127.0.0.1:48174/health
 journalctl --user -u sentry-perception.service -u sentry-state-api.service -u sentry-proactive.service --since today
 ```
@@ -48,6 +54,7 @@ Stopping the resident stack without leaving orphan processes:
 
 ```bash
 systemctl --user stop sentry-proactive.service sentry-state-api.service sentry-perception.service
+systemctl --user stop sentry-voice.service
 ```
 
 Disable autostart only when intentionally changing the deployment:

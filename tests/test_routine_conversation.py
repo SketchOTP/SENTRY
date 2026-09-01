@@ -77,105 +77,54 @@ class RoutineConversationTests(unittest.TestCase):
             ), "monday"),
         )
 
-    def test_unsupported_habitual_activity_question_is_rejected_without_luna(self):
-        with patch("tools.sentry_ask.invoke_grounded_query") as invoke:
-            result = ask("What am I usually doing in here?")
-        invoke.assert_not_called()
-        self.assertEqual(result["grounding"], "unavailable")
-        self.assertEqual(result["luna_invocations"], 0)
-        self.assertIn("activity", result["limitations"][0])
+    def test_unsupported_habitual_activity_has_no_supported_routine_type(self):
+        intent = select_routine_intent("What am I usually doing in here?")
+        self.assertIsNotNone(intent)
+        self.assertTrue(intent.unsupported)
 
-    def test_unsupported_habitual_cause_and_premise_are_rejected_without_luna(self):
+    def test_unsupported_habitual_cause_and_premise_have_no_supported_routine_type(self):
         for question in ("Why do I usually leave early?", "You know I always leave around 5, right?"):
-            with self.subTest(question=question), patch("tools.sentry_ask.invoke_grounded_query") as invoke:
-                result = ask(question)
-            invoke.assert_not_called()
-            self.assertEqual(result["grounding"], "unavailable")
-            self.assertEqual(result["luna_invocations"], 0)
-            self.assertIn("causal", result["limitations"][0])
+            with self.subTest(question=question):
+                intent = select_routine_intent(question)
+                self.assertIsNotNone(intent)
+                self.assertTrue(intent.unsupported)
 
-    @patch("tools.sentry_ask.invoke_grounded_query")
     @patch("tools.sentry_grounding._get_json")
-    def test_insufficient_routine_is_deterministic_and_cites_routine_fact(self, get_json, invoke):
+    def test_insufficient_routine_remains_a_bounded_fact_not_a_habit_claim(self, get_json):
         responses = api_responses()
         responses["routines"] = {"routines": [snapshot(maturity="insufficient", samples=3, dates=3)]}
         get_json.side_effect = [responses["health"], responses["state"], responses["sessions"], responses["persons"], responses["events"], responses["routines"]]
-        result = ask("When do I usually come into the office?")
-        invoke.assert_not_called()
-        self.assertEqual(result["grounding"], "unavailable")
-        self.assertEqual(result["luna_invocations"], 0)
-        self.assertEqual(result["fact_ids"], ["routine:office_session_start_time:all_days"])
-        self.assertIn("3 qualifying observations across 3 dates", result["answer"])
-        self.assertIn("sparse-history", result["limitations"][0])
+        packet = build_fact_packet(responses, routine_keys_to_include={"office_session_start_time:all_days"})
+        routine = next(fact for fact in packet["facts"] if fact["kind"] == "derived_routine")
+        self.assertEqual(routine["fact_id"], "routine:office_session_start_time:all_days")
+        self.assertEqual(routine["data"]["maturity_status"], "insufficient")
+        self.assertEqual(routine["data"]["sample_count"], 3)
 
-    @patch("tools.sentry_ask.invoke_grounded_query")
-    @patch("tools.sentry_grounding._get_json")
-    def test_observed_routine_reaches_one_luna_turn_with_bounded_fact(self, get_json, invoke):
+    def test_observed_routine_packet_is_bounded_and_tentative(self):
         responses = api_responses()
         responses["routines"] = {"routines": [snapshot(maturity="observed", samples=6, dates=6)]}
-        get_json.side_effect = [responses["health"], responses["state"], responses["sessions"], responses["persons"], responses["events"], responses["routines"]]
-        invoke.return_value = {
-            "ok": True, "model": "gpt-5.6-luna", "reasoning_effort": "low", "usage": {},
-            "result": {
-                "answer": "So far, the office has tended to become occupied around 8:55 AM, but the pattern is tentative.",
-                "grounding": "partial", "fact_ids": ["routine:office_session_start_time:all_days"],
-                "limitations": ["The pattern is observed rather than stable."],
-            },
-        }
-        result = ask("What time is the office normally occupied?")
-        invoke.assert_called_once()
-        packet = invoke.call_args.args[1]
+        packet = build_fact_packet(responses, routine_keys_to_include={"office_session_start_time:all_days"})
         routine_fact = next(fact for fact in packet["facts"] if fact["kind"] == "derived_routine")
         self.assertEqual(routine_fact["data"]["maturity_status"], "observed")
         self.assertNotIn("secret", json.dumps(packet))
-        self.assertEqual(result["luna_invocations"], 1)
 
-    @patch("tools.sentry_ask.invoke_grounded_query")
-    @patch("tools.sentry_grounding._get_json")
-    def test_stable_routine_packet_keeps_current_physical_state_authoritative(self, get_json, invoke):
+    def test_stable_routine_packet_keeps_current_physical_state_authoritative(self):
         responses = api_responses("empty")
         responses["routines"] = {"routines": [snapshot(maturity="stable")]}
-        get_json.side_effect = [responses["health"], responses["state"], responses["sessions"], responses["persons"], responses["events"], responses["routines"]]
-        invoke.return_value = {
-            "ok": True, "model": "gpt-5.6-luna", "reasoning_effort": "low", "usage": {},
-            "result": {
-                "answer": "That is your usual pattern, but the office is currently empty.",
-                "grounding": "supported", "fact_ids": ["routine:office_session_start_time:all_days", "current-room-state"],
-                "limitations": [],
-            },
-        }
-        result = ask("I'm usually here by now, right?")
-        packet = invoke.call_args.args[1]
+        packet = build_fact_packet(responses, routine_keys_to_include={"office_session_start_time:all_days"})
         current_state = next(fact for fact in packet["facts"] if fact["fact_id"] == "current-room-state")
         routine = next(fact for fact in packet["facts"] if fact["kind"] == "derived_routine")
         self.assertEqual(current_state["data"]["state"], "empty")
         self.assertEqual(routine["data"]["maturity_status"], "stable")
-        self.assertEqual(result["grounding"], "supported")
 
-    @patch("tools.sentry_ask.invoke_grounded_query")
-    @patch("tools.sentry_grounding._get_json")
-    def test_physical_query_does_not_depend_on_routine_endpoint(self, get_json, invoke):
+    def test_physical_packet_does_not_depend_on_routine_endpoint(self):
         responses = api_responses("occupied")
-        get_json.side_effect = [responses["health"], responses["state"], responses["sessions"], responses["persons"], responses["events"]]
-        invoke.return_value = {
-            "ok": True, "model": "gpt-5.6-luna", "reasoning_effort": "low", "usage": {},
-            "result": {"answer": "The office is occupied.", "grounding": "supported", "fact_ids": ["current-room-state"], "limitations": []},
-        }
-        result = ask("Is anyone in the office?")
-        self.assertEqual(result["grounding"], "supported")
-        self.assertEqual(get_json.call_count, 5)
-        invoke.assert_called_once()
+        packet = build_fact_packet(responses)
+        self.assertIn("current-room-state", {fact["fact_id"] for fact in packet["facts"]})
 
-    @patch("tools.sentry_grounding._get_json")
-    def test_routine_endpoint_failure_is_unavailable_without_luna(self, get_json):
-        responses = api_responses()
-        get_json.side_effect = [responses["health"], responses["state"], responses["sessions"], responses["persons"], responses["events"], ValueError("routine endpoint down")]
-        with patch("tools.sentry_ask.invoke_grounded_query") as invoke:
-            result = ask("How long are office sessions usually?")
-        invoke.assert_not_called()
-        self.assertEqual(result["grounding"], "unavailable")
-        self.assertEqual(result["luna_invocations"], 0)
-        self.assertIn("routine history", result["answer"])
+    def test_routine_source_failure_is_representable_as_unavailable_tool_result(self):
+        from tools.sentry_conversation_tools import ConversationToolHost
+        self.assertEqual(ConversationToolHost.validate_call("get_routines", {"routine_type": "unknown"}), "routine type is not supported")
 
     def test_fact_packet_filters_routine_to_requested_key_and_drops_sensitive_fields(self):
         responses = api_responses()

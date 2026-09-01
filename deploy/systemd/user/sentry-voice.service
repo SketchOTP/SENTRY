@@ -1,0 +1,17 @@
+[Unit]
+Description=SENTRY opt-in always-available local voice
+After=default.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
+ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_always_on_voice.py --config %h/.config/sentry/config.json
+Restart=on-failure
+RestartSec=10s
+KillMode=control-group
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

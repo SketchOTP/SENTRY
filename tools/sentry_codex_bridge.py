@@ -256,6 +256,101 @@ def invoke_grounded_query(
     }
 
 
+def invoke_conversation_planner(
+    question: str,
+    tool_catalog: list[dict[str, Any]],
+    recent_turns: list[dict[str, str]],
+    *,
+    effort: str = "low",
+    timeout_seconds: int = 120,
+) -> dict[str, Any]:
+    """Select bounded SENTRY tools without granting execution access.
+
+    ``codex exec`` supports structured final output but cannot attach a
+    request-scoped safe function catalog to the OAuth invocation.  The host
+    therefore validates this plan and executes the selected local operations
+    itself before a second bounded synthesis turn.
+    """
+
+    prompt = (
+        "You are the planning half of SENTRY's bounded local conversation layer. "
+        "Interpret the user's meaning naturally and return only a JSON tool plan matching the schema. "
+        "You cannot execute tools, inspect files, access a database, browse, or use a shell. "
+        "Choose only from the supplied typed local tools and call no more than three. "
+        "Use a mutation only when the current user turn clearly and directly asks for that exact change; "
+        "ambiguity means no mutation. Never select a current-state tool just because it exists. "
+        "Use reminder data for reminder questions, acknowledgement preference or recent proactive data for "
+        "greeting behavior, and avoid substituting irrelevant physical facts. Existing tools are bounded; "
+        "unsupported requests may use no tools and should be explained by the later synthesis. "
+        "Do not invent tool names or arguments. Return needs_final_synthesis=true. "
+        f"Use model effort {effort}. User question: {json.dumps(question, ensure_ascii=True)}. "
+        f"Recent RAM-only conversation turns: {json.dumps(recent_turns, ensure_ascii=True)}. "
+        f"Approved tools: {json.dumps(tool_catalog, ensure_ascii=True, sort_keys=True)}"
+    )
+    result, thread_id, usage, error = _invoke_prompt(
+        prompt,
+        schema_filename="sentry_conversation_plan.schema.json",
+        effort=effort,
+        timeout_seconds=timeout_seconds,
+    )
+    if error:
+        code = "codex_timeout" if "timeout" in error else "codex_unavailable" if "not found" in error else "codex_failed"
+        return _error(code, error, effort=effort)
+    return {
+        "ok": True,
+        "model": MODEL,
+        "reasoning_effort": effort,
+        "thread_id": thread_id,
+        "result": result,
+        "usage": usage or {},
+    }
+
+
+def invoke_conversation_synthesis(
+    question: str,
+    tool_results: list[dict[str, Any]],
+    recent_turns: list[dict[str, str]],
+    *,
+    effort: str = "low",
+    timeout_seconds: int = 120,
+) -> dict[str, Any]:
+    """Produce one grounded reply from host-validated tool results only."""
+
+    prompt = (
+        "You are SENTRY's bounded conversational synthesis layer. Answer the user's question naturally using "
+        "only the provided typed local tool results and the small RAM-only recent-turn context. "
+        "Tool results are authoritative only within their stated status, facts, and limitations. "
+        "Do not claim a mutation succeeded unless its actual result says succeeded. "
+        "Current physical claims require the current-office tool to report current_physical_available=true; "
+        "historical records cannot establish present occupancy. Do not equate office occupancy with primary-user "
+        "identity or arrival. Use supplied local display values for user-facing times. Routine maturity must be "
+        "respected: insufficient is not a routine, observed is tentative, and only stable permits usual/typical wording. "
+        "Weather must respect fresh/stale/unavailable state. Do not infer causes, activities, destinations, or "
+        "personal facts outside the results. If the request is unsupported or evidence is unavailable, say so plainly. "
+        "Return only JSON matching the supplied response schema. Cite only fact_ids present in the tool results. "
+        f"Use model effort {effort}. User question: {json.dumps(question, ensure_ascii=True)}. "
+        f"Recent RAM-only conversation turns: {json.dumps(recent_turns, ensure_ascii=True)}. "
+        f"Tool results: {json.dumps(tool_results, ensure_ascii=True, sort_keys=True)}"
+    )
+    result, thread_id, usage, error = _invoke_prompt(
+        prompt,
+        schema_filename="sentry_grounded_response.schema.json",
+        effort=effort,
+        timeout_seconds=timeout_seconds,
+    )
+    if error:
+        code = "codex_timeout" if "timeout" in error else "codex_unavailable" if "not found" in error else "codex_failed"
+        return _error(code, error, effort=effort)
+    return {
+        "ok": True,
+        "model": MODEL,
+        "reasoning_effort": effort,
+        "thread_id": thread_id,
+        "result": result,
+        "usage": usage or {},
+    }
+
+
 def invoke_proactive_judgment(
     fact_packet: dict[str, Any],
     *,

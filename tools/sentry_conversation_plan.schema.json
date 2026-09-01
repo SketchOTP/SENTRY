@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SENTRY bounded conversation tool plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tool_calls", "needs_final_synthesis"],
+  "properties": {
+    "tool_calls": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "arguments"],
+        "properties": {
+          "name": {"enum": ["get_current_office_state", "get_office_history", "get_office_reminders", "create_next_office_reminder", "cancel_pending_office_reminder", "get_acknowledgement_preference", "set_acknowledgement_preference", "clear_acknowledgement_preference", "get_recent_proactive_action", "record_proactive_feedback", "get_routines", "get_weather"]},
+          "arguments": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["limit", "message", "value", "feedback_type", "routine_type", "scope", "topic"],
+            "properties": {
+              "limit": {"type": ["integer", "null"], "minimum": 1, "maximum": 20},
+              "message": {"type": ["string", "null"], "minLength": 1, "maxLength": 120, "pattern": "^[^\\u0000-\\u001F\\u007F]+$"},
+              "value": {"type": ["string", "null"], "enum": ["allow", "suppress", null]},
+              "feedback_type": {"type": ["string", "null"], "enum": ["helpful", "not_helpful", "too_frequent", "do_not_repeat", null]},
+              "routine_type": {"type": ["string", "null"], "enum": ["office_session_start_time", "office_session_duration", "office_absence_between_sessions", "primary_user_session_first_confirmed_time", null]},
+              "scope": {"type": ["string", "null"], "enum": ["all_days", "weekday", "weekend", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", null]},
+              "topic": {"type": ["string", "null"], "enum": ["current", "forecast", "alerts", null]}
+            }
+          }
+        }
+      }
+    },
+    "needs_final_synthesis": {"type": "boolean"}
+  }
+}

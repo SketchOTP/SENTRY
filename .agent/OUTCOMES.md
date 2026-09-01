@@ -2,6 +2,27 @@
 
 ---
 
+## OUTCOME-SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001 — Bounded semantic conversation layer
+- Completed: 2026-08-31
+- Verdict: QUALIFIED — pending governed commit/Architect acceptance
+- Retrieval confidence: HIGH
+- Evidence level: E4_REGRESSION_PROTECTED for text orchestration; E5_OPERATIONALLY_OBSERVED for the five spoken smoke requests
+
+### Result
+Replaced primary deterministic intent selection with bounded Luna-directed tool planning over existing typed localhost SENTRY capabilities. OAuth CLI limitations selected the two-phase planner/host/synthesis route: one low-effort Luna plan, at most three validated local calls including one mutation, and one low-effort grounded synthesis. No arbitrary capability, persistent conversation store, schema migration, production reminder, or production preference mutation was introduced.
+
+### Validation
+- Natural 16-case automated domain matrix: PASSED with no irrelevant M4 fallback.
+- Tool/mutation budget, invalid tool/argument, grounding-fact rejection, RAM context, localhost-only current-state truthfulness, and persisted reminder-result tests: PASSED.
+- Real text calls selected reminder, preference, proactive-history, Monday routine, cached weather, current state, reminder+current-state, and follow-up reminder domains correctly. Unavailable weather/current state remained truthful.
+- Five real spoken requests across reminder, preference, proactive behavior, historical presence, and weather: PASSED by operator observation. The post-test metadata-only sample recorded local speech delivery, two Luna calls, 1.580 s speech-end-to-dispatch, and 10.254 s STT-complete-to-final-grounded-answer.
+- Temporary services/processes: stopped; no audio or transcript persistence introduced.
+
+### Remaining boundary
+Vosk always-on voice remains implemented/unqualified pending its separate full integrated qualification. This outcome neither creates durable conversational memory nor authorizes post-answer turn-taking.
+
+---
+
 ## OUTCOME-SENTRY-AUTHORITY-BOOTSTRAP-001 — Directive SENTRY-AUTHORITY-BOOTSTRAP-001
 - Completed: 2026-08-24
 - Verdict: COMPLETE
@@ -1178,3 +1199,50 @@ Return to Architect with **DETECTOR REPLAN**. Do not modify the tracker, switch 
 ### Validation and boundary
 - Focused M4 suite passed **16/16**; affected suites passed **96/96**; full Ubuntu regression passed **201/201**. No schema migration, physical-history rewrite, reminder/weather/routine/preference/M5 alteration, or continuous perception Luna call was introduced. The short authorized fresh-heartbeat process observed a real person and consequently persisted normal production `system.started`, camera-state, session-8, and `system.stopped` events; nothing was seeded, backfilled, or manually changed.
 - V0.3 always-on voice implementation remains preserved but uncommitted and `IMPLEMENTED_UNVERIFIED`; its live reliability qualification was not resumed. All temporary SENTRY processes were stopped at completion per operator request.
+
+## OUTCOME-SENTRY-V0.3-WAKE-RELIABILITY-SELECTION-001 — Dedicated wake selection
+- Date: 2026-08-31
+- Verdict: **BLOCKED / NEEDS ARCHITECT DECISION**
+- Starting committed HEAD: `c183c82c992007143a49196cc3a4e39f1f8127a0`
+- Retrieval confidence: **ADEQUATE**
+
+### Evidence
+- The ASR-text wake matcher is retained as architectural negative evidence and was not reintegrated. The reusable uncommitted V0.3 listener components remain preserved.
+- Candidate 1 used custom local openWakeWord-compatible inference with only explicit prompted local captures (40 positive, 40 difficult negative) and deterministic generated Gaussian noise; no bundled non-commercial openWakeWord classifier, public speech/noise corpus, cloud audio, or transcript persistence was used. The live Stage-A positive result was 8/10 at threshold 0.60, then 5/10 after the directive's one allowed threshold change to 0.50. Required result was 9/10, so it failed before Stage B.
+- Candidate 2 used a local TensorFlow Lite classifier with an Apache microfrontend and the same clean local capture set. Held-out validation produced 35 negative false positives at threshold 0.50 and positive recall 1.0. It was rejected before Stage A because it could not satisfy the required zero-false-detection safety boundary.
+- Candidate 3 was not available: no existing Picovoice AccessKey or configuration was found through bounded local configuration discovery. No account, key, or vendor service was created.
+- Candidate harness tests passed 11/11. Full regression is **NOT RUN** because no candidate survived the isolation gate or changed accepted SENTRY behavior. All known SENTRY user services are inactive; no `pw-record`, listener, evaluator, Whisper, VAD, or TensorFlow process remains after the work.
+
+### Boundary
+- No detector was selected or integrated, no production configuration was altered, no service enabled, no commit/push created, and no raw ambient audio/transcript was retained. Explicit prompted training clips remain locally outside Git. The uncommitted V0.3 voice working tree and candidate-evaluation code are preserved for Architect review.
+
+### Superseding correction
+- The first candidate-1 conclusion is not final: its v2 manifest shows only 10 positive source clips were used, despite 40 approved positives existing locally. The Stage-A 8/10 and 5/10 scores therefore do not test the intended full-capture candidate. `tools/sentry_wake_train.py` now accepts repeated explicit positive directories; candidate 1 remains **IN PROGRESS** pending retraining and a repeat of Stage A. Candidate 2's held-out validation rejection and candidate 3's unavailable status are unchanged.
+
+### Final result
+- Full-capture candidate 1 v3 was retrained from all 40 positive and 40 negative explicit local clips. Its held-out validation selected threshold `0.95` but produced **22 negative false positives** and only **66.7% positive recall**. This fails the candidate's safety/recall gate before live Stage A, so candidate 1 is rejected. Candidate 2 remains rejected (35 validation false positives), Porcupine remains unavailable, and the directive is **BLOCKED / NEEDS ARCHITECT DECISION**.
+
+## OUTCOME-SENTRY-V0.3-WAKE-RELIABILITY-PRETRAINED-KWS-001 — Partial pretrained KWS selection
+- Date: 2026-08-31
+- Verdict: **IMPLEMENTED / PARTIALLY SCREENED — NOT FORMALLY SELECTED**
+- Starting committed HEAD: `c183c82c992007143a49196cc3a4e39f1f8127a0`
+- Retrieval confidence: **ADEQUATE**
+
+### Evidence
+- Exact wake target was corrected by the owner to `Sentry`. Every live test used an on-screen `GET READY` → `SPEAK NOW` indicator with the required phrase.
+- PocketSphinx 5.1.1 isolated source build and CMUdict provenance were verified. A valid positive screen reached 9/10 after one documented `kws_delay` adjustment, but the detector fired on two conversational sentences containing “Sentry”; it is rejected under the original zero-false-wake rule.
+- Vosk 0.3.45 plus official `vosk-model-small-en-us-0.15` was isolated outside Git. Its decoder grammar preserved an explicit unknown path: `["sentry", "[unk]"]`. The permitted final-result-only decoder mode achieved 10/10 valid prompted wakes and 0/10 non-wake detections for phrases omitting the wake word.
+- The owner accepts ordinary conversational occurrence of “Sentry” as a wake. That changes the prescribed difficult-negative definition and must be ratified by Architect before formal selection.
+- The Stage-B 20-positive run was stopped by the owner after five cues. The 20-negative, 15-minute ambient, latency, resource, and queued-audio proof were not run. Focused isolated evaluator tests pass 16/16. All SENTRY services and `pw-record` are inactive; raw PCM/transcripts were never written.
+
+### Boundary
+- No candidate is formally selected or integrated. No schema, main listener, service, production configuration, or accepted regression behavior was changed. The dirty V0.3 work remains preserved and uncommitted.
+
+## OUTCOME-SENTRY-V0.3-VOSK-WAKE-INTEGRATION-001 — Vosk integration result
+- Verdict: **IMPLEMENTED_UNVERIFIED / NOT QUALIFIED**
+- Starting committed HEAD: `c183c82c992007143a49196cc3a4e39f1f8127a0`
+- Retrieval confidence: **ADEQUATE**
+- Vosk integration, VAD endpointing, RAM-only ring recovery, `ARMED` follow-up, status indicator, and shared speech coordination are present in the dirty tree. Focused Vosk/always-on tests passed **16/16**.
+- Live result: `Sentry` produced four wake detections and four dispatches; visible `LISTENING` and `ARMED` prompts worked; no persistent audio/transcript was produced. Wake-to-dispatch metadata samples were 1.676–1.737 seconds.
+- Failure: operator-intended reminder/preference commands did not retain enough semantic fidelity through Whisper `tiny.en` to select their existing deterministic handlers. The responses were truthfully bounded but unrelated to the intended request. A bare-token dispatch was corrected to `ARMED`, but the remaining command-STT issue stays unresolved.
+- Services/processes: all inactive at handoff; always-on voice remains disabled in local config. Full regression and commit/push are intentionally **NOT RUN / NOT CREATED**.

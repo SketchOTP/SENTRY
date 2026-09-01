@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.sentry_install_user_services import ROUTINE_UNIT_NAMES, UNIT_NAMES, WEATHER_UNIT_NAMES, install, production_config
+from tools.sentry_install_user_services import ROUTINE_UNIT_NAMES, UNIT_NAMES, VOICE_UNIT_NAMES, WEATHER_UNIT_NAMES, install, production_config
 from tools.sentry_proactive import watch_loop
 from tools.sentry_resident_live_probe import _unit_states
 
@@ -54,7 +54,7 @@ class ResidentRuntimeTests(unittest.TestCase):
             with patch("tools.sentry_install_user_services._run_systemctl"):
                 install(config, start=False, systemd_user_dir=units)
             self.assertEqual(json.loads(config.read_text(encoding="utf-8")), custom)
-            self.assertEqual(sorted(path.name for path in units.iterdir()), sorted((*UNIT_NAMES, *ROUTINE_UNIT_NAMES, *WEATHER_UNIT_NAMES)))
+            self.assertEqual(sorted(path.name for path in units.iterdir()), sorted((*UNIT_NAMES, *ROUTINE_UNIT_NAMES, *WEATHER_UNIT_NAMES, *VOICE_UNIT_NAMES)))
 
     def test_units_use_accepted_paths_and_isolated_services(self):
         unit_root = Path("deploy/systemd/user")
@@ -63,6 +63,7 @@ class ResidentRuntimeTests(unittest.TestCase):
         proactive = (unit_root / "sentry-proactive.service").read_text(encoding="utf-8")
         routines = (unit_root / "sentry-routines.timer").read_text(encoding="utf-8")
         weather = (unit_root / "sentry-weather.timer").read_text(encoding="utf-8")
+        voice = (unit_root / "sentry-voice.service").read_text(encoding="utf-8")
         self.assertIn("WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY", perception)
         self.assertIn("--config %h/.config/sentry/config.json", perception)
         self.assertIn("--heartbeat-file /srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/health/perception.json", perception)
@@ -77,6 +78,8 @@ class ResidentRuntimeTests(unittest.TestCase):
         self.assertIn("OnUnitActiveSec=6h", routines)
         self.assertIn("OnBootSec=5min", weather)
         self.assertIn("OnUnitActiveSec=10min", weather)
+        self.assertIn("tools/sentry_always_on_voice.py", voice)
+        self.assertIn("Restart=on-failure", voice)
 
     def test_live_probe_uses_user_systemd_and_localhost_api(self):
         self.assertEqual(_unit_states.__module__, "tools.sentry_resident_live_probe")

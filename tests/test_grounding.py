@@ -216,35 +216,27 @@ class GroundingTests(unittest.TestCase):
         self.assertIsNotNone(validate_grounded_response({**base, "grounding": "guess"}, {"current-room-state"}))
 
     @patch("tools.sentry_grounding._get_json")
-    def test_retrieval_health_failure_never_invokes_luna(self, get_json):
+    def test_retrieval_health_failure_is_explicit_before_any_conversation(self, get_json):
         get_json.return_value = {"ok": False, "db_available": False}
-        with patch("tools.sentry_ask.invoke_grounded_query") as invoke:
-            result = ask("Is anyone in the office?", base_url="http://127.0.0.1:48174")
-        invoke.assert_not_called()
-        self.assertEqual(result["grounding"], "unavailable")
-        self.assertEqual(result["luna_invocations"], 0)
+        from tools.sentry_grounding import retrieve_fact_packet
+        retrieval = retrieve_fact_packet("http://127.0.0.1:48174")
+        self.assertFalse(retrieval.available)
+        self.assertIn("unavailable", retrieval.error)
 
-    @patch("tools.sentry_ask.invoke_grounded_query")
     @patch("tools.sentry_grounding._get_json")
-    def test_one_question_uses_one_luna_invocation_and_validates_facts(self, get_json, invoke):
+    def test_retrieved_fact_packet_supports_later_bounded_orchestration(self, get_json):
         responses = api_responses()
         get_json.side_effect = [responses["health"], responses["state"], responses["sessions"], responses["persons"], responses["events"]]
-        invoke.return_value = {
-            "ok": True,
-            "model": "gpt-5.6-luna",
-            "reasoning_effort": "low",
-            "usage": {},
-            "result": {
-                "answer": "The office is occupied.",
-                "grounding": "supported",
-                "fact_ids": ["current-room-state"],
-                "limitations": [],
-            },
-        }
-        result = ask("Is anyone in the office?")
-        invoke.assert_called_once()
-        self.assertEqual(result["grounding"], "supported")
-        self.assertEqual(result["luna_invocations"], 1)
+        from tools.sentry_grounding import retrieve_fact_packet
+        retrieval = retrieve_fact_packet("http://127.0.0.1:48174")
+        self.assertTrue(retrieval.available)
+        assert retrieval.packet is not None
+        ids = {fact["fact_id"] for fact in retrieval.packet["facts"]}
+        self.assertIn("current-room-state", ids)
+        self.assertIsNone(validate_grounded_response({
+            "answer": "The office is occupied.", "grounding": "supported",
+            "fact_ids": ["current-room-state"], "limitations": [],
+        }, ids))
 
 
 def jsonish(value):

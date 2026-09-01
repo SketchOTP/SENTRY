@@ -103,40 +103,25 @@ class CurrentStateTruthfulnessTests(unittest.TestCase):
         self.assertIn("last-confirmed-empty", facts)
         self.assertFalse(facts["perception-runtime"]["data"]["current_physical_available"])
 
-    @patch("tools.sentry_ask.invoke_grounded_query")
-    @patch("tools.sentry_grounding._get_json")
-    def test_current_question_is_deterministic_unavailable_when_stopped(self, get_json, invoke):
+    def test_current_fact_is_absent_when_stopped(self):
         responses = _responses(runtime={
             "status": "stopped", "heartbeat_updated_at": "2026-08-31T14:00:00+00:00",
             "age_seconds": 60.0, "process_alive": False, "camera_state": "online",
             "room_state": "empty", "current_physical_available": False, "reason": "perception process is stopped",
         })
-        get_json.side_effect = [responses[key] for key in ("health", "state", "sessions", "persons", "events")]
-        result = ask("Is anyone in the office?")
-        invoke.assert_not_called()
-        self.assertEqual(result["grounding"], "unavailable")
-        self.assertEqual(result["luna_invocations"], 0)
-        self.assertIn("live perception", result["answer"])
-
-    @patch("tools.sentry_ask.invoke_grounded_query")
-    @patch("tools.sentry_grounding._get_json")
-    def test_historical_question_remains_usable_when_perception_is_stopped(self, get_json, invoke):
-        responses = _responses(runtime={
-            "status": "stopped", "heartbeat_updated_at": "2026-08-31T14:00:00+00:00",
-            "age_seconds": 60.0, "process_alive": False, "camera_state": "online",
-            "room_state": "empty", "current_physical_available": False, "reason": "perception process is stopped",
-        })
-        get_json.side_effect = [responses[key] for key in ("health", "state", "sessions", "persons", "events")]
-        invoke.return_value = {"ok": True, "model": "gpt-5.6-luna", "reasoning_effort": "low", "usage": {}, "result": {
-            "answer": "I first confirmed you on August 30, 2026 at 10:24 AM EDT.",
-            "grounding": "partial", "fact_ids": ["primary-user-identification"],
-            "limitations": ["First identification is not exact physical arrival."],
-        }}
-        result = ask("When did I come into the office yesterday?")
-        invoke.assert_called_once()
-        self.assertEqual(result["grounding"], "partial")
-        packet = invoke.call_args.args[1]
+        packet = build_fact_packet(responses)
         self.assertNotIn("current-room-state", {fact["fact_id"] for fact in packet["facts"]})
+
+    def test_historical_facts_remain_usable_when_perception_is_stopped(self):
+        responses = _responses(runtime={
+            "status": "stopped", "heartbeat_updated_at": "2026-08-31T14:00:00+00:00",
+            "age_seconds": 60.0, "process_alive": False, "camera_state": "online",
+            "room_state": "empty", "current_physical_available": False, "reason": "perception process is stopped",
+        })
+        packet = build_fact_packet(responses)
+        ids = {fact["fact_id"] for fact in packet["facts"]}
+        self.assertNotIn("current-room-state", ids)
+        self.assertIn("primary-user-identification", ids)
 
     def test_local_display_uses_eastern_12_hour_time_and_preserves_raw_timestamp(self):
         for raw, expected in (

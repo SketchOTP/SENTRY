@@ -4,6 +4,22 @@ Temporary observations do not belong here. Add only findings likely to remain us
 
 ---
 
+## LEARNING-SENTRY-040 — Semantic selection and host execution must remain separate
+- Date: 2026-08-31
+- Evidence source: `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001`; installed OAuth Codex CLI; focused/live orchestration evidence
+- Confidence: VERIFIED TARGET-TESTED
+
+### Learning
+Natural conversation is more robust when Luna selects from a narrow typed capability catalog, while the local host independently validates all tool names/arguments, limits calls and mutations, executes only localhost API calls, and validates the final fact citations. The installed strict schema endpoint rejects `oneOf` in array items; a closed nullable argument envelope plus host-side null stripping is compatible without weakening tool validation.
+
+### Why it matters
+This avoids both brittle sentence-template routing and unsafe model-directed execution. It also keeps existing physical/routine/weather/reminder truth contracts authoritative.
+
+### Recheck trigger
+Recheck when the OAuth CLI gains safe request-scoped function tools, or when a later directive authorizes a new durable conversational-memory capability.
+
+---
+
 ## LEARNING-SENTRY-001 — Governance and product boundaries are now persistent
 - Date: 2026-08-24
 - Evidence source: SENTRY-AUTHORITY-BOOTSTRAP-001, Notion SENTRY page, GitHub baseline `63376fe`
@@ -362,3 +378,20 @@ The safest first physical reminder is a single explicit pending intention keyed 
 
 ### Safety boundary
 A claimed reminder is never automatically replayed after a crash because local speech cannot be made transactionally exactly-once. Reconcile it to an explicit unknown-delivery failure. Reminder delivery is deterministic and does not need Luna; unsupported scheduler shapes, routine facts, and inferred arrival/leave events remain outside the feature.
+
+## LEARNING-SENTRY-031 — A clean local capture set alone is not enough for a reliable wake detector
+- Date: 2026-08-31
+- Evidence source: `SENTRY-V0.3-WAKE-RELIABILITY-SELECTION-001`; explicit local 40-positive/40-negative capture set and isolated candidate evaluation
+- Confidence: VERIFIED NEGATIVE
+
+### Learning
+Custom local classifiers built only from one operator's limited prompted `Hey Sentry` capture set plus generated Gaussian noise were not sufficient for the required real-office wake boundary. The openWakeWord-compatible candidate failed the live Stage-A recall floor (8/10, then 5/10 after one threshold change); the microWakeWord-style candidate failed held-out false-positive safety before live testing.
+
+### Safety boundary
+Do not reinterpret a visual sample cue completing as a detector pass. Do not integrate a wake model until it separately passes recall, difficult-negative, ambient, latency, resource, and queued-audio gates. Training provenance can be clean while model quality is still unacceptable.
+
+### Superseding correction
+The initial openWakeWord-compatible result used only 10 positives because the trainer accepted one positive directory. It must not be used to conclude that the complete 40-positive capture set fails. Preserve the negative evidence for that undertrained artifact, correct the input selection, and repeat the bounded candidate gate.
+
+### Final result
+After correcting input selection, the complete 40-positive/40-negative local set still failed held-out openWakeWord-compatible validation with 22 negative false positives and 66.7% recall. The failure is now attributable to the bounded clean data route/model quality, not merely the positive-directory defect.

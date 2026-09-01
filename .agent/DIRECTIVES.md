@@ -4,6 +4,19 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 
 ---
 
+## SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001 — Bounded Luna-directed conversation
+- Issued: 2026-08-31
+- Status: COMPLETE — implementation and qualification evidence recorded; V0.3 always-available voice remains implemented/unqualified.
+- Project stage: V0.3 — One-room natural interaction.
+- Objective: Replace the deterministic natural-language domain router with a bounded Luna planner over only existing typed localhost SENTRY capabilities, followed by host validation/execution and a bounded grounded synthesis.
+- Architecture: Option B two-phase fallback. The installed OAuth `codex exec` path supports strict final JSON schemas but does not expose a request-scoped, host-owned function-tool catalog. One Luna plan selects at most three typed local tools (one mutation); the host validates and executes them; one Luna synthesis cites only returned fact IDs.
+- Scope: Existing current state/history, reminders, acknowledgement preference, recent proactive action/feedback, routines, and cached weather. Four RAM-only prior turns with a ten-minute TTL may resolve references. Both PTT and always-on voice call the same `sentry_ask` orchestrator.
+- Exclusions: No unrestricted tools, filesystem/shell/SQL/network access, durable transcript/conversation memory, schema change, proactivity redesign, wake/ASR change, calendar, multi-room, or new sensors.
+- Acceptance: Natural wording selects relevant bounded domains without irrelevant M4 fallback; mutations remain direct-request-only; tool/fact-ID budgets hold; text and five spoken cross-domain requests are grounded; privacy and stopped-service boundaries hold; full regression is green.
+- Source: Architect directive supplied 2026-08-31.
+
+---
+
 ## SENTRY-AUTHORITY-BOOTSTRAP-001 — Install Authority 3.0 governance
 - Issued: 2026-08-24
 - Status: COMPLETE
@@ -426,3 +439,23 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Time: source timestamps remain unchanged; `zoneinfo` produces bounded local display forms in 12-hour AM/PM Eastern presentation. EST, EDT, spring/fall DST, malformed/missing/stale/stopped heartbeat, and degraded/offline camera cases are covered.
 - Validation: focused M4 tests passed `16/16`; affected grounding/routine/weather/preference/reminder/proactive/resident/reactive/voice suites passed `96/96`; full Ubuntu regression passed `201/201`. Schema remains 8, no physical history was rewritten, services were restored inactive, and continuous perception Luna calls remain zero.
 - Final implementation commit: `98fc71ab76c18468745321ee63a706249efeea4` (`fix: gate M4 current claims on perception freshness`). V0.3 voice working-tree changes remain intentionally uncommitted and preserved; voice qualification was not resumed.
+
+## SENTRY-V0.3-WAKE-RELIABILITY-SELECTION-001 — candidate selection result — 2026-08-31
+- Status: **BLOCKED / RETURN TO ARCHITECT**.
+- Objective executed: select and isolate-qualify one dedicated local `Hey Sentry` acoustic detector before integrating it into the preserved V0.3 listener. The old ASR transcript matcher remains superseded and was not returned to service.
+- Candidate order was followed: a custom provenance-clean openWakeWord-compatible model failed Stage A at 8/10 positives and then 5/10 after its one allowed threshold correction; a custom provenance-clean microWakeWord-style model failed held-out validation with 35 negative false positives; Porcupine was unavailable because no already-authorized AccessKey/configuration exists.
+- Boundary: no candidate is selected, no main listener integration is authorized, no service is enabled, and the dirty V0.3 voice tree must remain preserved. The next architecture/training-data decision belongs to the Architect.
+
+## SENTRY-V0.3-WAKE-RELIABILITY-PRETRAINED-KWS-001 — partial selection evidence — 2026-08-31
+- Scope: isolated live evaluation only; no main SENTRY listener integration, no Whisper wake matching, no service enablement, and no audio persistence.
+- Owner correction: exact wake word is `Sentry`, not `Hey Sentry`. The evaluator was updated so each visual prompt explicitly displays the required phrase at `SPEAK NOW`.
+- PocketSphinx 5.1.1 was evaluated first using its native `keyphrase`, `kws_threshold`, and `kws_delay` path. It was rejected because two normal sentences containing the one-word token triggered detections after its one permitted KWS-specific adjustment.
+- Vosk 0.3.45 with `vosk-model-small-en-us-0.15` was then evaluated with grammar `["sentry", "[unk]"]` and final-result-only decoding. It passed valid Stage A with 10/10 positives and 0/10 negative phrases that omitted the wake word.
+- The owner explicitly accepts conversational use of the word as a wake. This conflicts with the original strict negative set that included “Sentry” in normal sentences. Stage B and the 15-minute ambient run were stopped by the owner as excessive, so the directive's full selection acceptance criteria are not met. Return this evidence to Architect; do not integrate Vosk yet.
+
+### Superseding correction — 2026-08-31
+- The preceding candidate-1 rejection is **withdrawn**. Its v2 training manifest proved the trainer consumed only one `--positive-dir` and therefore used 10 rather than the 40 explicitly approved positive clips that were available. The prior 8/10 and 5/10 Stage-A results remain diagnostic evidence for that undertrained v2 artifact only.
+- A narrow in-architecture correction now permits repeated `--positive-dir` inputs. Retrain candidate 1 against all explicit local positives and repeat Stage A with visual speech cues before making a final selection decision. Candidate 2 remains rejected and candidate 3 remains unavailable.
+
+### Final candidate-1 result — 2026-08-31
+- The corrected full-capture v3 model used all 40 explicit local positive clips and all 40 explicit local negative clips. Its held-out validation failed before Stage A: at the selected threshold of `0.95`, it produced 22 negative false positives and 66.7% positive recall. Candidate 1 is therefore rejected for this clean local data route. Candidate order is exhausted; return to Architect without integration.
