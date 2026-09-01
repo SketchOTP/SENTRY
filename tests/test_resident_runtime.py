@@ -79,6 +79,7 @@ class ResidentRuntimeTests(unittest.TestCase):
         self.assertIn("OnBootSec=5min", weather)
         self.assertIn("OnUnitActiveSec=10min", weather)
         self.assertIn("tools/sentry_always_on_voice.py", voice)
+        self.assertIn("Environment=CODEX_HOME=%h/.codex", voice)
         self.assertIn("Restart=on-failure", voice)
 
     def test_live_probe_uses_user_systemd_and_localhost_api(self):

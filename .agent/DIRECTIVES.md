@@ -491,3 +491,21 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Hard boundary: native web search is for user-requested public research only. It cannot receive SENTRY-private identity, history, reminders, coordinates, secrets, or local tool output; it does not authorize login, form submission, uploads, purchases, posts, private-network access, filesystem/shell access, or any external write.
 - Supersedes as current implementation: the host `search_web`, `read_web_page`, and `get_public_weather` transport described by `SENTRY-OPERATOR-READ-ONLY-WEB-ACCESS-001`. That prior commit/evidence remains historical.
 - Source: explicit operator correction supplied 2026-09-01.
+
+## SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001 — Codex-native SENTRY expansion
+- Issued: 2026-09-01
+- Status: ACTIVE — IMPLEMENTATION / QUALIFICATION IN PROGRESS.
+- Objective: make the installed OAuth Codex CLI the direct natural-language
+  SENTRY agent, with Codex-native web, shell/file, browser, plugin/skill, and
+  image-generation capabilities plus typed SENTRY office/vision/desktop MCP
+  tools.
+- Operator override: local code/file changes and local computer control are
+  authorized from explicit SENTRY requests. The operator will manage product
+  policy preferences; implementation must still preserve truthful outcomes,
+  conservative biometric identity, local-only raw camera/audio boundaries, and
+  exact-target caution for destructive operations.
+- Architecture boundary: extend Codex with SENTRY tools rather than building a
+  second agent. Preserve accepted Vosk -> Whisper -> Kokoro voice mechanics and
+  one-room physical scope. V0.3.2 turn-taking remains implemented/unqualified
+  and is not accepted by this directive.
+- Source: explicit operator request supplied 2026-09-01.

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Sentry Office Agent"
+  short_description: "Grounded office, desktop, web, code, and image actions"

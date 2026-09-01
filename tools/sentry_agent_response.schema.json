@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "answer": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "enum": ["completed", "partial", "unavailable", "needs_clarification"]},
+    "capabilities_used": {"type": "array", "items": {"type": "string"}, "maxItems": 20},
+    "local_fact_ids": {"type": "array", "items": {"type": "string"}, "maxItems": 50},
+    "artifacts": {"type": "array", "items": {"type": "string"}, "maxItems": 20},
+    "limitations": {"type": "array", "items": {"type": "string"}, "maxItems": 20}
+  },
+  "required": ["answer", "status", "capabilities_used", "local_fact_ids", "artifacts", "limitations"]
+}

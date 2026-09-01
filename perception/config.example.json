@@ -102,7 +102,9 @@
     "conversation_followup_window_seconds": 8,
     "conversation_followup_max_turns": 2,
     "post_speech_rearm_ms": 500,
-    "whisper_model": "tiny.en"
+    "whisper_model": "tiny.en",
+    "effort": "medium",
+    "timeout_seconds": 300
   },
   "proactivity": {
     "enabled": false,

@@ -15,13 +15,13 @@
 ## Technical profile
 - Language: Python 3.12 runtime for the local M1 slice.
 - Frameworks: no application framework; OpenCV provides local V4L2 capture/frame handling and OpenVINO provides local 0202 inference.
-- Major dependencies: `opencv-python-headless==4.12.0.88`, `openvino==2026.3.1`, `psutil==7.0.0`; the committed V0.3 implementation additionally uses local `vosk==0.3.45` for the operator-selected wake token `Sentry`.
+- Major dependencies: `opencv-python-headless==4.12.0.88`, `openvino==2026.3.1`, `psutil==7.0.0`, `mcp==2.1.1`; the committed V0.3 implementation additionally uses local `vosk==0.3.45` for the operator-selected wake token `Sentry`.
 - Test command: `python -m unittest discover -s tests -v`.
 - Runtime environment: Ubuntu Linux x86_64 host on the canonical Atlas share. The Linux NexiGo N60 V4L2 path and pinned local runtime are established; M1 practical presence, M2/M3, M4, M5, M6, and the V0.2 resident runtime are accepted within recorded boundaries.
 
 ## Important integrations
-- Direct OAuth-authenticated Codex/Luna invocation through the bounded SENTRY bridge is the accepted V0.1 reasoning layer. DAWN feasibility work is historical evidence/reference only; integration is not implemented.
-- Codex CLI `0.145.0`, authenticated with ChatGPT OAuth on the current host, is the accepted on-demand reasoning layer from M0. Integration remains limited to the bounded bridge in `tools/`; continuous perception never invokes it.
+- Direct OAuth-authenticated Codex invocation is the operator-selected agent layer. The dedicated `sentry` profile loads the local SENTRY Office MCP server, repository-owned skill/instructions, installed Codex plugins/skills, native web search, image generation, and write-capable shell/file execution.
+- Codex CLI `0.150.0-alpha.8`, authenticated with ChatGPT OAuth on the current host, is the current on-demand runtime. Continuous perception never invokes it.
 - Xiaomi Miloco, https://github.com/XiaoMi/xiaomi-miloco, is an architectural reference only and is not a dependency.
 - Notion is the strategic project record; GitHub is the committed repository record.
 
@@ -30,7 +30,7 @@
   whole-home, multi-room, distributed sensing, and TV embodiment directions
   are superseded unless the owner explicitly reauthorizes them.
 - Preserve explicit degraded/offline states, conservative `unknown` identity behavior, local physical-event history, and restrained proactive speech as the implementation evolves.
-- M5 uses a post-persistence proactive processor with one allowed event class (`person.identified` for `primary_user`), deterministic suppression, one bounded low-effort Luna judgment for survivors, and local Speech Dispatcher delivery. User-initiated PTT and optional V0.3 Vosk voice converge on bounded conversational orchestration: Luna plans only approved typed localhost capabilities, the host validates/executes them, then Luna synthesizes grounded facts. Local Whisper `tiny.en` remains the STT component and Kokoro remains local PipeWire playback. M6 passed the owner/operator-approved 30-minute final soak; V0.1 is accepted within the office-only boundary.
+- M5 keeps its accepted post-persistence bounded proactive processor. User-initiated PTT and optional V0.3 Vosk voice now converge on one direct Codex agent turn; Codex can call typed local SENTRY/desktop tools and its native capabilities. Local Whisper `tiny.en` remains STT and Kokoro remains local PipeWire playback. Physical truth, reminders, preference, weather, and identity contracts remain host-owned.
 - V0.2 resident runtime uses separate native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. Units are enabled for the authenticated user session and use bounded `Restart=on-failure` recovery. V0.3.1's optional Vosk listener is committed and qualified at `a3f6d67`, but remains deliberately opt-in and inactive by default.
 - Do not treat the suggested repository shape in the project scope as permission to create unneeded empty runtime modules.
 

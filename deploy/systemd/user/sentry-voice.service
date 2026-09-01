@@ -7,6 +7,7 @@ StartLimitBurst=5
 [Service]
 Type=simple
 WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
+Environment=CODEX_HOME=%h/.codex
 ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_always_on_voice.py --config %h/.config/sentry/config.json
 Restart=on-failure
 RestartSec=10s

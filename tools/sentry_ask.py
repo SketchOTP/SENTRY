@@ -26,13 +26,13 @@ from tools.sentry_preference_intent import PreferenceIntent, select_preference_i
 from tools.sentry_reminder_intent import ReminderIntent, select_reminder_intent
 from tools.sentry_weather_intent import WeatherIntent, select_weather_intent
 from tools.sentry_local_api import post_json as _post_json
-from tools.sentry_conversation_orchestrator import ConversationOrchestrator
+from tools.sentry_codex_agent import CodexNativeAgent
 
 
-# The natural-language primary path is Luna-directed orchestration.  The older
-# deterministic intent helpers below remain available for compatibility/unit
-# coverage, but they are not consulted before normal conversation reaches Luna.
-_ORCHESTRATOR = ConversationOrchestrator()
+# Natural language now enters one tool-using Codex agent turn. The older
+# deterministic helpers and two-turn orchestrator remain compatibility and
+# regression surfaces; they are not the production conversational authority.
+_AGENT = CodexNativeAgent()
 
 
 def _insufficient_routine_response(fact_ids: list[str], facts: list[dict[str, Any]]) -> dict[str, Any]:
@@ -262,7 +262,7 @@ def ask(
     source_surface: str = "sentry_ask",
     conversation_id: str | None = None,
 ) -> dict[str, Any]:
-    return _ORCHESTRATOR.ask(
+    return _AGENT.ask(
         question,
         base_url=base_url,
         room_id=room_id,

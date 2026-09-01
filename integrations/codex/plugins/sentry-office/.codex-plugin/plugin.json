@@ -1,0 +1,30 @@
+{
+  "name": "sentry-office",
+  "version": "0.1.0",
+  "description": "Expose SENTRY office context, on-demand vision, and Linux desktop controls to Codex.",
+  "author": {
+    "name": "SketchOTP"
+  },
+  "homepage": "https://github.com/SketchOTP/SENTRY",
+  "repository": "https://github.com/SketchOTP/SENTRY",
+  "license": "MIT",
+  "keywords": ["sentry", "office", "vision", "desktop", "mcp"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Sentry Office",
+    "shortDescription": "Give Codex grounded office and desktop tools",
+    "longDescription": "Sentry Office connects Codex to SENTRY's local office state, enrolled identity, explicit camera inspection, reminders, routines, weather, applications, audio, media, and X11 controls.",
+    "developerName": "SketchOTP",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/SketchOTP/SENTRY",
+    "privacyPolicyURL": "https://openai.com/policies/privacy-policy/",
+    "termsOfServiceURL": "https://openai.com/policies/terms-of-use/",
+    "defaultPrompt": [
+      "Who is in the office right now?",
+      "Turn the computer volume down.",
+      "Find and open an installed application."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}

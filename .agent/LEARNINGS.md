@@ -4,6 +4,30 @@ Temporary observations do not belong here. Add only findings likely to remain us
 
 ---
 
+## LEARNING-SENTRY-041 — Codex can be the agent while SENTRY remains the truth/tool layer
+- Date: 2026-09-01
+- Evidence source: `SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001`; Codex CLI `0.150.0-alpha.8`; live MCP/web/image/shell/desktop/camera proofs
+- Confidence: VERIFIED TARGET-TESTED
+
+### Learning
+One ephemeral Codex turn can interpret a natural request and directly select
+native Codex capabilities plus typed local SENTRY tools. SENTRY does not need a
+second semantic router, but it must continue to own physical freshness,
+identity matching, durable records, and narrow mutation semantics.
+
+### Why it matters
+This makes web research, local coding, image generation, office context, and
+computer control available through one conversational surface without turning
+the model into the physical database. Interactive Browser control remains a
+separate connection dependency and must be reported unavailable when no browser
+surface is connected.
+
+### Recheck trigger
+Recheck after Codex CLI/plugin/MCP changes, a browser extension is connected,
+or SENTRY moves beyond the current trusted local operator host.
+
+---
+
 ## LEARNING-SENTRY-040 — Semantic selection and host execution must remain separate
 - Date: 2026-08-31
 - Evidence source: `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001`; installed OAuth Codex CLI; focused/live orchestration evidence

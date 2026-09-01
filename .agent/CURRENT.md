@@ -3,33 +3,22 @@
 Last updated: 2026-09-01
 
 ## Current stage
-V0.3.2 — bounded conversational turn-taking is active on the qualified Vosk →
-Whisper → bounded ConversationOrchestrator → Kokoro office path. Schema remains 8.
+Operator-authorized Codex-native SENTRY agent expansion is implemented and
+qualified in the working tree. V0.3.2 bounded turn-taking remains implemented/
+unqualified. Schema remains 8.
 
 ## Current objective
-After an explicit `Sentry` request receives successful local speech, permit at
-most two wake-free follow-up turns in a short host-bounded focus window. Reuse
-the existing RAM-only conversation context; do not add persistent memory,
-barge-in, AEC, a new wake/STT model, or a second conversation runtime.
-
-An operator-authorized read-only public-web extension now uses Luna/Codex's
-native live web-search capability. The planner selects only the typed
-`use_native_web_search` authorization marker; the host performs no public HTTP
-transport. A request-scoped synthesis turn receives Codex CLI `--search` and
-may research public web information while local physical/private facts remain
-separate and fact-ID grounded. Native web access remains read-only: no login,
-forms, uploads, purchases, private-network access, or external writes. This
-does not qualify V0.3.2 turn-taking or authorize persistent memory.
+Use Codex itself as SENTRY's natural-language agent. One ephemeral CLI turn can
+select native web search, installed skills/plugins, image generation, local
+shell/file work, and 25 typed SENTRY Office MCP tools for grounded office facts,
+on-demand vision, and Linux desktop actions. Preserve host-owned physical and
+identity truth, RAM-only conversation context, and the one-room boundary.
 
 ## Active directive
-`SENTRY-V0.3.2-BOUNDED-TURN-TAKING-001` remains active. The operator override
-`SENTRY-OPERATOR-READ-ONLY-WEB-ACCESS-001` is implemented and regression
-protected. The initial request still requires
-`Sentry`; after a successfully delivered user-initiated answer, the listener
-may enter a separate `FOLLOWUP_LISTENING` state for 8 seconds and at most two
-wake-free turns. Timeout, hard turn limit, errors, shutdown, proactive/reminder
-speech, and explicit PTT must never extend or create focus. Voice remains
-opt-in and resident services remain inactive outside bounded qualification.
+`SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001` is active. The old planner → host →
+synthesis path and its typed native-web marker remain historical compatibility
+surfaces, not the production conversational authority. V0.3.2 focus behavior
+is preserved and still awaits its own final acceptance.
 
 ## V0.3 conversational orchestration — 2026-08-31
 - `tools/sentry_ask.py` now sends normal user text through `ConversationOrchestrator`, rather than using reminder/preference/weather/routine selectors as the primary natural-language router. The old selectors remain compatibility helpers only.

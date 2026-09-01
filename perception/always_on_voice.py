@@ -91,8 +91,8 @@ class AlwaysOnVoiceConfig:
     whisper_model: str = "tiny.en"
     base_url: str = "http://127.0.0.1:48174"
     room_id: str = "office"
-    effort: str = "low"
-    timeout_seconds: int = 120
+    effort: str = "medium"
+    timeout_seconds: int = 300
 
     def __post_init__(self) -> None:
         if self.sample_rate != 16_000:
@@ -154,8 +154,8 @@ class AlwaysOnVoiceConfig:
             whisper_model=str(values.get("whisper_model", "tiny.en")),
             base_url=str(values.get("base_url", "http://127.0.0.1:48174")),
             room_id=str(values.get("room_id", "office")),
-            effort=str(values.get("effort", "low")),
-            timeout_seconds=int(values.get("timeout_seconds", 120)),
+            effort=str(values.get("effort", "medium")),
+            timeout_seconds=int(values.get("timeout_seconds", 300)),
         )
 
 

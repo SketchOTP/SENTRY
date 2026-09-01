@@ -6,6 +6,16 @@ No external discovery was required for this governance-only bootstrap. The direc
 
 ---
 
+## EXTERNAL-SENTRY-014 — Codex-native agent, MCP, image, and computer surfaces
+- Date: 2026-09-01
+- Freshness: official OpenAI Codex configuration, MCP, plugin, Computer Use, and image-generation documentation reviewed against installed Codex CLI `0.150.0-alpha.8`; MCP Python SDK `2.1.1` reproduced locally.
+- Sources: [Codex configuration reference](https://developers.openai.com/codex/config-file/config-reference), [MCP](https://learn.chatgpt.com/docs/extend/mcp), [Plugins](https://learn.chatgpt.com/docs/plugins), [Computer Use](https://learn.chatgpt.com/docs/computer-use), [Image generation](https://learn.chatgpt.com/docs/image-generation), and [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk).
+- Finding: Codex named profiles can select write-capable sandboxing, inherit installed skills/plugins, and launch local stdio MCP servers. CLI image generation is available through `$imagegen`; native web search is available with `--search`. Official graphical Computer Use is not a Linux-host runtime, and interactive Browser control requires a connected in-app browser or ChatGPT browser extension.
+- Disposition: ADOPT a dedicated Codex profile plus local SENTRY MCP/skill; COMPOSE Linux desktop actions from structured desktop entries, PipeWire, MPRIS, and X11 tools; RETAIN Browser as connection-dependent rather than claiming an unavailable surface.
+- Recheck trigger: Codex CLI/profile/MCP schema changes, Linux graphical Computer Use support, or a connected browser surface becoming part of the unattended runtime.
+
+---
+
 ## EXTERNAL-SENTRY-013 — OpenAI constrained response schema and tool-orchestration boundary
 - Date: 2026-08-31
 - Freshness: Official OpenAI Responses API reference and GPT-5.6 model guidance reviewed during `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001`; installed OAuth Codex CLI behavior reproduced on the same host.

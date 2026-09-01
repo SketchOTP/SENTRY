@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "sentry_office": {
+      "command": "./scripts/launch_sentry_office_mcp",
+      "args": [],
+      "cwd": ".",
+      "enabled": true,
+      "default_tools_approval_mode": "auto",
+      "env_vars": [
+        "HOME",
+        "PATH",
+        "DISPLAY",
+        "XAUTHORITY",
+        "XDG_RUNTIME_DIR",
+        "DBUS_SESSION_BUS_ADDRESS",
+        "SENTRY_BASE_URL",
+        "SENTRY_CONFIG_PATH",
+        "SENTRY_DISPLAY_TIMEZONE",
+        "SENTRY_PYTHON"
+      ],
+      "startup_timeout_sec": 30,
+      "tool_timeout_sec": 180
+    }
+  }
+}

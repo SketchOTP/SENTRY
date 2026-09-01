@@ -14,7 +14,13 @@ They are not expected future phases unless the owner explicitly reopens them.
 
 **SENTRY V0.1 is accepted within the office-only boundary:** M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, M5 restrained proactivity, reactive voice, and the 30-minute unattended M6 integration soak passed within their recorded evidence boundaries. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. The owner/operator permanently waived the former 72-hour soak in favor of the passed 30-minute final soak.
 
-**V0.2 resident runtime, routine statistics, routine-grounded conversation, preference/feedback memory, the read-only weather-context foundation, contextual weather proactivity, and event-triggered reminders are qualified:** the accepted stack runs as enabled native systemd user services for perception, the localhost state API, and continuous bounded proactive polling. The current startup condition is the authenticated Ubuntu user session. Routine statistics remain derived and sparse production history correctly remains insufficient. Schema 6 adds one explicit, reversible primary-user acknowledgement preference plus auditable proactive feedback; schema 7 adds bounded NWS snapshots; schema 8 adds one-shot next-office-session reminders. Contextual weather proactivity consumes only cached fresh NWS forecasts, requires at least 60% precipitation probability within 120 minutes, and remains disabled in production because no coordinates have been configured. Reminders are explicit, deterministic, durable, at-most-once local speech and do not require Luna. Weather and routines remain isolated from reminder delivery.
+**V0.2 resident runtime, routine statistics, routine-grounded conversation, preference/feedback memory, weather context, contextual weather proactivity, and event-triggered reminders are qualified. V0.3.1 always-available voice is qualified:** the accepted one-room stack includes Vosk wake, Whisper command STT, grounded conversation, and local Kokoro speech. Schema 8 remains current. Production NWS weather uses private local coordinates and a cache-refresh timer. Reminders remain explicit, durable, at-most-once local speech.
+
+**Current implementation work:** the production conversation entry point now
+uses Codex directly as SENTRY's agent. A dedicated write-capable profile exposes
+local SENTRY/desktop MCP tools while retaining native web search, installed
+skills/plugins, image generation, and shell/file workflows. See
+[`docs/V0.3_CODEX_NATIVE_AGENT.md`](docs/V0.3_CODEX_NATIVE_AGENT.md).
 
 ## Project links
 
@@ -96,7 +102,7 @@ The production result is currently `insufficient` because natural history is spa
 
 The read-only NWS weather foundation is documented in [`docs/V0.2_WEATHER_CONTEXT.md`](docs/V0.2_WEATHER_CONTEXT.md). It uses schema-v7 snapshots, explicit operator coordinates, bounded retries, 24-hour point-resource caching, freshness states, and the localhost-only `/v1/weather` endpoint. Production weather is not enabled until explicit coordinates are supplied in the local configuration.
 
-The owner-authorized public-web extension is documented in [`docs/V0.3_READ_ONLY_WEB.md`](docs/V0.3_READ_ONLY_WEB.md). Luna may use its native read-only web-search capability only after the typed `use_native_web_search` plan marker is host-validated. SENTRY does not run a parallel search client or hand local private facts to web search; the private home-weather cache remains local and the native path permits neither login nor external writes.
+The historical read-only public-web extension is documented in [`docs/V0.3_READ_ONLY_WEB.md`](docs/V0.3_READ_ONLY_WEB.md). It has been superseded for the production conversation path by the operator-authorized Codex-native agent described in [`docs/V0.3_CODEX_NATIVE_AGENT.md`](docs/V0.3_CODEX_NATIVE_AGENT.md). Native public web search remains available, while local code/file and desktop actions are now also permitted when naturally requested.
 
 ## V0.2 Event Reminders
 
@@ -134,6 +140,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 12. **V0.2 — Read-only weather context**: explicit-location NWS snapshots, freshness-gated localhost weather facts, and an independent refresh timer (qualified; production location not configured).
 13. **V0.2 — Event-triggered reminders**: one explicit next-office-session reminder with deterministic intent/API handling, same-session exclusion, durable claim-before-speech delivery, and restart-safe dedupe (qualified).
 14. **V0.3.1 — Always-available voice foundation**: optional local Vosk `Sentry` wake detection, VAD/Whisper command capture, bounded conversational orchestration, and shared TTS capture suppression (qualified; opt-in).
+15. **V0.3 — Codex-native agent surface**: direct natural-language Codex turns with local SENTRY/desktop MCP tools, native web, installed skills/plugins, image generation, and explicit local write capability (active qualification).
 
 M6 and V0.2 are accepted. Routine facts entering proactive judgment and general scheduling require a new Architect directive. Multi-room and whole-home hardware are superseded by the permanent one-room product scope.
 

@@ -30,7 +30,11 @@ useful, appropriately restrained assistance.
   CPU/GPU resources.
 - Raw webcam frames and biometric enrollment data remain local by default and out of source control.
 - SENTRY owns grounded physical events and sessions locally; an LLM is not the continuous vision processor or physical-event database.
-- Direct OAuth-authenticated Codex/Luna invocation through the bounded SENTRY bridge is the accepted V0.1 reasoning layer. DAWN feasibility work is historical evidence/reference only; integration is not implemented. Xiaomi Miloco is an architectural reference only.
+- Direct OAuth-authenticated Codex CLI invocation is SENTRY's agent layer. The
+  operator-authorized V0.3 profile gives Codex native web, installed skills,
+  image generation, shell/file work, and typed local SENTRY/desktop MCP tools.
+  SENTRY owns physical truth and local persistence; Codex selects and uses
+  tools from natural language. DAWN remains historical reference only.
 - New dependencies, upstream derivation/forking, cloud video, infrastructure expansion, and scope changes require documented evidence and Architect authorization.
 - Vosk with the single wake token `Sentry` is the operator-selected and
   committed V0.3.1 wake authority, qualified at `a3f6d67`. Conversational uses

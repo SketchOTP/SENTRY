@@ -24,6 +24,18 @@ Install from the canonical checkout with the accepted Ubuntu Python environment:
 /home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_install_user_services.py
 ```
 
+Install or refresh the dedicated Codex-native SENTRY profile before enabling
+always-on voice:
+
+```bash
+/home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_codex_profile.py install
+/home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_codex_profile.py status
+codex --profile sentry mcp list
+```
+
+The generated profile is mode `0600` and points to the local SENTRY MCP server.
+It is required by both push-to-talk and always-on natural-language requests.
+
 The installer creates `~/.config/sentry/config.json` once from the checked-in
 example, enables proactivity for the resident deployment, installs the units
 under `~/.config/systemd/user/`, and starts them. An existing production config
