@@ -85,6 +85,33 @@ class WeatherTests(unittest.TestCase):
         self.assertNotIn("raw_secret", json.dumps(result))
         self.assertNotIn('"raw"', json.dumps(result))
 
+    def test_hourly_normalization_retains_tomorrow_but_stays_bounded(self):
+        point, hourly, stations, observation, alerts = _nws_payloads()
+        periods = []
+        for offset in range(60):
+            periods.append({
+                "startTime": (NOW + timedelta(hours=offset)).isoformat(),
+                "endTime": (NOW + timedelta(hours=offset + 1)).isoformat(),
+                "temperature": 75,
+                "temperatureUnit": "F",
+                "probabilityOfPrecipitation": {"value": 20},
+                "windSpeed": "5 mph",
+                "windDirection": "NW",
+                "shortForecast": "Mostly sunny",
+            })
+        hourly = {"properties": {"generatedAt": NOW.isoformat(), "periods": periods}}
+        payloads = {
+            "https://api.test/points/38.90000,-77.00000": point,
+            "https://api.test/grid/hourly": hourly,
+            "https://api.test/stations": stations,
+            "https://api.test/stations/KXXX/observations/latest": observation,
+            "https://api.test/alerts/active?point=38.90000,-77.00000": alerts,
+        }
+        provider = NWSWeatherProvider(fetch_json=lambda url: payloads[url], now=lambda: NOW, base_url="https://api.test")
+        result = provider.refresh(WeatherConfig(enabled=True, location_label="fixture", latitude=38.9, longitude=-77.0))
+        self.assertEqual(len(result["hourly"]), 49)
+        self.assertEqual(result["hourly"][-1]["start"], (NOW + timedelta(hours=48)).isoformat())
+
     def test_points_mapping_is_cached_for_configured_interval(self):
         point, hourly, stations, observation, alerts = _nws_payloads()
         payloads = {
@@ -131,7 +158,9 @@ class WeatherTests(unittest.TestCase):
 
     def test_weather_api_is_local_metadata_only(self):
         with tempfile.TemporaryDirectory() as directory, PresenceStore(Path(directory) / "sentry.db") as store:
-            store.persist_weather_snapshot(snapshot(fetched_at=datetime.now(timezone.utc)))
+            value = snapshot(fetched_at=datetime.now(timezone.utc))
+            value["alerts"] = [{"id": "https://api.weather.gov/alerts/LEGACY-ALERT", "event": "Fixture"}]
+            store.persist_weather_snapshot(value)
             server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
             server.store = store
             thread = Thread(target=server.serve_forever, daemon=True)
@@ -147,10 +176,27 @@ class WeatherTests(unittest.TestCase):
                 self.assertNotIn("latitude", encoded)
                 self.assertNotIn("longitude", encoded)
                 self.assertNotIn("points_url", encoded)
+                self.assertNotIn("api.weather.gov", encoded)
+                self.assertEqual(payload["snapshot"]["alerts"][0]["id"], "LEGACY-ALERT")
             finally:
                 server.shutdown()
                 server.server_close()
                 thread.join(timeout=3)
+
+    def test_alert_urls_are_reduced_to_bounded_identifiers(self):
+        point, hourly, stations, observation, alerts = _nws_payloads()
+        alerts["features"][0]["id"] = "https://api.weather.gov/alerts/TEST-ALERT-123"
+        payloads = {
+            "https://api.test/points/38.90000,-77.00000": point,
+            "https://api.test/grid/hourly": hourly,
+            "https://api.test/stations": stations,
+            "https://api.test/stations/KXXX/observations/latest": observation,
+            "https://api.test/alerts/active?point=38.90000,-77.00000": alerts,
+        }
+        provider = NWSWeatherProvider(fetch_json=lambda url: payloads[url], now=lambda: NOW, base_url="https://api.test")
+        result = provider.refresh(WeatherConfig(enabled=True, location_label="fixture", latitude=38.9, longitude=-77.0))
+        self.assertEqual(result["alerts"][0]["id"], "TEST-ALERT-123")
+        self.assertNotIn("api.weather.gov", json.dumps(result))
 
     def test_weather_fact_packet_is_allow_listed(self):
         responses = {

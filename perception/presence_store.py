@@ -577,6 +577,13 @@ class PresenceStore:
         confidence = self._observation_value(observation, "max_person_confidence")
         with self._lock, self._connection:
             self._upsert_room_state(observation, room_id)
+            # The room remained occupied across a process gap, but continuity of
+            # that presence was not observed. Preserve that boundary on new
+            # records; older records derive it from their restart/system events.
+            self._connection.execute(
+                "UPDATE presence_sessions SET recovered_after_restart = 1 WHERE session_id = ?",
+                (session_id,),
+            )
             self._insert_event(
                 "presence.restart_reconciled", occurred_at, room_id, session_id, confidence, payload
             )
@@ -811,21 +818,54 @@ class PresenceStore:
         with self._lock:
             rows = self._connection.execute(
                 "SELECT session_id, room_id, started_at, ended_at, status, start_reason, end_reason, "
-                "recovered_after_restart, end_time_uncertain FROM presence_sessions "
+                "recovered_after_restart, end_time_uncertain, "
+                "CASE WHEN recovered_after_restart = 1 OR EXISTS ("
+                "SELECT 1 FROM events restart_event "
+                "WHERE restart_event.room_id = presence_sessions.room_id "
+                "AND restart_event.occurred_at >= presence_sessions.started_at "
+                "AND (presence_sessions.ended_at IS NULL OR restart_event.occurred_at <= presence_sessions.ended_at) "
+                "AND restart_event.event_type IN ('system.stopped', 'presence.restart_reconciled')"
+                ") THEN 1 ELSE 0 END AS continuity_uncertain "
+                "FROM presence_sessions "
                 "WHERE room_id = ? ORDER BY started_at DESC LIMIT ?",
                 (room_id, limit),
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def events(self, room_id: str = "office", limit: int = 100) -> list[dict[str, Any]]:
+    def events(
+        self,
+        room_id: str = "office",
+        limit: int = 100,
+        *,
+        event_type: str | None = None,
+        person_id: str | None = None,
+        since: str | None = None,
+    ) -> list[dict[str, Any]]:
         if limit <= 0:
             raise ValueError("limit must be positive")
+        if (event_type is None) != (person_id is None):
+            raise ValueError("event type and person id filters must be supplied together")
+        if event_type is not None and event_type != "person.identified":
+            raise ValueError("only primary-user identification filtering is supported")
+        if person_id is not None and person_id != "primary_user":
+            raise ValueError("only primary-user identification filtering is supported")
+        if since is not None and _parse_utc_time(since) is None:
+            raise ValueError("since must be a timezone-aware timestamp")
+        query = (
+            "SELECT event_id, event_type, occurred_at, room_id, session_id, source, confidence, payload_json, schema_version "
+            "FROM events WHERE room_id = ?"
+        )
+        parameters: list[Any] = [room_id]
+        if event_type is not None:
+            query += " AND event_type = ? AND json_extract(payload_json, '$.person_id') = ?"
+            parameters.extend((event_type, person_id))
+        if since is not None:
+            query += " AND occurred_at >= ?"
+            parameters.append(_utc_iso(_parse_utc_time(since)))
+        query += " ORDER BY occurred_at DESC LIMIT ?"
+        parameters.append(limit)
         with self._lock:
-            rows = self._connection.execute(
-                "SELECT event_id, event_type, occurred_at, room_id, session_id, source, confidence, payload_json, schema_version "
-                "FROM events WHERE room_id = ? ORDER BY occurred_at DESC LIMIT ?",
-                (room_id, limit),
-            ).fetchall()
+            rows = self._connection.execute(query, parameters).fetchall()
         values = []
         for row in rows:
             value = dict(row)

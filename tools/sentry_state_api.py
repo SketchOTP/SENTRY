@@ -21,6 +21,18 @@ from perception.presence_store import PresenceStore
 PERCEPTION_RUNTIME_STATUSES = {"fresh", "stopped", "stale", "missing", "malformed"}
 
 
+def _public_alert_id(value: object) -> str | None:
+    """Expose a stable alert identifier, never the source URL."""
+
+    if not isinstance(value, str) or not value:
+        return None
+    parsed = urlparse(value)
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        value = parsed.path.rstrip("/").rsplit("/", 1)[-1]
+    value = " ".join(value.split())
+    return value[:240] if value else None
+
+
 def _parse_timestamp(value: object) -> datetime | None:
     if not isinstance(value, str) or not value:
         return None
@@ -158,7 +170,19 @@ class _Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/v1/persons":
             self._send(200, {"persons": store.persons()})
         elif parsed.path == "/v1/events":
-            self._send(200, {"events": store.events(room_id, limit=limit)})
+            event_type = query.get("event_type", [None])[0]
+            person_id = query.get("person_id", [None])[0]
+            since = query.get("since", [None])[0]
+            try:
+                self._send(200, {"events": store.events(
+                    room_id,
+                    limit=limit,
+                    event_type=event_type,
+                    person_id=person_id,
+                    since=since,
+                )})
+            except ValueError as exc:
+                self._send(400, {"error": str(exc)})
         elif parsed.path == "/v1/routines":
             self._send(200, {"routines": store.routine_snapshots(latest_only=not history, limit=limit)})
         elif parsed.path == "/v1/preferences":
@@ -193,6 +217,15 @@ class _Handler(BaseHTTPRequestHandler):
                 )
                 if key in snapshot
             }
+            if isinstance(public_snapshot.get("alerts"), list):
+                public_snapshot["alerts"] = [
+                    {
+                        **alert,
+                        "id": _public_alert_id(alert.get("id")),
+                    }
+                    for alert in public_snapshot["alerts"]
+                    if isinstance(alert, dict)
+                ]
             public_snapshot["source_metadata"] = {
                 key: metadata[key]
                 for key in ("provider", "points_cache_status", "station_id", "component_errors")

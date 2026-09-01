@@ -80,6 +80,47 @@ class PresenceStoreTests(unittest.TestCase):
             self.assertEqual(len(store.sessions()), 1)
             self.assertEqual(len(store.events()), 2)
 
+    def test_restart_resumed_open_session_marks_continuity_uncertain(self):
+        with tempfile.TemporaryDirectory() as directory, PresenceStore(Path(directory) / "sentry.db") as store:
+            store.start("2026-09-01T09:00:00+00:00")
+            store.record_observation(observation("empty", "2026-09-01T09:00:01+00:00"))
+            store.record_observation(
+                observation("occupied", "2026-09-01T09:00:02+00:00", "empty->occupied", people=[{"visible": True}])
+            )
+            store.stop("2026-09-01T09:01:00+00:00")
+            store.reconcile_after_restart(
+                observation("occupied", "2026-09-01T09:02:00+00:00", people=[{"visible": True}])
+            )
+            session = store.sessions()[0]
+            self.assertEqual(session["recovered_after_restart"], 1)
+            self.assertEqual(session["continuity_uncertain"], 1)
+            self.assertIn("presence.restart_reconciled", [event["event_type"] for event in store.events()])
+
+    def test_primary_confirmation_filter_is_bounded_and_timestamped(self):
+        with tempfile.TemporaryDirectory() as directory, PresenceStore(Path(directory) / "sentry.db") as store:
+            store.record_observation(observation("empty", "2026-09-01T09:00:00+00:00"))
+            store.record_observation(observation(
+                "occupied",
+                "2026-09-01T09:01:00+00:00",
+                "empty->occupied",
+                people=[{
+                    "visible": True,
+                    "track_id": 3,
+                    "person_id": "primary_user",
+                    "identity_state": "recognized",
+                    "identity_confidence": 0.9,
+                }],
+            ))
+            matches = store.events(
+                event_type="person.identified",
+                person_id="primary_user",
+                since="2026-09-01T00:00:00+00:00",
+            )
+            self.assertEqual(len(matches), 1)
+            self.assertEqual(matches[0]["event_type"], "person.identified")
+            with self.assertRaises(ValueError):
+                store.events(event_type="room.became_occupied", person_id="primary_user")
+
 
 if __name__ == "__main__":
     unittest.main()

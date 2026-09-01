@@ -192,6 +192,37 @@ class GroundingTests(unittest.TestCase):
         self.assertEqual(facts["current-open-session"]["data"]["session_id"], 4)
         self.assertEqual(facts["primary-user-identification"]["data"]["first_identified_at"], "2026-08-29T15:04:00+00:00")
 
+    def test_current_day_confirmation_is_not_presented_as_exact_arrival(self):
+        responses = api_responses()
+        responses["sessions"] = {"sessions": [{
+            **responses["sessions"]["sessions"][0],
+            "started_at": "2026-08-31T20:51:08+00:00",
+            "continuity_uncertain": 1,
+        }]}
+        responses["primary_user_events"] = {"events": [{
+            **responses["events"]["events"][0],
+            "occurred_at": "2026-09-01T10:05:00+00:00",
+        }]}
+        packet = build_fact_packet(responses, as_of="2026-09-01T16:00:00+00:00")
+        facts = {fact["fact_id"]: fact for fact in packet["facts"]}
+        confirmation = facts["primary-user-presence-confirmation"]["data"]
+        self.assertEqual(confirmation["local_date"], "2026-09-01")
+        self.assertEqual(confirmation["first_confirmed_at_local_display"], "September 1, 2026 at 6:05 AM EDT")
+        self.assertFalse(confirmation["exact_arrival_known"])
+        self.assertEqual(facts["current-open-session"]["data"]["started_at_local_display"], "August 31, 2026 at 4:51 PM EDT")
+        self.assertTrue(facts["current-open-session"]["data"]["continuity_uncertain"])
+
+    def test_empty_current_day_confirmation_remains_explicit(self):
+        responses = api_responses()
+        responses["primary_user_events"] = {"events": []}
+        packet = build_fact_packet(responses, as_of="2026-09-01T16:00:00+00:00")
+        facts = {fact["fact_id"]: fact for fact in packet["facts"]}
+        confirmation = facts["primary-user-presence-confirmation"]["data"]
+        self.assertEqual(confirmation["local_date"], "2026-09-01")
+        self.assertEqual(confirmation["confirmation_count"], 0)
+        self.assertIsNone(confirmation["first_confirmed_at"])
+        self.assertFalse(confirmation["exact_arrival_known"])
+
     def test_empty_packet_has_history_fact_but_no_open_session_or_identity_derivation(self):
         responses = api_responses("empty")
         responses["sessions"] = {"sessions": []}
@@ -226,13 +257,17 @@ class GroundingTests(unittest.TestCase):
     @patch("tools.sentry_grounding._get_json")
     def test_retrieved_fact_packet_supports_later_bounded_orchestration(self, get_json):
         responses = api_responses()
-        get_json.side_effect = [responses["health"], responses["state"], responses["sessions"], responses["persons"], responses["events"]]
+        get_json.side_effect = [
+            responses["health"], responses["state"], responses["sessions"], responses["persons"],
+            responses["events"], {"events": [responses["events"]["events"][0]]},
+        ]
         from tools.sentry_grounding import retrieve_fact_packet
         retrieval = retrieve_fact_packet("http://127.0.0.1:48174")
         self.assertTrue(retrieval.available)
         assert retrieval.packet is not None
         ids = {fact["fact_id"] for fact in retrieval.packet["facts"]}
         self.assertIn("current-room-state", ids)
+        self.assertIn("primary-user-presence-confirmation", ids)
         self.assertIsNone(validate_grounded_response({
             "answer": "The office is occupied.", "grounding": "supported",
             "fact_ids": ["current-room-state"], "limitations": [],

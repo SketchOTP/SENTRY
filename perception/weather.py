@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -54,6 +55,19 @@ def _bounded_text(value: Any, limit: int = 800) -> str | None:
         return None
     value = " ".join(value.split())
     return value[:limit] if value else None
+
+
+def _alert_identifier(value: Any) -> str | None:
+    """Keep an alert identifier without retaining a provider URL."""
+
+    text = _bounded_text(value, 240)
+    if text is None:
+        return None
+    parsed = urlparse(text)
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
+        tail = parsed.path.rstrip("/").rsplit("/", 1)[-1]
+        return _bounded_text(tail, 240)
+    return text
 
 
 def _property(properties: dict[str, Any], key: str) -> Any:
@@ -240,7 +254,10 @@ class NWSWeatherProvider(WeatherProvider):
         periods = properties.get("periods") if isinstance(properties, dict) else None
         if not isinstance(periods, list):
             raise WeatherProviderError("NWS hourly forecast response omitted periods")
-        end = now + timedelta(hours=24)
+        # Keep enough bounded hourly evidence to answer a normal local-day
+        # "tomorrow" request even late in the evening, without exposing the
+        # full multi-day NWS feed to the conversation layer.
+        end = now + timedelta(hours=48)
         normalized = []
         for period in periods:
             if not isinstance(period, dict):
@@ -271,7 +288,7 @@ class NWSWeatherProvider(WeatherProvider):
             if not isinstance(properties, dict):
                 continue
             alerts.append({
-                "id": feature.get("id") or properties.get("id"),
+                "id": _alert_identifier(feature.get("id") or properties.get("id")),
                 "event": _bounded_text(properties.get("event"), 120),
                 "severity": properties.get("severity"),
                 "urgency": properties.get("urgency"),

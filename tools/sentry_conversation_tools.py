@@ -11,6 +11,7 @@ import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from tools.sentry_grounding import (
     _get_json,
@@ -89,7 +90,7 @@ def tool_catalog() -> list[dict[str, Any]]:
         {"name": "get_current_office_state", "kind": "read", "arguments": {},
          "description": "Fresh current office state only; returns unavailable when live perception cannot support it."},
         {"name": "get_office_history", "kind": "read", "arguments": {"limit": "integer 1..20, optional"},
-         "description": "Bounded recent sessions, semantic events, identification history, and local display times."},
+         "description": "Bounded room-session history plus primary-user presence confirmations. A room session start is not a personal arrival, and a confirmation is not an exact entry time."},
         {"name": "get_office_reminders", "kind": "read", "arguments": {},
          "description": "The bounded next-office-session reminder state."},
         {"name": "create_next_office_reminder", "kind": "mutation", "arguments": {"message": "string, 1..120 characters"},
@@ -187,6 +188,25 @@ class ConversationToolHost:
             responses["sessions"] = self._get_json(self.base_url, f"/v1/rooms/{self.room_id}/sessions", params={"room_id": self.room_id, "limit": str(limit)})
             responses["persons"] = self._get_json(self.base_url, "/v1/persons", params={"limit": str(limit)})
             responses["events"] = self._get_json(self.base_url, "/v1/events", params={"room_id": self.room_id, "limit": str(limit)})
+            display_timezone = health.get("display_timezone", "America/New_York")
+            if not isinstance(display_timezone, str):
+                raise ValueError("display timezone must be a valid IANA timezone")
+            try:
+                local_now = datetime.now(ZoneInfo(display_timezone))
+            except ZoneInfoNotFoundError as exc:
+                raise ValueError("display timezone must be a valid IANA timezone") from exc
+            day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+            responses["primary_user_events"] = self._get_json(
+                self.base_url,
+                "/v1/events",
+                params={
+                    "room_id": self.room_id,
+                    "limit": "20",
+                    "event_type": "person.identified",
+                    "person_id": "primary_user",
+                    "since": day_start.isoformat(),
+                },
+            )
         else:
             responses.update({"sessions": {"sessions": []}, "persons": {"persons": []}, "events": {"events": []}})
         return build_fact_packet(responses)
@@ -208,7 +228,7 @@ class ConversationToolHost:
         try:
             limit = arguments.get("limit", 20)
             packet = self._packet(include_state=True, include_history=True, limit=limit)
-            allowed = {"source-health", "room-sessions", "room-events", "enrolled-persons", "primary-user-identification", "last-confirmed-empty"}
+            allowed = {"source-health", "room-sessions", "room-events", "enrolled-persons", "primary-user-identification", "primary-user-presence-confirmation", "last-confirmed-empty"}
             facts = [fact for fact in packet["facts"] if fact.get("fact_id") in allowed]
             return _read_result("get_office_history", status="supported", facts=facts, as_of=packet["as_of"])
         except Exception as exc:  # noqa: BLE001

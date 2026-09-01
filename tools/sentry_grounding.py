@@ -100,7 +100,7 @@ def _normalize_people(state: dict[str, Any], persons: list[dict[str, Any]]) -> l
 def _normalize_sessions(sessions: Any, display_timezone: str) -> list[dict[str, Any]]:
     allowed = (
         "session_id", "room_id", "started_at", "ended_at", "status", "start_reason",
-        "end_reason", "recovered_after_restart", "end_time_uncertain",
+        "end_reason", "recovered_after_restart", "end_time_uncertain", "continuity_uncertain",
     )
     output = []
     for session in sessions or []:
@@ -207,7 +207,7 @@ def _normalize_weather(response: Any) -> list[dict[str, Any]]:
     if isinstance(forecast, list):
         normalized_forecast = [
             {key: item[key] for key in _WEATHER_FORECAST_KEYS if key in item}
-            for item in forecast[:24] if isinstance(item, dict)
+            for item in forecast[:48] if isinstance(item, dict)
         ]
         if normalized_forecast:
             facts.append({
@@ -263,6 +263,9 @@ def build_fact_packet(
         if isinstance(item, dict)
     ]
     events = _normalize_events(responses.get("events", {}).get("events", []), display_timezone)
+    primary_user_events = _normalize_events(
+        responses.get("primary_user_events", {}).get("events", []), display_timezone
+    )
     current_people = _normalize_people(state, persons)
 
     facts: list[dict[str, Any]] = [
@@ -376,6 +379,9 @@ def build_fact_packet(
                     "session_id": session.get("session_id"),
                     "started_at": session.get("started_at"),
                     "started_at_local_display": session.get("started_at_local_display"),
+                    "start_reason": session.get("start_reason"),
+                    "recovered_after_restart": bool(session.get("recovered_after_restart")),
+                    "continuity_uncertain": bool(session.get("continuity_uncertain")),
                     "elapsed_seconds": _elapsed_seconds(session.get("started_at"), evaluated_at),
                 },
             }
@@ -403,6 +409,38 @@ def build_fact_packet(
                         (item.get("display_name") for item in persons if item.get("person_id") == "primary_user"),
                         None,
                     ),
+                },
+            }
+        )
+
+    if "primary_user_events" in responses:
+        primary_today = [
+            event for event in primary_user_events
+            if event.get("event_type") == "person.identified"
+            and (event.get("payload") or {}).get("person_id") == "primary_user"
+        ]
+        primary_today.sort(key=lambda event: str(event.get("occurred_at", "")))
+        local_date = evaluated_at.astimezone(ZoneInfo(display_timezone)).date().isoformat()
+        first = primary_today[0] if primary_today else None
+        latest = primary_today[-1] if primary_today else None
+        facts.append(
+            {
+                "fact_id": "primary-user-presence-confirmation",
+                "kind": "derived_primary_presence_confirmation",
+                "as_of": as_of_value,
+                "data": {
+                    "person_id": "primary_user",
+                    "display_name": next(
+                        (item.get("display_name") for item in persons if item.get("person_id") == "primary_user"),
+                        None,
+                    ),
+                    "local_date": local_date,
+                    "first_confirmed_at": first.get("occurred_at") if first else None,
+                    "first_confirmed_at_local_display": first.get("occurred_at_local_display") if first else None,
+                    "most_recent_confirmed_at": latest.get("occurred_at") if latest else None,
+                    "most_recent_confirmed_at_local_display": latest.get("occurred_at_local_display") if latest else None,
+                    "confirmation_count": len(primary_today),
+                    "exact_arrival_known": False,
                 },
             }
         )
@@ -586,6 +624,26 @@ def retrieve_fact_packet(
             ("events", "/v1/events"),
         ):
             responses[name] = _get_json(base_url, path, params={"room_id": room_id, "limit": "100"}, timeout=timeout)
+        display_timezone = health.get("display_timezone", "America/New_York")
+        if not isinstance(display_timezone, str):
+            raise ValueError("display timezone must be a valid IANA timezone")
+        try:
+            local_now = datetime.now(ZoneInfo(display_timezone))
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError("display timezone must be a valid IANA timezone") from exc
+        day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+        responses["primary_user_events"] = _get_json(
+            base_url,
+            "/v1/events",
+            params={
+                "room_id": room_id,
+                "limit": "20",
+                "event_type": "person.identified",
+                "person_id": "primary_user",
+                "since": day_start.isoformat(),
+            },
+            timeout=timeout,
+        )
         if routine_intent is not None:
             responses["routines"] = _get_json(
                 base_url,
