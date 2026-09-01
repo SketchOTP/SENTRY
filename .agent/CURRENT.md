@@ -3,28 +3,24 @@
 Last updated: 2026-09-01
 
 ## Current stage
-V0.3 — context truthfulness plus production NWS weather qualified at
-implementation commit `bd2654b`; always-available voice remains
-implemented/unqualified.
+V0.3.1 — always-available voice foundation qualified on the Vosk → Whisper →
+bounded ConversationOrchestrator → Kokoro office path. Schema remains 8.
 
 ## Current objective
-The personal-history and weather blockers exposed by the final voice run are
-resolved. Return to the Architect before resuming the bounded final V0.3.1
-voice acceptance. Do not create durable conversational memory or claim that
-always-available voice is qualified.
+V0.3.1 is complete. Return to the Architect for the next one-room product
+decision. Do not begin V0.3.2 turn-taking, durable conversational memory, or
+another voice architecture change without a new directive.
 
 ## Active directive
-`SENTRY-V0.3-CONTEXT-TRUTHFULNESS-WEATHER-001` is complete. Production
-history remains unchanged: room session 9 began August 31 at 4:51 PM EDT and
-crossed restart gaps, while no September 1 primary-user confirmation existed
-before the bounded live smokes. The answer to personal-arrival questions now
-states that limitation instead of treating a room session as arrival. The
-operator explicitly supplied the private home coordinate; NWS refresh, local
-weather API, current/forecast/alerts tool, tomorrow forecast, and two voice
-smokes passed. Schema remains 8; focused suites passed `150/150` and the full
-Ubuntu regression passed `218/218`. Vosk remains the operator-selected
-single-token wake authority, and V0.3 always-available voice is still not
-accepted as a whole.
+`SENTRY-V0.3-ALWAYS-AVAILABLE-VOICE-AFFECTED-RERUN-001` is complete. The
+earlier final run's five successful natural hands-free requests, inline audio,
+wake-only ARMED, self-speech, PTT, perception, and privacy evidence remain
+valid. The only repaired paths — personal history and production NWS weather
+— passed spoken smokes on `bd2654b`; a new five-utterance live negative check
+without the wake token produced zero responses, zero wake/dispatch counters,
+and zero Luna invocations. Targeted current suites passed `130/130`; the
+exact-code full regression `218/218` is reused. Voice remains opt-in and all
+resident services are inactive.
 
 ## V0.3 conversational orchestration — 2026-08-31
 - `tools/sentry_ask.py` now sends normal user text through `ConversationOrchestrator`, rather than using reminder/preference/weather/routine selectors as the primary natural-language router. The old selectors remain compatibility helpers only.

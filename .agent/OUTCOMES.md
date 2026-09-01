@@ -1282,3 +1282,20 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Two live Vosk/Whisper/Kokoro smokes passed: the truthful personal-arrival response and a tomorrow-weather response. The listener recorded two wake/dispatches, four normal conversational Luna calls total, successful local delivery, then stopped cleanly. No wake/STT/orchestration architecture change was made.
 - Focused affected suites passed `150/150`; full Ubuntu regression passed `218/218`. Schema remains 8. All temporary API, perception, voice, weather, proactive, and capture processes/services were restored inactive. Privacy inspection found no WAV, PCM, microphone recording, or ambient transcript artifact. A real alert URL previously exposed as an alert ID was reduced to its bounded identifier in both new normalization and API compatibility handling.
 - No OpenWeather key/account, generic network tool, coordinate inference, production-history rewrite, schema migration, or voice-acceptance claim was introduced. V0.3.1 final voice acceptance remains paused pending Architect direction.
+
+## OUTCOME-SENTRY-V0.3-ALWAYS-AVAILABLE-VOICE-AFFECTED-RERUN-001 — Final V0.3.1 voice acceptance
+- Completed: 2026-09-01
+- Verdict: **V0.3.1 ALWAYS-AVAILABLE VOICE FOUNDATION QUALIFIED**
+- Starting SHA: `edfd6470a8be86d39907c0757ef17d3f1d279cea`
+- Retrieval confidence: **ADEQUATE**
+- Evidence level: prior E5 operational whole-path evidence plus repaired-path and live-negative confirmation
+
+### Evidence reconciliation
+- The earlier final V0.3.1 run remains valid for five natural wake → dispatch → spoken-response requests, accepted single-token `Sentry` conversational-wake policy, inline command PCM recovery, wake-only `ARMED` follow-up, `ARMED` timeout, self-speech suppression, concurrent perception, PTT convergence on the same ConversationOrchestrator, and the original privacy/process checks.
+- `bd2654b` changed only history/weather grounding. Its two required spoken smokes passed: personal-arrival wording no longer turns the August 31 room-session start into arrival, and ordinary tomorrow-weather wording uses the fresh private NWS forecast without coordinate/provider-URL leakage.
+- The only undocumented criterion was repeated live no-wake rejection. The operator spoke five normal utterances without the token `Sentry`; the active listener gave no response. Its metadata after clean stop contained no wake-detection, command-dispatch, or command-Luna counters, establishing zero dispatch and zero Luna for that run.
+
+### Validation and boundary
+- Current targeted voice/Vosk/PTT/orchestration/grounding/weather/reminder/preference/proactive/routine suites passed **130/130**. The exact same implementation baseline already passed full Ubuntu regression **218/218**; no runtime code changed, so that full result is reused rather than ceremonially rerun.
+- Listener stop was clean; all resident services are inactive and `voice.always_on_enabled=false`. No listener, `pw-record`, Whisper worker, temporary API/perception process, microphone recording, or ambient transcript was produced. Pre-existing third-party source-test WAVs under `/tmp` were not runtime recordings and were not modified.
+- Schema remains 8. No wake/STT/orchestration/NWS/TTS redesign, physical-history mutation, new provider, service enablement, or V0.3.2 work occurred.

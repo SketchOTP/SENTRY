@@ -465,3 +465,12 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Scope: correct stale mutable Authority pointers after the Architect accepted the already committed `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001` result. No runtime implementation, tests, schema, service, configuration, or architecture changed.
 - Result: `INDEX.md`, `CURRENT.md`, and durable profile pointers now identify conversational orchestration as the last accepted outcome, preserve `7d605af` as its implementation commit, retain `104/104` focused and `212/212` full-regression evidence, and state that V0.3 always-available voice remains implemented/unqualified.
 - Source: Architect directive supplied 2026-08-31 after GitHub/Notion review of `7d605afc5a1804373447621b611648716368b440` and `881e449ef8546f10afdefa6843636bbef573009e`.
+
+## SENTRY-V0.3-ALWAYS-AVAILABLE-VOICE-AFFECTED-RERUN-001 — Final evidence reconciliation
+- Issued: 2026-09-01
+- Status: COMPLETE — V0.3.1 qualified; records-only result.
+- Project stage: V0.3.1 — Always-available voice foundation.
+- Objective: Reuse valid V0.3.1 evidence and rerun only the person-history, production-weather, or undocumented acceptance items affected by `bd2654b`.
+- Result: Earlier five hands-free requests and whole-path evidence remained valid; repaired history/weather smokes passed; five real utterances without `Sentry` produced zero wake/command/Luna activity. No runtime code, schema, wake/STT/orchestration architecture, or service enablement changed.
+- Validation: Targeted current suites `130/130`; exact-code full Ubuntu regression `218/218` reused. Services inactive; always-on voice stays opt-in.
+- Source: Architect directive supplied 2026-09-01.

@@ -560,3 +560,17 @@ Production session 9 was preserved unchanged as an August 31 room record and der
 
 ### Boundary
 No physical history was rewritten or fabricated, no OpenWeather/API key/account was added, no generic HTTP/browser tool was exposed, and V0.3.1 always-available voice remains implemented/unqualified. All temporary services were stopped after evidence collection.
+
+## RECORD-SENTRY-043 — V0.3.1 always-available voice foundation accepted
+- Date: 2026-09-01
+- Type: FINAL ACCEPTANCE / EVIDENCE RECONCILIATION
+- Related directive: `SENTRY-V0.3-ALWAYS-AVAILABLE-VOICE-AFFECTED-RERUN-001`
+
+### Decision
+V0.3.1 is qualified without reopening its earlier whole-interface run. The owner-approved Vosk single-token wake policy, local Whisper command STT, bounded Luna tool orchestration, and Kokoro delivery remain the accepted one-room voice architecture.
+
+### Evidence
+The original final run established five natural hands-free wake → dispatch → spoken responses. Context repair `bd2654b` then supplied truthful personal-history and private NWS tomorrow-weather spoken checks. The affected rerun added the only undocumented acceptance check: five normal live utterances without `Sentry`; there was no listener response and no wake, command, or Luna counter. Targeted current suites passed `130/130`; full regression `218/218` is reused from the exact unchanged runtime.
+
+### Boundary
+Always-on voice remains opt-in and inactive after qualification. No audio/transcript persistence, new service, schema change, sensor, provider, generic tool, turn-taking, or durable conversational memory is authorized by this record.

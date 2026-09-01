@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: V0.3 context truthfulness plus production NWS weather qualified; V0.3.1 always-available voice remains implemented/unqualified.
-- Active directive: none — `SENTRY-V0.3-CONTEXT-TRUTHFULNESS-WEATHER-001` is complete; return to the Architect before resuming final voice acceptance.
-- Active task packet: none; the person-history and production-weather evidence is recorded in the repository.
-- Last accepted outcome: room-session records, primary-user confirmation, and exact personal arrival are now distinct; production home weather is supplied only through the existing private NWS cache and bounded `get_weather` tool.
-- Latest recorded outcome: focused affected suites `150/150`, full Ubuntu regression `218/218`, real NWS current/forecast/alerts refresh, truthful text proofs, and two spoken smokes passed. V0.3 always-available voice is still not accepted as a whole.
-- Last state sync: 2026-09-01; implementation commit `bd2654b` and this Authority reconciliation record the qualified context boundary.
+- Current stage: V0.3.1 always-available voice foundation qualified; V0.3.2 turn-taking is not authorized.
+- Active directive: none — `SENTRY-V0.3-ALWAYS-AVAILABLE-VOICE-AFFECTED-RERUN-001` is complete; return to the Architect for the next project decision.
+- Active task packet: none; the final voice acceptance evidence is recorded in the repository.
+- Last accepted outcome: the local Vosk → Whisper → bounded conversation orchestrator → Kokoro office interface is qualified, with current physical truthfulness and private NWS weather retained.
+- Latest recorded outcome: five earlier real hands-free requests, corrected person-history and weather smokes, five no-`Sentry` negatives with zero dispatch, targeted sanity `130/130`, and reused exact-code full regression `218/218` passed.
+- Last state sync: 2026-09-01; `edfd647` is the implementation baseline and the next records commit documents V0.3.1 acceptance.
 
 ## Mandatory kernel
 Read these before substantial work:
