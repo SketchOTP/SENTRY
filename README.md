@@ -96,7 +96,7 @@ The production result is currently `insufficient` because natural history is spa
 
 The read-only NWS weather foundation is documented in [`docs/V0.2_WEATHER_CONTEXT.md`](docs/V0.2_WEATHER_CONTEXT.md). It uses schema-v7 snapshots, explicit operator coordinates, bounded retries, 24-hour point-resource caching, freshness states, and the localhost-only `/v1/weather` endpoint. Production weather is not enabled until explicit coordinates are supplied in the local configuration.
 
-The owner-authorized public-web extension is documented in [`docs/V0.3_READ_ONLY_WEB.md`](docs/V0.3_READ_ONLY_WEB.md). Luna plans only bounded, host-executed read operations: public-source search, direct public-page reading, and public place/date weather. It receives neither a browser nor a generic network client; the host enforces public HTTP(S), redirect/DNS validation, strict size/type limits, and no-write/no-login privacy boundaries.
+The owner-authorized public-web extension is documented in [`docs/V0.3_READ_ONLY_WEB.md`](docs/V0.3_READ_ONLY_WEB.md). Luna may use its native read-only web-search capability only after the typed `use_native_web_search` plan marker is host-validated. SENTRY does not run a parallel search client or hand local private facts to web search; the private home-weather cache remains local and the native path permits neither login nor external writes.
 
 ## V0.2 Event Reminders
 

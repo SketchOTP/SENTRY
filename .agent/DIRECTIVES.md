@@ -482,3 +482,12 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Scope: `search_web`, `read_web_page`, and `get_public_weather`; public HTTP(S) only; DNS/redirect validation; bounded source extracts; explicit public place/date forecast lookup.
 - Hard boundary: no private/local network, credentials, login, cookies, form submission, uploads, purchases, posts, filesystem/shell/SQL access, audio upload, coordinate/provider-URL leakage, generic browser control, or network write capability.
 - Source: explicit operator override supplied 2026-09-01.
+
+## SENTRY-OPERATOR-NATIVE-WEB-SEARCH-001 — Native Luna web-search correction
+- Issued: 2026-09-01
+- Status: COMPLETE — IMPLEMENTED / REGRESSION-PROTECTED.
+- Objective: supersede the just-added host-owned Bing/Open-Meteo transport with Luna/Codex CLI's native live read-only web-search capability.
+- Scope: one planner-visible `use_native_web_search` authorization marker; only the corresponding ephemeral synthesis turn receives Codex CLI `--search`. The host performs no public HTTP transport and no new credentials, provider account, browser framework, or network-write capability are added.
+- Hard boundary: native web search is for user-requested public research only. It cannot receive SENTRY-private identity, history, reminders, coordinates, secrets, or local tool output; it does not authorize login, form submission, uploads, purchases, posts, private-network access, filesystem/shell access, or any external write.
+- Supersedes as current implementation: the host `search_web`, `read_web_page`, and `get_public_weather` transport described by `SENTRY-OPERATOR-READ-ONLY-WEB-ACCESS-001`. That prior commit/evidence remains historical.
+- Source: explicit operator correction supplied 2026-09-01.

@@ -25,9 +25,7 @@ class _Host:
             "get_recent_proactive_action": "recent-proactive-action",
             "get_routines": "routine:office_session_start_time:all_days",
             "get_weather": "weather:forecast:near-term",
-            "get_public_weather": "public-weather:forecast:1",
-            "search_web": "web:search:1",
-            "read_web_page": "web:page:1",
+            "use_native_web_search": "web:native-search-authorized",
         }.get(name)
         if name in {"create_next_office_reminder", "cancel_pending_office_reminder", "set_acknowledgement_preference", "clear_acknowledgement_preference", "record_proactive_feedback"}:
             return {"tool": name, "status": "succeeded", "result": {"ok": True}, "fact_ids": [], "limitations": []}
@@ -69,12 +67,12 @@ class ConversationOrchestrationTests(unittest.TestCase):
             "How long are office sessions normally?": "get_routines",
             "What is it like outside?": "get_weather",
             "What was the last thing you proactively said?": "get_recent_proactive_action",
-            "Look up the current weather in Boston tomorrow.": "get_public_weather",
-            "Search the web for the latest OpenAI news.": "search_web",
+            "Look up the current weather in Boston tomorrow.": "use_native_web_search",
+            "Search the web for the latest OpenAI news.": "use_native_web_search",
         }
         for question, tool in matrix.items():
             with self.subTest(question=question):
-                arguments = {"topic": "forecast"} if tool == "get_weather" else {"location": "Boston", "when": "tomorrow"} if tool == "get_public_weather" else {"query": "OpenAI news"} if tool == "search_web" else {}
+                arguments = {"topic": "forecast"} if tool == "get_weather" else {}
                 orchestrator = self.make_orchestrator([{"name": tool, "arguments": arguments}])
                 # A narrow fixture supplies valid argument alternatives only.
                 if tool == "get_routines":
@@ -129,6 +127,12 @@ class ConversationOrchestrationTests(unittest.TestCase):
         result = orchestrator.ask("Do I have a reminder?")
         self.assertEqual(result["grounding"], "unavailable")
         self.assertIn("validation", result["limitations"][0])
+
+    def test_native_web_authorization_is_passed_as_a_typed_fact(self):
+        orchestrator = self.make_orchestrator([{"name": "use_native_web_search", "arguments": {}}])
+        result = orchestrator.ask("Look up the current weather in Boston tomorrow.")
+        self.assertEqual(result["tool_calls"], [{"name": "use_native_web_search", "arguments": {}}])
+        self.assertEqual(result["fact_ids"], ["web:native-search-authorized"])
 
     def test_recent_turn_context_is_bounded_ram_only_and_expires(self):
         context = RecentConversationContext(max_turns=2, ttl_seconds=600)

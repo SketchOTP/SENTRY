@@ -1314,3 +1314,18 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Focused web/bridge/orchestration/voice suites passed `37/37`; full Ubuntu regression passed `234/234` in 38.722 seconds. Existing warnings were the pre-existing local socket `ResourceWarning` and multiprocessing-fork `DeprecationWarning`.
 - Live end-to-end planner → host → synthesis proofs passed for an official public-site search, direct public-page reading, and London next-day weather. The latter selected `get_public_weather` and delivered a grounded 62–70°F forecast with 47% maximum precipitation probability; no coordinate/provider URL was exposed.
 - This records an operator-authorized capability implementation, not V0.3.2 conversational turn-taking acceptance. No schema migration, persistent memory, voice/wake/TTS redesign, generic browser, network-write capability, or production private-data disclosure was introduced.
+
+## OUTCOME-SENTRY-OPERATOR-NATIVE-WEB-SEARCH-001 — Luna native read-only web search
+- Completed: 2026-09-01
+- Verdict: **IMPLEMENTED / REGRESSION-PROTECTED — OPERATOR CORRECTION**
+
+### Result
+- The host-owned Bing/Open-Meteo transport is removed from the current production path. The planner now has one typed `use_native_web_search` marker; it merely authorizes the corresponding synthesis turn.
+- When the host validates that marker, `tools/sentry_codex_bridge.py` launches the existing OAuth-authenticated ephemeral Codex CLI with global `--search`, `--json`, `--ignore-user-config`, and read-only sandboxing. The model's native `web_search` tool—not SENTRY host HTTP—researches the public web.
+- Local physical, history, reminder, preference, and configured private-home weather facts remain ordinary host tools and continue to require fact-ID validation. The authorization fact `web:native-search-authorized` records permission only; native source links are response-level citations rather than fabricated local facts.
+
+### Evidence and boundary
+- A live native synthesis request for Mount Washington, Kentucky next-day weather returned a sourced National Weather Service answer through native `web_search`; it used no SENTRY-host web transport and exposed no configured coordinate fact.
+- Bridge/orchestration/voice focused tests passed `35/35`. Full Ubuntu regression passed `232/232` in 43.790 seconds. The only output warnings were the existing local socket `ResourceWarning` and multiprocessing-fork `DeprecationWarning`.
+- Native web search is enabled only for a planner-authorized public-research synthesis turn. It remains read-only and prompt-constrained against SENTRY-private data in search queries; it does not authorize login, forms, uploads, purchases, posts, private-network access, shell/filesystem use, or external writes.
+- This supersedes the prior host transport as the current implementation while preserving OUTCOME-SENTRY-OPERATOR-READ-ONLY-WEB-ACCESS-001 as historical evidence. It does not qualify V0.3.2 turn-taking.

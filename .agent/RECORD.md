@@ -587,5 +587,36 @@ The operator authorized SENTRY to use public internet information on the user's 
 - The host rejects non-HTTP(S), nonstandard ports, credentials, private/non-global DNS targets, unsafe redirects, unreadable content, and oversized responses. There are no login, forms, uploads, purchases, posts, private-network, filesystem, shell, SQL, or network-write operations.
 - Source text is untrusted reference material. Synthesis may use it only through returned fact IDs and must not follow source instructions or disclose SENTRY-local private facts. Private home-weather coordinates stay in the local cache path and never enter public queries or Luna-visible facts.
 
+## RECORD-SENTRY-045 — Operator correction: native Luna read-only web search
+- Date: 2026-09-01
+- Type: OPERATOR CAPABILITY CORRECTION / SUPERSESSION
+
+### Decision
+The operator rejected SENTRY's parallel host search/weather transport as the
+wrong abstraction. Public research belongs to Luna's native Codex CLI web
+capability: Luna can search/read public web sources in a request-scoped,
+read-only synthesis turn. This replaces the former host `search_web`,
+`read_web_page`, and `get_public_weather` implementation as current behavior.
+
+### Boundary
+- The typed planner marker `use_native_web_search` is the only host-level web
+  capability. It authorizes one synthesis turn; it does not perform an HTTP
+  request itself.
+- The bridge launches that turn with global Codex CLI `--search`, read-only
+  sandboxing, and ephemeral runtime state. There is no custom provider,
+  credential, parallel web transport, or generic browser automation in SENTRY.
+- SENTRY-private identity, local history, reminders, configured coordinates,
+  secrets, and local tool output are prohibited in native web queries. Native
+  search remains read-only: no authentication, forms, uploads, purchases,
+  posting, private-network access, or external writes.
+- The configured private-home NWS cache remains separate. The `web:native-search-authorized`
+  fact records authorization, while native source links remain response-level
+  citations; it is not a local fact asserting a web claim.
+
+### Historical preservation
+RECORD-SENTRY-044 and its implementation/test evidence remain an accurate
+record of the earlier host-bounded attempt. They are superseded for future
+production behavior, not erased or reinterpreted.
+
 ### Evidence
 Focused web/bridge/orchestration/voice tests passed `37/37`; the complete Ubuntu regression passed `234/234`. Real planner-host-synthesis checks grounded an official-site lookup, a direct public-page request, and a London tomorrow forecast. V0.3.2 remains implemented/unverified and must not be inferred qualified from this operator override.
