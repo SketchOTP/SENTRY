@@ -1,9 +1,9 @@
 # Current Project State
 
-Last updated: 2026-08-31T21:35:00-04:00
+Last updated: 2026-09-01T01:58:00-04:00
 
 ## Current stage
-V0.3 — conversational orchestration qualified in the working tree; always-available voice remains implemented/unverified
+V0.3 — conversational orchestration qualified at `7d605af`; always-available voice remains implemented/unverified
 
 ## Current objective
 Replace deterministic pre-Luna natural-language routing with bounded
@@ -13,7 +13,7 @@ voice is qualified.
 
 ## Active directive
 No successor directive is active. `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001`
-is complete in the working tree pending its governed commit/Architect review.
+is complete at implementation commit `7d605af` pending Architect review.
 Vosk remains the operator-selected single-token wake authority, and V0.3
 always-available voice is still not accepted as a whole.
 

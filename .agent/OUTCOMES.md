@@ -4,7 +4,7 @@
 
 ## OUTCOME-SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001 — Bounded semantic conversation layer
 - Completed: 2026-08-31
-- Verdict: QUALIFIED — pending governed commit/Architect acceptance
+- Verdict: QUALIFIED — implementation commit `7d605af`; pending Architect acceptance
 - Retrieval confidence: HIGH
 - Evidence level: E4_REGRESSION_PROTECTED for text orchestration; E5_OPERATIONALLY_OBSERVED for the five spoken smoke requests
 
@@ -16,6 +16,7 @@ Replaced primary deterministic intent selection with bounded Luna-directed tool 
 - Tool/mutation budget, invalid tool/argument, grounding-fact rejection, RAM context, localhost-only current-state truthfulness, and persisted reminder-result tests: PASSED.
 - Real text calls selected reminder, preference, proactive-history, Monday routine, cached weather, current state, reminder+current-state, and follow-up reminder domains correctly. Unavailable weather/current state remained truthful.
 - Five real spoken requests across reminder, preference, proactive behavior, historical presence, and weather: PASSED by operator observation. The post-test metadata-only sample recorded local speech delivery, two Luna calls, 1.580 s speech-end-to-dispatch, and 10.254 s STT-complete-to-final-grounded-answer.
+- Focused affected suites: PASSED `104/104`; full Ubuntu regression: PASSED `212/212` (existing socket/fork warnings only).
 - Temporary services/processes: stopped; no audio or transcript persistence introduced.
 
 ### Remaining boundary
