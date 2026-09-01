@@ -26,6 +26,8 @@
 
 ## Implementation
 
+- Implementation commit: `cb3e97c` (`feat: make Codex the SENTRY agent runtime`).
+
 - `tools/sentry_ask.py` now sends production conversation directly to one
   `CodexNativeAgent` turn. The old planner/orchestrator modules remain only as
   compatibility and historical regression surfaces.
@@ -76,3 +78,7 @@
 - `git diff --check` and Python compilation: passed.
 - Schema remains 8. No camera frame, screenshot, ambient transcript, API key,
   biometric vector, or private coordinate was added to Git.
+- Final process inspection: voice, perception, state API, and proactivity were
+  inactive; no `pw-record`, listener, Whisper/Vosk worker, temporary API, or
+  transient desktop screenshot remained. `voice.always_on_enabled=false`.
+  The independently authorized `sentry-weather.timer` remained enabled/active.

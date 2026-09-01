@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: operator-authorized Codex-native SENTRY agent expansion; V0.3.2 bounded turn-taking remains implemented/unqualified and V0.3.1 voice remains qualified at `a3f6d67`.
-- Active directive: `SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001`.
-- Active task packet: `.agent/tasks/active/SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001/` — replace the split planner/host/synthesis conversation path with one tool-using Codex agent and expose SENTRY office/vision/desktop capabilities through MCP while retaining native Codex web, shell/file, browser, skill/plugin, and image generation.
-- Last accepted outcome: the local Vosk → Whisper → bounded conversation orchestrator → Kokoro office interface is qualified, with current physical truthfulness and private NWS weather retained.
-- Latest recorded outcome: the former host-transport public-web implementation is superseded by the operator-selected native Luna/Codex read-only web-search path. A real native-web Mount Washington forecast proof and the full Ubuntu regression `232/232` passed; V0.3.2 remains unaccepted.
-- Last state sync: 2026-09-01; native Luna web-search correction is implemented at `564ba78`; V0.3.2 remains active from `a3f6d67`.
+- Current stage: operator-authorized Codex-native SENTRY agent is implemented and technically qualified at `cb3e97c`; V0.3.2 bounded turn-taking remains implemented/unqualified.
+- Active directive: none; awaiting Architect disposition on `SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001`.
+- Completed task packet: `.agent/tasks/completed/SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001/`.
+- Last accepted outcome: V0.3.1 always-available Vosk voice remains qualified; the Codex-native agent expansion is operator-authorized and technically qualified, pending Architect acceptance.
+- Latest recorded outcome: one direct ephemeral Codex agent turn now selects 25 local SENTRY/desktop MCP tools plus native web, image generation, installed skills/plugins, and write-capable shell/files. Live web/image/file/desktop/application/camera proofs passed; focused `43/43` and full Ubuntu `243/243` passed. Interactive Browser control remains connection-dependent.
+- Last state sync: 2026-09-01; implementation commit `cb3e97c`; schema 8; voice opt-in/inactive; weather timer remains enabled/active under existing policy.
 
 ## Mandatory kernel
 Read these before substantial work:

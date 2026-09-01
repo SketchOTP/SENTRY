@@ -620,3 +620,28 @@ production behavior, not erased or reinterpreted.
 
 ### Evidence
 Focused web/bridge/orchestration/voice tests passed `37/37`; the complete Ubuntu regression passed `234/234`. Real planner-host-synthesis checks grounded an official-site lookup, a direct public-page request, and a London tomorrow forecast. V0.3.2 remains implemented/unverified and must not be inferred qualified from this operator override.
+
+## RECORD-SENTRY-046 — Codex becomes SENTRY's direct agent runtime
+- Date: 2026-09-01
+- Type: OPERATOR ARCHITECTURE OVERRIDE / TECHNICAL QUALIFICATION
+- Related directive: `SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001`
+
+### Decision
+The operator superseded the bounded planner/host/synthesis production
+conversation architecture. Codex CLI is now the natural-language agent;
+SENTRY supplies authoritative physical, persistence, identity, reminder,
+weather, and desktop capabilities as typed local MCP tools.
+
+### Evidence
+Implementation `cb3e97c` added the dedicated profile, repo-local plugin/skill,
+25-tool MCP server, direct agent bridge, on-demand vision, Linux desktop
+controls, and private service integration. Representative native web, image,
+file-write, volume, application, desktop-vision, URL-opening, and camera checks
+passed. Focused tests passed `43/43`; full Ubuntu regression passed `243/243`.
+
+### Boundary
+Interactive Browser automation still requires a connected Codex browser
+surface and is reported unavailable without one. Native web, desktop control,
+and image generation are independently working. Physical identity remains
+local/conservative, camera checks are explicit, conversation context is RAM
+only, schema remains 8, and V0.3.2 turn-taking remains unaccepted.

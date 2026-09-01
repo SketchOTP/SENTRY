@@ -16,10 +16,11 @@ They are not expected future phases unless the owner explicitly reopens them.
 
 **V0.2 resident runtime, routine statistics, routine-grounded conversation, preference/feedback memory, weather context, contextual weather proactivity, and event-triggered reminders are qualified. V0.3.1 always-available voice is qualified:** the accepted one-room stack includes Vosk wake, Whisper command STT, grounded conversation, and local Kokoro speech. Schema 8 remains current. Production NWS weather uses private local coordinates and a cache-refresh timer. Reminders remain explicit, durable, at-most-once local speech.
 
-**Current implementation work:** the production conversation entry point now
+**Operator-authorized, technically qualified V0.3 expansion:** the production conversation entry point now
 uses Codex directly as SENTRY's agent. A dedicated write-capable profile exposes
 local SENTRY/desktop MCP tools while retaining native web search, installed
-skills/plugins, image generation, and shell/file workflows. See
+skills/plugins, image generation, and shell/file workflows. Live representative
+proofs and the complete Ubuntu regression `243/243` passed. See
 [`docs/V0.3_CODEX_NATIVE_AGENT.md`](docs/V0.3_CODEX_NATIVE_AGENT.md).
 
 ## Project links

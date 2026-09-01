@@ -4,8 +4,8 @@ Last updated: 2026-09-01
 
 ## Current stage
 Operator-authorized Codex-native SENTRY agent expansion is implemented and
-qualified in the working tree. V0.3.2 bounded turn-taking remains implemented/
-unqualified. Schema remains 8.
+technically qualified at `cb3e97c`. V0.3.2 bounded turn-taking remains
+implemented/unqualified. Schema remains 8.
 
 ## Current objective
 Use Codex itself as SENTRY's natural-language agent. One ephemeral CLI turn can
@@ -15,7 +15,8 @@ on-demand vision, and Linux desktop actions. Preserve host-owned physical and
 identity truth, RAM-only conversation context, and the one-room boundary.
 
 ## Active directive
-`SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001` is active. The old planner → host →
+`SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001` is complete and awaits Architect
+disposition. The old planner → host →
 synthesis path and its typed native-web marker remain historical compatibility
 surfaces, not the production conversational authority. V0.3.2 focus behavior
 is preserved and still awaits its own final acceptance.

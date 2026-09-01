@@ -1330,3 +1330,21 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Bridge/orchestration/voice focused tests passed `35/35`. Full Ubuntu regression passed `232/232` in 43.790 seconds. The only output warnings were the existing local socket `ResourceWarning` and multiprocessing-fork `DeprecationWarning`.
 - Native web search is enabled only for a planner-authorized public-research synthesis turn. It remains read-only and prompt-constrained against SENTRY-private data in search queries; it does not authorize login, forms, uploads, purchases, posts, private-network access, shell/filesystem use, or external writes.
 - This supersedes the prior host transport as the current implementation while preserving OUTCOME-SENTRY-OPERATOR-READ-ONLY-WEB-ACCESS-001 as historical evidence. It does not qualify V0.3.2 turn-taking.
+
+## OUTCOME-SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001 — Direct Codex agent expansion
+- Completed: 2026-09-01
+- Verdict: **IMPLEMENTED / TECHNICALLY QUALIFIED — OPERATOR OVERRIDE**
+- Starting SHA: `122de1924f4e6f62d68838bdf1f1ccfbf35dea68`
+- Implementation SHA: `cb3e97c`
+
+### Result
+- The production `sentry_ask` path now uses one ephemeral Codex agent turn rather than the planner → host → synthesis split. The old modules remain historical compatibility surfaces.
+- A mode-0600 named Codex profile enables native web search, installed skills/plugins, `$imagegen`, view-image, workspace dependencies, write-capable shell/files, and a local SENTRY MCP server with 25 office/vision/desktop tools.
+- Live natural-language proofs passed for MCP local time, source-linked native web research, image generation, local file create/read, PipeWire volume mutation and restoration, installed-application discovery/launch, desktop screenshot understanding, explicit URL opening, and bounded office-camera inspection. Camera identity remained unresolved and no identity was guessed.
+- Interactive Browser control correctly returned unavailable because no in-app browser or ChatGPT browser-extension surface was connected. This does not invalidate native web search or local browser/desktop actions.
+
+### Evidence and boundary
+- Focused Codex/MCP/desktop/profile/voice/resident tests passed `43/43`; complete Ubuntu regression passed `243/243` in 45.515 seconds. Plugin and skill validators passed.
+- Schema remains 8. Recent conversational context remains RAM-only. No raw camera frame, desktop screenshot, microphone audio, ambient transcript, private coordinate, biometric vector, or API key was committed or retained by SENTRY.
+- Voice remains opt-in/disabled/inactive. Perception, state API, and proactivity remain inactive after qualification. The weather timer retains its separately authorized enabled/active state.
+- This operator-authorized expansion does not itself accept V0.3.2 bounded turn-taking, add persistent conversational memory, weaken physical truth, or expand beyond one office.
