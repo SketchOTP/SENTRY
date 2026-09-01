@@ -1318,6 +1318,7 @@ The Architect accepted the substantive conversational-orchestration result at im
 ## OUTCOME-SENTRY-OPERATOR-NATIVE-WEB-SEARCH-001 — Luna native read-only web search
 - Completed: 2026-09-01
 - Verdict: **IMPLEMENTED / REGRESSION-PROTECTED — OPERATOR CORRECTION**
+- Implementation commit: `564ba78b3061c6367874d4c3d576912ceb1414c5`
 
 ### Result
 - The host-owned Bing/Open-Meteo transport is removed from the current production path. The planner now has one typed `use_native_web_search` marker; it merely authorizes the corresponding synthesis turn.
