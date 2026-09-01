@@ -3,29 +3,36 @@
 Last updated: 2026-09-01
 
 ## Current stage
-V0.3.1 — always-available voice foundation qualified on the Vosk → Whisper →
-bounded ConversationOrchestrator → Kokoro office path. Schema remains 8.
+V0.3.2 — bounded conversational turn-taking is active on the qualified Vosk →
+Whisper → bounded ConversationOrchestrator → Kokoro office path. Schema remains 8.
 
 ## Current objective
-V0.3.1 is complete. Return to the Architect for the next one-room product
-decision. Do not begin V0.3.2 turn-taking, durable conversational memory, or
-another voice architecture change without a new directive.
+After an explicit `Sentry` request receives successful local speech, permit at
+most two wake-free follow-up turns in a short host-bounded focus window. Reuse
+the existing RAM-only conversation context; do not add persistent memory,
+barge-in, AEC, a new wake/STT model, or a second conversation runtime.
+
+An operator-authorized read-only public-web extension is now implemented on the
+same bounded conversation host. Luna may plan public-source search, direct
+public-page reading, and public place/date weather, but it never receives a
+browser or generic network access. The host validates public HTTP(S) targets,
+redirects, DNS results, content bounds, and the no-write/no-login boundary.
+This does not qualify V0.3.2 turn-taking or authorize persistent memory.
 
 ## Active directive
-`SENTRY-V0.3-ALWAYS-AVAILABLE-VOICE-AFFECTED-RERUN-001` is complete. The
-earlier final run's five successful natural hands-free requests, inline audio,
-wake-only ARMED, self-speech, PTT, perception, and privacy evidence remain
-valid. The only repaired paths — personal history and production NWS weather
-— passed spoken smokes on `bd2654b`; a new five-utterance live negative check
-without the wake token produced zero responses, zero wake/dispatch counters,
-and zero Luna invocations. Targeted current suites passed `130/130`; the
-exact-code full regression `218/218` is reused. Voice remains opt-in and all
-resident services are inactive.
+`SENTRY-V0.3.2-BOUNDED-TURN-TAKING-001` remains active. The operator override
+`SENTRY-OPERATOR-READ-ONLY-WEB-ACCESS-001` is implemented and regression
+protected. The initial request still requires
+`Sentry`; after a successfully delivered user-initiated answer, the listener
+may enter a separate `FOLLOWUP_LISTENING` state for 8 seconds and at most two
+wake-free turns. Timeout, hard turn limit, errors, shutdown, proactive/reminder
+speech, and explicit PTT must never extend or create focus. Voice remains
+opt-in and resident services remain inactive outside bounded qualification.
 
 ## V0.3 conversational orchestration — 2026-08-31
 - `tools/sentry_ask.py` now sends normal user text through `ConversationOrchestrator`, rather than using reminder/preference/weather/routine selectors as the primary natural-language router. The old selectors remain compatibility helpers only.
 - The OAuth `codex exec` surface was inspected: it supports strict output schemas, but not a request-scoped host function catalog. SENTRY therefore uses the authorized bounded two-phase form: one strict Luna planner → host-validated localhost tool calls → one strict Luna synthesis. Hard limits are three local tools, one mutation, and two Luna invocations per request.
-- The fixed capability set is current office state, bounded office history, reminders, acknowledgement preference, recent proactive action/feedback, routine snapshots, and cached weather. It exposes no database, filesystem, shell, network, audio, coordinates, enrollment data, or arbitrary tool execution.
+- The capability set is current office state, bounded office history, reminders, acknowledgement preference, recent proactive action/feedback, routine snapshots, cached private-home weather, plus host-bounded public-web search/page reading/public place-date weather. Luna exposes no database, filesystem, shell, browser, credentials, audio, private coordinates, enrollment data, or arbitrary tool execution. Public network reads remain host-validated and read-only.
 - Planning schema compatibility required a closed nullable argument envelope because the installed strict-schema endpoint rejects array-item `oneOf`; null fields are removed before the normal per-tool validation. The host still independently rejects unsupported tools, arguments, over-budget plans, and more than one mutation.
 - Conversation context is process-RAM-only, per caller/session, capped at four prior user/assistant turns, and expires after ten minutes. It is not logged, persisted, embedded, or available after restart.
 - Text live proof used the real localhost API without production mutation. Natural queries selected only the relevant reminder, preference, proactive-history, routine, weather, current-state, or two-domain reminder+current-state tools. A follow-up “What was it again?” reused RAM context and selected reminder evidence. Weather and current-state unavailability were stated truthfully rather than replaced with M4 history.

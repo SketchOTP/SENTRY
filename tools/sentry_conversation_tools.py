@@ -11,6 +11,7 @@ import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from tools.sentry_grounding import (
@@ -21,6 +22,7 @@ from tools.sentry_grounding import (
 )
 from tools.sentry_local_api import post_json
 from tools.sentry_routine_intent import ROUTINE_TYPES
+from tools.sentry_web import MAX_QUERY_LENGTH, MAX_RESULTS, PublicWeatherClient, WebResearchClient, WebResearchError
 
 
 READ_TOOLS = {
@@ -31,6 +33,9 @@ READ_TOOLS = {
     "get_recent_proactive_action",
     "get_routines",
     "get_weather",
+    "get_public_weather",
+    "search_web",
+    "read_web_page",
 }
 MUTATION_TOOLS = {
     "create_next_office_reminder",
@@ -111,6 +116,12 @@ def tool_catalog() -> list[dict[str, Any]]:
          "description": "Read bounded accepted derived routine snapshots; insufficient evidence is not a habit claim."},
         {"name": "get_weather", "kind": "read", "arguments": {"topic": "current, forecast, or alerts"},
          "description": "Read only cached normalized local weather; never fetch the network."},
+        {"name": "get_public_weather", "kind": "read", "arguments": {"location": "place explicitly supplied by the user", "when": "today, tomorrow, or an ISO YYYY-MM-DD date"},
+         "description": "Read-only public forecast for a user-named place. It resolves that public place and fetches normalized data without exposing coordinates or a general network surface. Use get_weather, not this tool, for SENTRY's configured private home weather."},
+        {"name": "search_web", "kind": "read", "arguments": {"query": "public-web research query, at most 240 characters", "max_results": "optional integer 1..5"},
+         "description": "Read-only public-web research. Use for an explicit lookup or current external information beyond SENTRY's local cache, including another place/date's weather. Never use it to submit data, authenticate, or expose private SENTRY details."},
+        {"name": "read_web_page", "kind": "read", "arguments": {"url": "user-supplied public http(s) URL"},
+         "description": "Read one public HTTP(S) page when the user directly supplies or explicitly asks about its URL. It cannot log in, submit forms, or access private/local network addresses."},
     ]
 
 
@@ -126,6 +137,8 @@ class ConversationToolHost:
         source_request_id: str | None = None,
         get_json: Callable[..., dict[str, Any]] = _get_json,
         post_json: Callable[..., dict[str, Any]] = post_json,
+        web_client: WebResearchClient | None = None,
+        public_weather_client: PublicWeatherClient | None = None,
     ) -> None:
         if not base_url.startswith("http://127.0.0.1"):
             raise ValueError("conversation tools require the localhost state API")
@@ -137,6 +150,8 @@ class ConversationToolHost:
         self.source_request_id = source_request_id or str(uuid.uuid4())
         self._get_json = get_json
         self._post_json = post_json
+        self._web_client = web_client or WebResearchClient()
+        self._public_weather_client = public_weather_client or PublicWeatherClient(web_client=self._web_client)
 
     @staticmethod
     def validate_call(name: Any, arguments: Any) -> str | None:
@@ -151,6 +166,8 @@ class ConversationToolHost:
             "get_office_history": {"limit"}, "create_next_office_reminder": {"message"},
             "set_acknowledgement_preference": {"value"}, "record_proactive_feedback": {"feedback_type"},
             "get_routines": {"routine_type", "scope"}, "get_weather": {"topic"},
+            "get_public_weather": {"location", "when"},
+            "search_web": {"query", "max_results"}, "read_web_page": {"url"},
         }
         if set(arguments) - expected[name]:
             return "tool arguments contain unsupported fields"
@@ -172,6 +189,26 @@ class ConversationToolHost:
                 return "routine scope is not supported"
         if name == "get_weather" and arguments.get("topic", "current") not in {"current", "forecast", "alerts"}:
             return "weather topic is not supported"
+        if name == "get_public_weather":
+            location = arguments.get("location")
+            if not isinstance(location, str) or not location.strip() or len(location) > 160 or re.search(r"[\x00-\x1f\x7f]", location):
+                return "public weather location must be a non-empty single-line string of at most 160 characters"
+            when = arguments.get("when") or "today"
+            if when not in {"today", "tomorrow"} and (not isinstance(when, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", when)):
+                return "public weather date must be today, tomorrow, or YYYY-MM-DD"
+        if name == "search_web":
+            query = arguments.get("query")
+            if not isinstance(query, str) or not query.strip() or len(query) > MAX_QUERY_LENGTH or re.search(r"[\x00-\x1f\x7f]", query):
+                return "web search query must be a non-empty single-line string of at most 240 characters"
+            if "max_results" in arguments and (type(arguments["max_results"]) is not int or not 1 <= arguments["max_results"] <= MAX_RESULTS):
+                return "web search result count must be an integer from 1 through 5"
+        if name == "read_web_page":
+            url = arguments.get("url")
+            if not isinstance(url, str) or not url.strip() or len(url) > 2048 or re.search(r"[\x00-\x1f\x7f]", url):
+                return "web page URL must be a non-empty single-line URL of at most 2048 characters"
+            parsed = urlparse(url)
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+                return "web page URL must be a public HTTP(S) URL"
         return None
 
     def _health(self) -> dict[str, Any]:
@@ -377,6 +414,64 @@ class ConversationToolHost:
         except Exception as exc:  # noqa: BLE001
             return _read_result("get_weather", status="unavailable", limitations=[f"weather context unavailable: {type(exc).__name__}"])
 
+    @staticmethod
+    def _web_fact(index: int, document: Any, *, source_kind: str) -> dict[str, Any]:
+        return {
+            "fact_id": f"web:{source_kind}:{index}",
+            "kind": "untrusted_public_web_source",
+            "as_of": document.retrieved_at,
+            "data": {
+                "title": document.title,
+                "url": document.url,
+                "content_type": document.content_type,
+                "retrieval_method": document.retrieval_method,
+                "excerpt": document.text,
+            },
+        }
+
+    def _search_web(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        try:
+            documents = self._web_client.search(arguments["query"].strip(), max_results=arguments.get("max_results", 3))
+            facts = [self._web_fact(index, document, source_kind="search") for index, document in enumerate(documents, start=1)]
+            return _read_result("search_web", status="supported", facts=facts)
+        except WebResearchError as exc:
+            return _read_result("search_web", status="unavailable", limitations=[str(exc)])
+        except Exception as exc:  # noqa: BLE001
+            return _read_result("search_web", status="unavailable", limitations=[f"web research unavailable: {type(exc).__name__}"])
+
+    def _get_public_weather(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        try:
+            weather = self._public_weather_client.get_weather(arguments["location"].strip(), when=arguments.get("when") or "today")
+            fact = {
+                "fact_id": "public-weather:forecast:1",
+                "kind": "untrusted_public_weather_source",
+                "as_of": weather.retrieved_at,
+                "data": {
+                    "location": weather.location,
+                    "local_date": weather.local_date,
+                    "timezone": weather.timezone,
+                    "summary": weather.summary,
+                    "temperature_min_f": weather.temperature_min_f,
+                    "temperature_max_f": weather.temperature_max_f,
+                    "precipitation_probability_max": weather.precipitation_probability_max,
+                    "source": weather.source,
+                },
+            }
+            return _read_result("get_public_weather", status="supported", facts=[fact])
+        except WebResearchError as exc:
+            return _read_result("get_public_weather", status="unavailable", limitations=[str(exc)])
+        except Exception as exc:  # noqa: BLE001
+            return _read_result("get_public_weather", status="unavailable", limitations=[f"public weather unavailable: {type(exc).__name__}"])
+
+    def _read_web_page(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        try:
+            document = self._web_client.read(arguments["url"].strip())
+            return _read_result("read_web_page", status="supported", facts=[self._web_fact(1, document, source_kind="page")])
+        except WebResearchError as exc:
+            return _read_result("read_web_page", status="unavailable", limitations=[str(exc)])
+        except Exception as exc:  # noqa: BLE001
+            return _read_result("read_web_page", status="unavailable", limitations=[f"web page unavailable: {type(exc).__name__}"])
+
     def execute(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         error = self.validate_call(name, arguments)
         if error:
@@ -394,5 +489,8 @@ class ConversationToolHost:
             "record_proactive_feedback": lambda: self._feedback(arguments["feedback_type"]),
             "get_routines": lambda: self._get_routines(arguments),
             "get_weather": lambda: self._get_weather(arguments),
+            "get_public_weather": lambda: self._get_public_weather(arguments),
+            "search_web": lambda: self._search_web(arguments),
+            "read_web_page": lambda: self._read_web_page(arguments),
         }
         return methods[name]()

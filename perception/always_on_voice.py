@@ -29,6 +29,7 @@ class VoiceState(str, Enum):
     CAPTURING = "CAPTURING"
     TRANSCRIBING = "TRANSCRIBING"
     ARMED = "ARMED"
+    FOLLOWUP_LISTENING = "FOLLOWUP_LISTENING"
     PROCESSING = "PROCESSING"
     SPEAKING = "SPEAKING"
 
@@ -83,6 +84,9 @@ class AlwaysOnVoiceConfig:
     end_silence_ms: int = 1000
     maximum_utterance_seconds: float = 12.0
     followup_window_seconds: float = 8.0
+    conversation_followup_enabled: bool = True
+    conversation_followup_window_seconds: float = 8.0
+    conversation_followup_max_turns: int = 2
     post_speech_rearm_ms: int = 500
     whisper_model: str = "tiny.en"
     base_url: str = "http://127.0.0.1:48174"
@@ -109,8 +113,10 @@ class AlwaysOnVoiceConfig:
             raise ValueError("voice.vosk_model_path is required when always-on voice is enabled")
         if self.pre_speech_ms < 0 or self.minimum_speech_ms <= 0 or self.end_silence_ms <= 0:
             raise ValueError("voice speech timings must be positive")
-        if self.maximum_utterance_seconds <= 0 or self.followup_window_seconds <= 0 or self.post_speech_rearm_ms < 0:
+        if self.maximum_utterance_seconds <= 0 or self.followup_window_seconds <= 0 or self.conversation_followup_window_seconds <= 0 or self.post_speech_rearm_ms < 0:
             raise ValueError("voice duration limits are invalid")
+        if self.conversation_followup_max_turns < 0:
+            raise ValueError("voice.conversation_followup_max_turns must be non-negative")
         if not self.whisper_model or not self.base_url.startswith("http://127.0.0.1"):
             raise ValueError("voice must use local state API and a Whisper model")
 
@@ -141,6 +147,9 @@ class AlwaysOnVoiceConfig:
             end_silence_ms=int(values.get("end_silence_ms", 1000)),
             maximum_utterance_seconds=float(values.get("maximum_utterance_seconds", 12.0)),
             followup_window_seconds=float(values.get("followup_window_seconds", 8.0)),
+            conversation_followup_enabled=bool(values.get("conversation_followup_enabled", True)),
+            conversation_followup_window_seconds=float(values.get("conversation_followup_window_seconds", 8.0)),
+            conversation_followup_max_turns=int(values.get("conversation_followup_max_turns", 2)),
             post_speech_rearm_ms=int(values.get("post_speech_rearm_ms", 500)),
             whisper_model=str(values.get("whisper_model", "tiny.en")),
             base_url=str(values.get("base_url", "http://127.0.0.1:48174")),
@@ -255,7 +264,7 @@ class VoiceDiagnostics:
 
 
 class AlwaysOnVoiceLoop:
-    """Finite-state controller for Vosk wake → local Whisper command → M4."""
+    """Finite-state controller for wake-required turns and bounded follow-ups."""
 
     def __init__(
         self,
@@ -287,6 +296,10 @@ class AlwaysOnVoiceLoop:
         self._speech_samples = 0
         self._silence_samples = 0
         self._armed_until: float | None = None
+        self._focus_deadline: float | None = None
+        self._focus_pending = False
+        self._focus_id: str | None = None
+        self._followup_turn_count = 0
         self._rearm_until = 0.0
         self._last_speech_at: float | None = None
         self._last_completed_speech_at: float | None = None
@@ -294,9 +307,9 @@ class AlwaysOnVoiceLoop:
         self._last_completed_audio: np.ndarray | None = None
         self._last_completed_audio_at: float | None = None
         self._speech_suppressed = False
-        # One listener process owns one RAM-only conversational context. It is
-        # not written to diagnostics and disappears on a listener restart.
-        self._conversation_id = f"always-on-{uuid.uuid4()}"
+        # A focus session owns one RAM-only conversational context. It is not
+        # written to diagnostics and disappears on listener restart.
+        self._conversation_id: str | None = None
 
     def _set_state(self, state: VoiceState, **extra: Any) -> None:
         self.state = state
@@ -327,6 +340,59 @@ class AlwaysOnVoiceLoop:
         self._reset_capture()
         self._set_state(VoiceState.LISTENING, last_segment_outcome=reason)
 
+    def _focus_active(self) -> bool:
+        return self._focus_deadline is not None
+
+    def _begin_wake_conversation(self) -> None:
+        """Start a new RAM-only context only for an explicit Vosk wake."""
+        self._close_focus("explicit_new_wake")
+        self._conversation_id = f"always-on-{uuid.uuid4()}"
+        self._followup_turn_count = 0
+
+    def _close_focus(self, reason: str) -> None:
+        was_active = self._focus_active() or self._focus_pending or self._focus_id is not None
+        self._focus_deadline = None
+        self._focus_pending = False
+        self._focus_id = None
+        if was_active:
+            self.diagnostics.update(
+                conversation_focus_active=False,
+                followup_turn_index=self._followup_turn_count,
+                followup_turn_limit=self.config.conversation_followup_max_turns,
+                followup_window_deadline=None,
+                followup_close_reason=reason,
+            )
+
+    def _schedule_focus_after_speech(self) -> None:
+        if not self.config.conversation_followup_enabled or self.config.conversation_followup_max_turns <= 0:
+            self._close_focus("disabled")
+            return
+        self._focus_pending = True
+        self.diagnostics.update(
+            conversation_focus_active=False,
+            followup_turn_index=self._followup_turn_count,
+            followup_turn_limit=self.config.conversation_followup_max_turns,
+            followup_close_reason=None,
+        )
+
+    def _open_scheduled_focus(self) -> None:
+        if not self._focus_pending:
+            return
+        self._focus_pending = False
+        self._focus_id = f"focus-{uuid.uuid4()}"
+        self._focus_deadline = self.clock() + self.config.conversation_followup_window_seconds
+        self.diagnostics.increment(
+            "followup_windows_opened",
+            conversation_focus_active=True,
+            conversation_focus_id=self._focus_id,
+            followup_turn_index=self._followup_turn_count,
+            followup_turn_limit=self.config.conversation_followup_max_turns,
+            followup_window_opened_at=datetime.now(timezone.utc).isoformat(),
+            followup_window_deadline=round(self._focus_deadline, 3),
+            followup_close_reason=None,
+        )
+        self._set_state(VoiceState.FOLLOWUP_LISTENING, last_segment_outcome="followup_listening")
+
     def _segment_duration_seconds(self) -> float:
         return sum(item.size for item in self._capture) / self.config.sample_rate
 
@@ -336,6 +402,10 @@ class AlwaysOnVoiceLoop:
         self._last_completed_speech_at = self._last_speech_at
         self._reset_capture()
         if speech_seconds * 1000 < self.config.minimum_speech_ms:
+            if self._focus_active():
+                self._close_focus("capture_failure")
+                self._discard_to_listening(reason="followup_too_short")
+                return
             self._set_state(VoiceState.ARMED if self._armed_until else VoiceState.LISTENING, last_segment_outcome="too_short")
             return
         self._last_completed_audio = audio
@@ -344,28 +414,37 @@ class AlwaysOnVoiceLoop:
             self._wake_pending = False
             self._handle_wake_segment(audio)
             return
+        if self._focus_active():
+            self._transcribe_followup(audio, focus=True)
+            return
         if self._armed_until is None:
             # Non-wake speech never reaches Whisper.  Keep only a short
             # in-memory segment in case Vosk finalizes one chunk later.
             self.diagnostics.increment("non_wake_segments", last_segment_outcome="non_wake")
             self._discard_to_listening(reason="non_wake")
             return
-        self._transcribe_followup(audio)
+        self._transcribe_followup(audio, focus=False)
 
-    def _transcribe_followup(self, audio: np.ndarray) -> None:
+    def _transcribe_followup(self, audio: np.ndarray, *, focus: bool) -> None:
         self._set_state(VoiceState.TRANSCRIBING, last_command_audio_duration_ms=round(audio.size * 1000 / self.config.sample_rate))
         try:
             transcript = self.transcriber.transcribe(audio, self.config.sample_rate)
         except Exception as exc:  # noqa: BLE001 - keep listener alive after STT fault
+            if focus:
+                self._close_focus("capture_failure")
             self._discard_to_listening(reason="whisper_failed")
             self.diagnostics.update(last_error=f"whisper: {type(exc).__name__}")
             return
         transcript = " ".join(str(transcript).split())
+        if focus:
+            transcript = self._strip_optional_wake_token(transcript)
         if not transcript:
+            if focus:
+                self._close_focus("capture_failure")
             self._discard_to_listening(reason="no_transcript")
             return
         self._armed_until = None
-        self._dispatch_command(transcript)
+        self._dispatch_command(transcript, is_followup=focus)
 
     @staticmethod
     def _command_after_wake(transcript: str) -> str:
@@ -373,6 +452,11 @@ class AlwaysOnVoiceLoop:
         if not match:
             return ""
         return re.sub(r"^[\s,;:!?.-]+", "", match.group("command")).strip()
+
+    @staticmethod
+    def _strip_optional_wake_token(transcript: str) -> str:
+        """A repeated wake token inside focus remains one follow-up request."""
+        return re.sub(r"^\s*sentry\b[\s,;:!?.-]*", "", transcript, flags=re.IGNORECASE).strip()
 
     def _handle_wake_segment(self, audio: np.ndarray, *, audio_starts_after_wake: bool = False) -> None:
         """Use Whisper only after Vosk woke, preserving Vosk as authority."""
@@ -392,7 +476,7 @@ class AlwaysOnVoiceLoop:
         if not command:
             self._enter_armed("wake_only_or_command_unavailable")
             return
-        self._dispatch_command(command)
+        self._dispatch_command(command, is_followup=False)
 
     def _enter_armed(self, reason: str, *, error: str | None = None) -> None:
         self._armed_until = self.clock() + self.config.followup_window_seconds
@@ -401,7 +485,7 @@ class AlwaysOnVoiceLoop:
             values["last_error"] = error
         self._set_state(VoiceState.ARMED, **values)
 
-    def _dispatch_command(self, command: str) -> None:
+    def _dispatch_command(self, command: str, *, is_followup: bool) -> None:
         if self._last_completed_speech_at is not None:
             self.diagnostics.record_dispatch_latency((self.clock() - self._last_completed_speech_at) * 1000)
         self._last_completed_speech_at = None
@@ -420,6 +504,7 @@ class AlwaysOnVoiceLoop:
             )
         except Exception as exc:  # noqa: BLE001
             self._reset_wake_detector("ask_failed")
+            self._close_focus("capture_failure")
             self._discard_to_listening(reason="ask_failed")
             self.diagnostics.update(last_error=f"ask: {type(exc).__name__}")
             return
@@ -428,6 +513,7 @@ class AlwaysOnVoiceLoop:
         luna_invocations = int(response.get("luna_invocations", 0)) if isinstance(response, dict) else 0
         if not isinstance(answer, str) or not answer.strip():
             self._reset_wake_detector("no_answer")
+            self._close_focus("capture_failure")
             self._discard_to_listening(reason="no_answer")
             return
         self._set_state(VoiceState.SPEAKING, last_command_outcome="answered", last_command_luna_invocations=luna_invocations)
@@ -436,13 +522,30 @@ class AlwaysOnVoiceLoop:
         self.diagnostics.update(last_speech_delivery_success=delivered)
         self._rearm_until = self.clock() + self.config.post_speech_rearm_ms / 1000
         self._reset_wake_detector("speech_completed")
-        self._discard_to_listening(reason="delivered" if delivered else "delivery_failed")
+        if not delivered:
+            self._close_focus("capture_failure")
+            self._discard_to_listening(reason="delivery_failed")
+            return
+        if is_followup:
+            self._followup_turn_count += 1
+        if not is_followup or self._followup_turn_count < self.config.conversation_followup_max_turns:
+            self._schedule_focus_after_speech()
+            return
+        self._close_focus("turn_limit")
+        self._set_state(VoiceState.LISTENING, last_segment_outcome="followup_turn_limit")
 
     def _handle_wake_detection(self, detection: Any) -> None:
         """Accept the dedicated Vosk wake event without consulting Whisper."""
+        if self._focus_active():
+            # The current VAD segment remains the one focus-authorized turn.
+            # Its optional leading token is stripped after Whisper; it cannot
+            # create a second dispatch or another focus session.
+            self.diagnostics.increment("focus_wake_token_suppressions", last_segment_outcome="focus_wake_token")
+            return
         if self._wake_pending or self._armed_until is not None or self.state in {VoiceState.PROCESSING, VoiceState.SPEAKING}:
             self.diagnostics.increment("wake_debounce_suppressions", last_segment_outcome="wake_debounced")
             return
+        self._begin_wake_conversation()
         capture_in_progress = bool(self._capture)
         self.diagnostics.increment(
             "wake_detections",
@@ -487,9 +590,14 @@ class AlwaysOnVoiceLoop:
             self._armed_until = None
             self._reset_wake_detector("armed_timeout")
             self._discard_to_listening(reason="armed_timeout")
+        if self._focus_active() and now >= self._focus_deadline:
+            self._close_focus("timeout")
+            self._reset_wake_detector("followup_timeout")
+            self._discard_to_listening(reason="followup_timeout")
         if self.speech_activity.is_active():
             if not self._speech_suppressed:
                 self.diagnostics.increment("speech_activity_suppressions")
+                self._close_focus("speech_activity")
                 self._reset_capture()
                 self._reset_wake_detector("speech_activity")
                 self._speech_suppressed = True
@@ -498,10 +606,10 @@ class AlwaysOnVoiceLoop:
         self._speech_suppressed = False
         if now < self._rearm_until:
             self._reset_capture()
-            if self.state != VoiceState.LISTENING:
-                self._reset_wake_detector("post_speech_rearm")
-            self._set_state(VoiceState.LISTENING, last_segment_outcome="post_speech_rearm")
+            self._reset_wake_detector("post_speech_rearm")
+            self._set_state(VoiceState.SPEAKING, last_segment_outcome="post_speech_rearm")
             return
+        self._open_scheduled_focus()
         samples = np.asarray(chunk, dtype=np.float32)
         if samples.shape != (512,):
             raise ValueError("voice stream must yield 512-sample chunks")
@@ -517,7 +625,7 @@ class AlwaysOnVoiceLoop:
         speaking = probability >= self.config.vad_threshold
         if not was_capturing:
             self._remember_pre_speech(samples)
-        if self.state in {VoiceState.LISTENING, VoiceState.ARMED, VoiceState.SPEAKING, VoiceState.WAKE_DETECTED} and speaking:
+        if self.state in {VoiceState.LISTENING, VoiceState.ARMED, VoiceState.FOLLOWUP_LISTENING, VoiceState.SPEAKING, VoiceState.WAKE_DETECTED} and speaking:
             self._capture.extend(self._pre_speech)
             self._pre_speech.clear()
             self._set_state(VoiceState.CAPTURING, vad_probability=round(probability, 4))
@@ -546,5 +654,6 @@ class AlwaysOnVoiceLoop:
         except Exception as exc:  # noqa: BLE001 - systemd should receive a clear failure
             self.diagnostics.update(state=VoiceState.DISABLED.value, vad_healthy=False, last_error=f"voice: {type(exc).__name__}")
             return 1
+        self._close_focus("shutdown")
         self._set_state(VoiceState.DISABLED, last_segment_outcome="stopped")
         return 0

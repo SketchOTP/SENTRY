@@ -13,11 +13,11 @@
         "additionalProperties": false,
         "required": ["name", "arguments"],
         "properties": {
-          "name": {"enum": ["get_current_office_state", "get_office_history", "get_office_reminders", "create_next_office_reminder", "cancel_pending_office_reminder", "get_acknowledgement_preference", "set_acknowledgement_preference", "clear_acknowledgement_preference", "get_recent_proactive_action", "record_proactive_feedback", "get_routines", "get_weather"]},
+          "name": {"enum": ["get_current_office_state", "get_office_history", "get_office_reminders", "create_next_office_reminder", "cancel_pending_office_reminder", "get_acknowledgement_preference", "set_acknowledgement_preference", "clear_acknowledgement_preference", "get_recent_proactive_action", "record_proactive_feedback", "get_routines", "get_weather", "get_public_weather", "search_web", "read_web_page"]},
           "arguments": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["limit", "message", "value", "feedback_type", "routine_type", "scope", "topic"],
+            "required": ["limit", "message", "value", "feedback_type", "routine_type", "scope", "topic", "location", "when", "query", "max_results", "url"],
             "properties": {
               "limit": {"type": ["integer", "null"], "minimum": 1, "maximum": 20},
               "message": {"type": ["string", "null"], "minLength": 1, "maxLength": 120, "pattern": "^[^\\u0000-\\u001F\\u007F]+$"},
@@ -25,7 +25,12 @@
               "feedback_type": {"type": ["string", "null"], "enum": ["helpful", "not_helpful", "too_frequent", "do_not_repeat", null]},
               "routine_type": {"type": ["string", "null"], "enum": ["office_session_start_time", "office_session_duration", "office_absence_between_sessions", "primary_user_session_first_confirmed_time", null]},
               "scope": {"type": ["string", "null"], "enum": ["all_days", "weekday", "weekend", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", null]},
-              "topic": {"type": ["string", "null"], "enum": ["current", "forecast", "alerts", null]}
+              "topic": {"type": ["string", "null"], "enum": ["current", "forecast", "alerts", null]},
+              "location": {"type": ["string", "null"], "minLength": 1, "maxLength": 160, "pattern": "^[^\\u0000-\\u001F\\u007F]+$"},
+              "when": {"type": ["string", "null"], "pattern": "^(today|tomorrow|\\d{4}-\\d{2}-\\d{2})$"},
+              "query": {"type": ["string", "null"], "minLength": 1, "maxLength": 240, "pattern": "^[^\\u0000-\\u001F\\u007F]+$"},
+              "max_results": {"type": ["integer", "null"], "minimum": 1, "maximum": 5},
+              "url": {"type": ["string", "null"], "minLength": 1, "maxLength": 2048, "pattern": "^[^\\u0000-\\u001F\\u007F]+$"}
             }
           }
         }

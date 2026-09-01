@@ -32,10 +32,10 @@ useful, appropriately restrained assistance.
 - SENTRY owns grounded physical events and sessions locally; an LLM is not the continuous vision processor or physical-event database.
 - Direct OAuth-authenticated Codex/Luna invocation through the bounded SENTRY bridge is the accepted V0.1 reasoning layer. DAWN feasibility work is historical evidence/reference only; integration is not implemented. Xiaomi Miloco is an architectural reference only.
 - New dependencies, upstream derivation/forking, cloud video, infrastructure expansion, and scope changes require documented evidence and Architect authorization.
-- Vosk with the single wake token `Sentry` is the operator-selected wake
-  authority in the preserved uncommitted V0.3 implementation. Conversational
-  uses of that token are accepted activations. Always-available voice remains
-  implemented but unqualified; it is not a committed capability yet.
+- Vosk with the single wake token `Sentry` is the operator-selected and
+  committed V0.3.1 wake authority, qualified at `a3f6d67`. Conversational uses
+  of that token are accepted activations. Always-available voice remains
+  opt-in and inactive unless the operator explicitly enables it.
 
 ## Goal-change rule
 The project goal may change only through explicit user/authorized strategic decision. Roadmaps, milestones, and implementation plans may change when evidence changes without rewriting historical records.

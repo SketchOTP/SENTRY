@@ -25,6 +25,9 @@ class _Host:
             "get_recent_proactive_action": "recent-proactive-action",
             "get_routines": "routine:office_session_start_time:all_days",
             "get_weather": "weather:forecast:near-term",
+            "get_public_weather": "public-weather:forecast:1",
+            "search_web": "web:search:1",
+            "read_web_page": "web:page:1",
         }.get(name)
         if name in {"create_next_office_reminder", "cancel_pending_office_reminder", "set_acknowledgement_preference", "clear_acknowledgement_preference", "record_proactive_feedback"}:
             return {"tool": name, "status": "succeeded", "result": {"ok": True}, "fact_ids": [], "limitations": []}
@@ -66,10 +69,13 @@ class ConversationOrchestrationTests(unittest.TestCase):
             "How long are office sessions normally?": "get_routines",
             "What is it like outside?": "get_weather",
             "What was the last thing you proactively said?": "get_recent_proactive_action",
+            "Look up the current weather in Boston tomorrow.": "get_public_weather",
+            "Search the web for the latest OpenAI news.": "search_web",
         }
         for question, tool in matrix.items():
             with self.subTest(question=question):
-                orchestrator = self.make_orchestrator([{"name": tool, "arguments": {"topic": "forecast"} if tool == "get_weather" else {}}])
+                arguments = {"topic": "forecast"} if tool == "get_weather" else {"location": "Boston", "when": "tomorrow"} if tool == "get_public_weather" else {"query": "OpenAI news"} if tool == "search_web" else {}
+                orchestrator = self.make_orchestrator([{"name": tool, "arguments": arguments}])
                 # A narrow fixture supplies valid argument alternatives only.
                 if tool == "get_routines":
                     orchestrator = self.make_orchestrator([{"name": tool, "arguments": {"routine_type": "office_session_duration", "scope": "monday"}}])
@@ -132,6 +138,52 @@ class ConversationOrchestrationTests(unittest.TestCase):
         self.assertEqual([turn["user"] for turn in context.prior("voice")], ["What about tomorrow?", "Why?"])
         context.reset("voice")
         self.assertEqual(context.prior("voice"), [])
+
+    def test_followup_sequences_reuse_ram_context_without_a_voice_intent_router(self):
+        """The orchestrator receives ordinary natural turns under one focus id."""
+        plans = {
+            "What is the weather today?": {"name": "get_weather", "arguments": {"topic": "current"}},
+            "What about tomorrow?": {"name": "get_weather", "arguments": {"topic": "forecast"}},
+            "When was I first confirmed today?": {"name": "get_office_history", "arguments": {}},
+            "Was that my exact arrival?": {"name": "get_office_history", "arguments": {}},
+            "Do I have a reminder?": {"name": "get_office_reminders", "arguments": {}},
+            "What was it again?": {"name": "get_office_reminders", "arguments": {}},
+            "Cancel it.": {"name": "cancel_pending_office_reminder", "arguments": {}},
+        }
+        host = _Host()
+        planner_inputs = []
+
+        def planner(question, _catalog, prior, **_kwargs):
+            planner_inputs.append((question, prior))
+            return {"ok": True, "usage": {}, "result": {"tool_calls": [plans[question]], "needs_final_synthesis": True}}
+
+        def synthesis(_question, results, _prior, **_kwargs):
+            ids = [fact["fact_id"] for result in results for fact in result.get("facts", [])]
+            return {"ok": True, "usage": {}, "result": {"answer": "Grounded fixture answer.", "grounding": "supported", "fact_ids": ids, "limitations": []}}
+
+        orchestrator = ConversationOrchestrator(planner=planner, synthesizer=synthesis, host_factory=lambda **_kwargs: host)
+        sequences = (
+            ("weather-focus", "What is the weather today?", "What about tomorrow?", "get_weather"),
+            ("history-focus", "When was I first confirmed today?", "Was that my exact arrival?", "get_office_history"),
+            ("reminder-focus", "Do I have a reminder?", "What was it again?", "get_office_reminders"),
+        )
+        for conversation_id, initial, followup, expected_tool in sequences:
+            with self.subTest(conversation_id=conversation_id):
+                first = orchestrator.ask(initial, conversation_id=conversation_id)
+                second = orchestrator.ask(followup, conversation_id=conversation_id)
+                self.assertEqual(first["conversation_id"], conversation_id)
+                self.assertEqual(second["conversation_id"], conversation_id)
+                self.assertEqual(second["tool_calls"][0]["name"], expected_tool)
+        # The follow-up planner receives the preceding natural turn and answer,
+        # independent of voice state or a deterministic follow-up intent router.
+        followup_contexts = {question: prior for question, prior in planner_inputs if question in plans and question.startswith(("What about", "Was that", "What was"))}
+        self.assertEqual(followup_contexts["What about tomorrow?"][0]["user"], "What is the weather today?")
+        self.assertEqual(followup_contexts["Was that my exact arrival?"][0]["user"], "When was I first confirmed today?")
+        self.assertEqual(followup_contexts["What was it again?"][0]["user"], "Do I have a reminder?")
+        # A direct, unambiguous contextual mutation still uses the normal host
+        # validation and one-mutation request budget.
+        cancelled = orchestrator.ask("Cancel it.", conversation_id="reminder-focus")
+        self.assertEqual(cancelled["tool_calls"][0]["name"], "cancel_pending_office_reminder")
 
     def test_tool_host_uses_local_api_and_keeps_current_truthfulness(self):
         with tempfile.TemporaryDirectory() as directory, PresenceStore(Path(directory) / "sentry.db") as store:

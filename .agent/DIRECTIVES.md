@@ -474,3 +474,11 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Result: Earlier five hands-free requests and whole-path evidence remained valid; repaired history/weather smokes passed; five real utterances without `Sentry` produced zero wake/command/Luna activity. No runtime code, schema, wake/STT/orchestration architecture, or service enablement changed.
 - Validation: Targeted current suites `130/130`; exact-code full Ubuntu regression `218/218` reused. Services inactive; always-on voice stays opt-in.
 - Source: Architect directive supplied 2026-09-01.
+
+## SENTRY-OPERATOR-READ-ONLY-WEB-ACCESS-001 — Public web operator override
+- Issued: 2026-09-01
+- Status: IMPLEMENTED / REGRESSION-PROTECTED; V0.3.2 turn-taking remains separately unqualified.
+- Objective: permit Luna to select bounded host-owned read-only public-web operations so SENTRY can research current public information and retrieve place/date weather without handing Luna a browser or generic network client.
+- Scope: `search_web`, `read_web_page`, and `get_public_weather`; public HTTP(S) only; DNS/redirect validation; bounded source extracts; explicit public place/date forecast lookup.
+- Hard boundary: no private/local network, credentials, login, cookies, form submission, uploads, purchases, posts, filesystem/shell/SQL access, audio upload, coordinate/provider-URL leakage, generic browser control, or network write capability.
+- Source: explicit operator override supplied 2026-09-01.

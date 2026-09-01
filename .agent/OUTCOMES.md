@@ -1299,3 +1299,18 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Current targeted voice/Vosk/PTT/orchestration/grounding/weather/reminder/preference/proactive/routine suites passed **130/130**. The exact same implementation baseline already passed full Ubuntu regression **218/218**; no runtime code changed, so that full result is reused rather than ceremonially rerun.
 - Listener stop was clean; all resident services are inactive and `voice.always_on_enabled=false`. No listener, `pw-record`, Whisper worker, temporary API/perception process, microphone recording, or ambient transcript was produced. Pre-existing third-party source-test WAVs under `/tmp` were not runtime recordings and were not modified.
 - Schema remains 8. No wake/STT/orchestration/NWS/TTS redesign, physical-history mutation, new provider, service enablement, or V0.3.2 work occurred.
+
+## OUTCOME-SENTRY-OPERATOR-READ-ONLY-WEB-ACCESS-001 — Host-bounded public web implementation
+- Completed: 2026-09-01
+- Verdict: **IMPLEMENTED / REGRESSION-PROTECTED — OPERATOR OVERRIDE**
+- Starting SHA: `a3f6d674ac20350668b5284bf2232932a5b2318f`
+
+### Result
+- Luna's planner can now select only three host-owned read tools: bounded public-source search, direct public-page reading, and public place/date forecast lookup. It never receives a browser, socket, shell, filesystem, credentials, or generic HTTP client.
+- Every host connection is public HTTP(S) over standard ports, with URL, redirect, and DNS/IP validation. Private, loopback, link-local, multicast, credential-bearing, unsupported-content, and oversized targets fail closed. External text is returned as source-attributed bounded facts and is explicitly treated as untrusted reference material by synthesis.
+- A no-key public forecast adapter resolves only a user-named place and returns normalized next-15-day forecast facts without coordinates or provider URLs. Private configured-home weather remains on the local NWS cache path rather than being placed in a public web query.
+
+### Evidence and boundary
+- Focused web/bridge/orchestration/voice suites passed `37/37`; full Ubuntu regression passed `234/234` in 38.722 seconds. Existing warnings were the pre-existing local socket `ResourceWarning` and multiprocessing-fork `DeprecationWarning`.
+- Live end-to-end planner → host → synthesis proofs passed for an official public-site search, direct public-page reading, and London next-day weather. The latter selected `get_public_weather` and delivered a grounded 62–70°F forecast with 47% maximum precipitation probability; no coordinate/provider URL was exposed.
+- This records an operator-authorized capability implementation, not V0.3.2 conversational turn-taking acceptance. No schema migration, persistent memory, voice/wake/TTS redesign, generic browser, network-write capability, or production private-data disclosure was introduced.

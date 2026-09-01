@@ -33,6 +33,7 @@ def _label(payload: dict) -> str:
         "CAPTURING": "Listening — finish your request.",
         "TRANSCRIBING": "Understanding your request…",
         "ARMED": "Listening — say your command now.",
+        "FOLLOWUP_LISTENING": "Listening for a follow-up…",
         "PROCESSING": "Preparing a grounded answer…",
         "SPEAKING": "SENTRY is speaking — microphone commands are paused.",
         "DISABLED": "Listener is stopped.",

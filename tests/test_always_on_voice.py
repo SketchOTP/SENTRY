@@ -120,6 +120,14 @@ class AlwaysOnVoiceTests(unittest.TestCase):
     def run_loop(self, loop):
         return loop.run(threading.Event())
 
+    @staticmethod
+    def open_focus(loop, clock, *, conversation_id="focus-test"):
+        """Install a bounded, RAM-only focus fixture without simulating TTS."""
+        loop._conversation_id = conversation_id
+        loop._focus_id = "focus-test"
+        loop._focus_deadline = clock.value + 8.0
+        loop._set_state(VoiceState.FOLLOWUP_LISTENING)
+
     def test_silence_never_reaches_whisper_or_luna(self):
         loop, _ = self.make_loop([0.0] * 8)
         self.assertEqual(self.run_loop(loop), 0)
@@ -231,6 +239,91 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         self.assertEqual(loop.state, VoiceState.DISABLED)
         self.assertEqual(self.ask_calls[0][0], "status")
         self.assertFalse(loop.diagnostics.payload["last_speech_delivery_success"])
+
+    def test_successful_answer_opens_distinct_followup_state_after_rearm(self):
+        config = AlwaysOnVoiceConfig(
+            minimum_speech_ms=32,
+            end_silence_ms=64,
+            followup_window_seconds=1.0,
+            post_speech_rearm_ms=0,
+            conversation_followup_window_seconds=8.0,
+            conversation_followup_max_turns=2,
+        )
+        loop, clock = self.make_loop([0.0], config=config)
+        loop._conversation_id = "initial-focus"
+        loop._dispatch_command("What is the weather today?", is_followup=False)
+        self.assertEqual(loop.state, VoiceState.SPEAKING)
+        loop.process_chunk(CHUNK)
+        self.assertEqual(loop.state, VoiceState.FOLLOWUP_LISTENING)
+        self.assertTrue(loop.diagnostics.payload["conversation_focus_active"])
+        self.assertEqual(loop.diagnostics.payload["followup_turn_index"], 0)
+        self.assertEqual(self.ask_calls[0][1]["conversation_id"], "initial-focus")
+
+    def test_focus_followup_dispatches_without_wake_and_reuses_conversation_id(self):
+        loop, clock = self.make_loop([0.9, 0.0, 0.0], ["What about tomorrow?"])
+        self.open_focus(loop, clock, conversation_id="weather-focus")
+        for _ in range(3):
+            loop.process_chunk(CHUNK)
+            clock.value += 0.032
+        self.assertEqual(self.ask_calls[0][0], "What about tomorrow?")
+        self.assertEqual(self.ask_calls[0][1]["conversation_id"], "weather-focus")
+        self.assertEqual(loop._followup_turn_count, 1)
+        self.assertTrue(loop._focus_pending)
+
+    def test_optional_sentry_inside_focus_is_one_stripped_followup(self):
+        loop, clock = self.make_loop([0.9, 0.0, 0.0], ["Sentry, what about tomorrow?"])
+        self.open_focus(loop, clock)
+        for _ in range(3):
+            loop.process_chunk(CHUNK)
+            clock.value += 0.032
+        self.assertEqual([call[0] for call in self.ask_calls], ["what about tomorrow?"])
+        self.assertEqual(loop.diagnostics.payload["command_dispatches"], 1)
+
+    def test_second_followup_closes_focus_and_requires_wake_again(self):
+        config = AlwaysOnVoiceConfig(minimum_speech_ms=32, end_silence_ms=64, followup_window_seconds=1.0, post_speech_rearm_ms=0)
+        loop, clock = self.make_loop([0.0, 0.0], config=config)
+        self.open_focus(loop, clock)
+        loop._dispatch_command("first followup", is_followup=True)
+        loop.process_chunk(CHUNK)
+        self.assertEqual(loop.state, VoiceState.FOLLOWUP_LISTENING)
+        loop._dispatch_command("second followup", is_followup=True)
+        self.assertEqual(loop.state, VoiceState.LISTENING)
+        self.assertFalse(loop._focus_active())
+        self.assertEqual(loop.diagnostics.payload["followup_close_reason"], "turn_limit")
+        self.assertEqual(loop._followup_turn_count, 2)
+
+    def test_focus_timeout_closes_without_whisper_luna_or_dispatch(self):
+        loop, clock = self.make_loop([0.0])
+        self.open_focus(loop, clock)
+        clock.value = 9.0
+        loop.process_chunk(CHUNK)
+        self.assertEqual(loop.state, VoiceState.LISTENING)
+        self.assertEqual(self.transcriber.calls, 0)
+        self.assertEqual(self.ask_calls, [])
+        self.assertEqual(loop.diagnostics.payload["followup_close_reason"], "timeout")
+
+    def test_speech_activity_closes_focus_and_cannot_dispatch_followup(self):
+        gate = Gate(active=True)
+        loop, clock = self.make_loop([0.9], ["should not dispatch"], gate=gate)
+        self.open_focus(loop, clock)
+        loop.process_chunk(CHUNK)
+        self.assertEqual(loop.state, VoiceState.SPEAKING)
+        self.assertFalse(loop._focus_active())
+        self.assertEqual(self.transcriber.calls, 0)
+        self.assertEqual(self.ask_calls, [])
+
+    def test_shutdown_clears_ram_only_focus_state(self):
+        loop, clock = self.make_loop([])
+        self.open_focus(loop, clock)
+        self.assertEqual(self.run_loop(loop), 0)
+        self.assertFalse(loop._focus_active())
+        self.assertEqual(loop.diagnostics.payload["followup_close_reason"], "shutdown")
+
+    def test_followup_config_rejects_invalid_bounds(self):
+        with self.assertRaises(ValueError):
+            AlwaysOnVoiceConfig.from_mapping({"conversation_followup_window_seconds": 0})
+        with self.assertRaises(ValueError):
+            AlwaysOnVoiceConfig.from_mapping({"conversation_followup_max_turns": -1})
 
 
 if __name__ == "__main__":

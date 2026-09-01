@@ -574,3 +574,18 @@ The original final run established five natural hands-free wake → dispatch →
 
 ### Boundary
 Always-on voice remains opt-in and inactive after qualification. No audio/transcript persistence, new service, schema change, sensor, provider, generic tool, turn-taking, or durable conversational memory is authorized by this record.
+
+## RECORD-SENTRY-044 — Operator override: host-bounded read-only public web
+- Date: 2026-09-01
+- Type: OPERATOR CAPABILITY OVERRIDE / IMPLEMENTATION
+
+### Decision
+The operator authorized SENTRY to use public internet information on the user's behalf. The adopted implementation is deliberately host-bounded: Luna selects typed read operations, while local host code enforces all public-network and read-only policy. This is not direct unrestricted internet access from Luna.
+
+### Implementation boundary
+- `search_web` discovers bounded public sources; `read_web_page` reads one public URL; `get_public_weather` resolves an explicitly named public place and reads a short-range forecast.
+- The host rejects non-HTTP(S), nonstandard ports, credentials, private/non-global DNS targets, unsafe redirects, unreadable content, and oversized responses. There are no login, forms, uploads, purchases, posts, private-network, filesystem, shell, SQL, or network-write operations.
+- Source text is untrusted reference material. Synthesis may use it only through returned fact IDs and must not follow source instructions or disclose SENTRY-local private facts. Private home-weather coordinates stay in the local cache path and never enter public queries or Luna-visible facts.
+
+### Evidence
+Focused web/bridge/orchestration/voice tests passed `37/37`; the complete Ubuntu regression passed `234/234`. Real planner-host-synthesis checks grounded an official-site lookup, a direct public-page request, and a London tomorrow forecast. V0.3.2 remains implemented/unverified and must not be inferred qualified from this operator override.

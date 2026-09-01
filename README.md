@@ -96,13 +96,15 @@ The production result is currently `insufficient` because natural history is spa
 
 The read-only NWS weather foundation is documented in [`docs/V0.2_WEATHER_CONTEXT.md`](docs/V0.2_WEATHER_CONTEXT.md). It uses schema-v7 snapshots, explicit operator coordinates, bounded retries, 24-hour point-resource caching, freshness states, and the localhost-only `/v1/weather` endpoint. Production weather is not enabled until explicit coordinates are supplied in the local configuration.
 
+The owner-authorized public-web extension is documented in [`docs/V0.3_READ_ONLY_WEB.md`](docs/V0.3_READ_ONLY_WEB.md). Luna plans only bounded, host-executed read operations: public-source search, direct public-page reading, and public place/date weather. It receives neither a browser nor a generic network client; the host enforces public HTTP(S), redirect/DNS validation, strict size/type limits, and no-write/no-login privacy boundaries.
+
 ## V0.2 Event Reminders
 
 The one-shot reminder capability is documented in [`docs/V0.2_EVENT_REMINDERS.md`](docs/V0.2_EVENT_REMINDERS.md). It supports one explicit `next_primary_user_office_session` reminder for the primary user, excludes the creation session, claims before speech, survives restart without replay, and keeps unsupported scheduler shapes out of scope.
 
 ## V0.3 Always-Available Voice
 
-The optional, unqualified local listener is documented in [`docs/V0.3_ALWAYS_ON_VOICE.md`](docs/V0.3_ALWAYS_ON_VOICE.md). The preserved working tree adds `PipeWire → local Vosk “Sentry” wake detection → VAD/Whisper tiny.en command capture → bounded conversational orchestration → Kokoro/PipeWire`, while keeping ambient audio ephemeral and never enabling continuous listening without explicit local configuration. `Sentry` is the owner-selected wake token; ordinary conversational uses of that word are accepted activations.
+The qualified, opt-in local listener is documented in [`docs/V0.3_ALWAYS_ON_VOICE.md`](docs/V0.3_ALWAYS_ON_VOICE.md). It provides `PipeWire → local Vosk “Sentry” wake detection → VAD/Whisper tiny.en command capture → bounded conversational orchestration → Kokoro/PipeWire`, while keeping ambient audio ephemeral and never enabling continuous listening without explicit local configuration. `Sentry` is the owner-selected wake token; ordinary conversational uses of that word are accepted activations.
 
 ## Reuse strategy
 
@@ -131,7 +133,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 11. **V0.2 — Preference + feedback memory**: one explicit reversible acknowledgement preference, auditable proactive feedback, and deterministic M5 suppression (qualified).
 12. **V0.2 — Read-only weather context**: explicit-location NWS snapshots, freshness-gated localhost weather facts, and an independent refresh timer (qualified; production location not configured).
 13. **V0.2 — Event-triggered reminders**: one explicit next-office-session reminder with deterministic intent/API handling, same-session exclusion, durable claim-before-speech delivery, and restart-safe dedupe (qualified).
-14. **V0.3.1 — Always-available voice foundation**: optional local Vosk `Sentry` wake detection, VAD/Whisper command capture, bounded conversational orchestration, and shared TTS capture suppression (implemented but unqualified).
+14. **V0.3.1 — Always-available voice foundation**: optional local Vosk `Sentry` wake detection, VAD/Whisper command capture, bounded conversational orchestration, and shared TTS capture suppression (qualified; opt-in).
 
 M6 and V0.2 are accepted. Routine facts entering proactive judgment and general scheduling require a new Architect directive. Multi-room and whole-home hardware are superseded by the permanent one-room product scope.
 

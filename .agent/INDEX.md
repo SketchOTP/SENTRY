@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: V0.3.1 always-available voice foundation qualified; V0.3.2 turn-taking is not authorized.
-- Active directive: none — `SENTRY-V0.3-ALWAYS-AVAILABLE-VOICE-AFFECTED-RERUN-001` is complete; return to the Architect for the next project decision.
-- Active task packet: none; the final voice acceptance evidence is recorded in the repository.
+- Current stage: V0.3.2 bounded conversational turn-taking remains active; V0.3.1 always-available voice foundation is qualified at `a3f6d67`.
+- Active directive: `SENTRY-V0.3.2-BOUNDED-TURN-TAKING-001`; operator override `SENTRY-OPERATOR-READ-ONLY-WEB-ACCESS-001` is implemented.
+- Active task packet: add a host-bounded, RAM-only, wake-free follow-up focus session after successful V0.3.1 voice answers. The same bounded host now implements public-web search/page reading and public place/date weather; V0.3.2 remains unaccepted.
 - Last accepted outcome: the local Vosk → Whisper → bounded conversation orchestrator → Kokoro office interface is qualified, with current physical truthfulness and private NWS weather retained.
-- Latest recorded outcome: five earlier real hands-free requests, corrected person-history and weather smokes, five no-`Sentry` negatives with zero dispatch, targeted sanity `130/130`, and reused exact-code full regression `218/218` passed.
-- Last state sync: 2026-09-01; `edfd647` is the implementation baseline and the next records commit documents V0.3.1 acceptance.
+- Latest recorded outcome: operator-authorized host-bounded read-only public web tools were implemented with live public-page, web-search, and place/date forecast proofs; focused suites and full Ubuntu regression `234/234` passed. This is not a V0.3.2 acceptance claim.
+- Last state sync: 2026-09-01; V0.3.2 remains active from `a3f6d67`.
 
 ## Mandatory kernel
 Read these before substantial work:
