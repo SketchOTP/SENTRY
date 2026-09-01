@@ -1,23 +1,28 @@
 # Current Project State
 
-Last updated: 2026-08-31T22:05:15-04:00
+Last updated: 2026-09-01
 
 ## Current stage
-V0.3 — conversational orchestration fully accepted at implementation commit
-`7d605afc5a1804373447621b611648716368b440`; always-available voice remains
-implemented/unqualified
+V0.3 — context truthfulness plus production NWS weather qualified at
+implementation commit `bd2654b`; always-available voice remains
+implemented/unqualified.
 
 ## Current objective
-Conversational orchestration is accepted. No successor implementation directive
-is active; the next decision returns to the Architect for a bounded final V0.3
-always-available voice acceptance decision. Do not create durable
-conversational memory or claim that always-available voice is qualified.
+The personal-history and weather blockers exposed by the final voice run are
+resolved. Return to the Architect before resuming the bounded final V0.3.1
+voice acceptance. Do not create durable conversational memory or claim that
+always-available voice is qualified.
 
 ## Active directive
-`SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-RECORDS-001` is complete. The
-Architect accepted the orchestration implementation at `7d605af` and its
-records commit `881e449` after `16/16` natural-language, `104/104` focused,
-and `212/212` full-regression evidence. Vosk remains the operator-selected
+`SENTRY-V0.3-CONTEXT-TRUTHFULNESS-WEATHER-001` is complete. Production
+history remains unchanged: room session 9 began August 31 at 4:51 PM EDT and
+crossed restart gaps, while no September 1 primary-user confirmation existed
+before the bounded live smokes. The answer to personal-arrival questions now
+states that limitation instead of treating a room session as arrival. The
+operator explicitly supplied the private home coordinate; NWS refresh, local
+weather API, current/forecast/alerts tool, tomorrow forecast, and two voice
+smokes passed. Schema remains 8; focused suites passed `150/150` and the full
+Ubuntu regression passed `218/218`. Vosk remains the operator-selected
 single-token wake authority, and V0.3 always-available voice is still not
 accepted as a whole.
 

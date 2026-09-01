@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: V0.3 conversational orchestration fully accepted; Vosk always-on voice remains implemented/unqualified
-- Active directive: none — `SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-RECORDS-001` is complete; return to the Architect for the next bounded V0.3 voice decision
-- Active task packet: none; M4 repair and evidence are recorded in the repository
-- Last accepted outcome: V0.3 conversational orchestration fully accepted; bounded Luna planner → host-validated local tools → grounded synthesis replaces primary deterministic routing.
-- Latest recorded outcome: natural-language matrix `16/16`, focused affected suites `104/104`, full Ubuntu regression `212/212`, and five operator-observed spoken domain requests passed. V0.3 always-available voice remains implemented/unqualified; no voice acceptance claim is made.
-- Last state sync: 2026-08-31T22:05:15-04:00; `main == origin/main` was verified after the records-only acceptance reconciliation.
+- Current stage: V0.3 context truthfulness plus production NWS weather qualified; V0.3.1 always-available voice remains implemented/unqualified.
+- Active directive: none — `SENTRY-V0.3-CONTEXT-TRUTHFULNESS-WEATHER-001` is complete; return to the Architect before resuming final voice acceptance.
+- Active task packet: none; the person-history and production-weather evidence is recorded in the repository.
+- Last accepted outcome: room-session records, primary-user confirmation, and exact personal arrival are now distinct; production home weather is supplied only through the existing private NWS cache and bounded `get_weather` tool.
+- Latest recorded outcome: focused affected suites `150/150`, full Ubuntu regression `218/218`, real NWS current/forecast/alerts refresh, truthful text proofs, and two spoken smokes passed. V0.3 always-available voice is still not accepted as a whole.
+- Last state sync: 2026-09-01; implementation commit `bd2654b` and this Authority reconciliation record the qualified context boundary.
 
 ## Mandatory kernel
 Read these before substantial work:

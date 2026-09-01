@@ -546,3 +546,17 @@ Accepted evidence remains: natural-language matrix `16/16`, focused affected sui
 
 ### Boundary
 V0.3 always-available Vosk voice remains implemented/unqualified and opt-in. This acceptance neither qualifies the voice interface nor authorizes turn-taking, persistent memory, or any runtime change.
+
+## RECORD-SENTRY-042 — Context truthfulness and production NWS weather qualified
+- Date: 2026-09-01
+- Type: CORRECTIVE QUALIFICATION
+- Related directive: `SENTRY-V0.3-CONTEXT-TRUTHFULNESS-WEATHER-001`
+
+### Decision
+SENTRY may describe room-session history, primary-user confirmation, and exact personal arrival only as their distinct evidence supports. Production home weather is now enabled through the existing private NWS configuration and bounded local weather tool; no new provider or generic internet capability was added.
+
+### Evidence
+Production session 9 was preserved unchanged as an August 31 room record and derived as restart-continuity uncertain. No September 1 primary-user confirmation existed before qualification, so the corrected natural answer honestly declined to give a personal arrival time. The operator explicitly provided the local-only home coordinate; NWS refresh, local/Atlas integrity, `/v1/weather`, `get_weather` current/forecast/alerts, tomorrow coverage, text proof, and two voice smokes passed. Coordinates/provider URLs were absent from the public API and Luna facts. Focused suites passed `150/150`; the full Ubuntu regression passed `218/218`; schema remains 8.
+
+### Boundary
+No physical history was rewritten or fabricated, no OpenWeather/API key/account was added, no generic HTTP/browser tool was exposed, and V0.3.1 always-available voice remains implemented/unqualified. All temporary services were stopped after evidence collection.

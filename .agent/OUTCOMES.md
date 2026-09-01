@@ -1263,3 +1263,22 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Historical ledger evidence: preserved; earlier pending/review and Vosk-selection entries remain historical facts with superseding current-state notes where needed.
 - Runtime implementation/tests/configuration/schema/services: **unchanged**; no runtime test was required or run.
 - Notion: synchronized with the Architect's final acceptance and this records-only reconciliation.
+
+## OUTCOME-SENTRY-V0.3-CONTEXT-TRUTHFULNESS-WEATHER-001 — Context repair and production NWS weather
+- Completed: 2026-09-01
+- Verdict: **V0.3 CONTEXT TRUTHFULNESS + PRODUCTION WEATHER QUALIFIED**
+- Starting SHA: `6f808c042744bd4caf4a5f2e0e14f189f032a43b`
+- Implementation SHA: `bd2654b`
+- Retrieval confidence: **ADEQUATE**
+- Evidence level: **E4_REGRESSION_PROTECTED** plus bounded real NWS and spoken operational evidence
+
+### Result
+- Room-session start, primary-user confirmation, and exact personal arrival are now separate grounded concepts. A bounded local-day, primary-user confirmation retrieval supplies a typed fact with `exact_arrival_known=false`; it never turns confirmation into entry. `current-open-session` now exposes start reason, recovery, and derived restart continuity uncertainty.
+- Production evidence was read without rewriting history. Session 9 remains an observed room session starting August 31, 2026 at 4:51 PM EDT; it is derived as `continuity_uncertain=true` because it crossed system-stop/restart evidence. Before the two bounded live smokes, there were zero September 1 primary-user confirmations. The natural answer to “When did I come in?” correctly said exact arrival was unavailable rather than asserting the August 31 room-session time.
+- The operator explicitly supplied the home coordinate. It is stored only in the mode-0600 local production config, not Git. The existing NWS provider refreshed successfully with no component errors; local and Atlas SQLite integrity checks passed. `/v1/weather` and Luna-facing `get_weather(current|forecast|alerts)` were fresh and omitted coordinates and provider URLs. Forecast normalization is bounded to 48 tool periods while retaining all 24 local hours of tomorrow.
+
+### Validation and boundary
+- Real text proofs: personal-arrival wording was partial/uncertain; room-session wording retained the August 31 start with continuity qualification; weather-now and weather-tomorrow both selected the bounded `get_weather` tool and returned fresh NWS facts. The real snapshot contained current conditions, 49 stored hourly periods spanning all 24 hours of September 2 local time, and one bounded active-alert record.
+- Two live Vosk/Whisper/Kokoro smokes passed: the truthful personal-arrival response and a tomorrow-weather response. The listener recorded two wake/dispatches, four normal conversational Luna calls total, successful local delivery, then stopped cleanly. No wake/STT/orchestration architecture change was made.
+- Focused affected suites passed `150/150`; full Ubuntu regression passed `218/218`. Schema remains 8. All temporary API, perception, voice, weather, proactive, and capture processes/services were restored inactive. Privacy inspection found no WAV, PCM, microphone recording, or ambient transcript artifact. A real alert URL previously exposed as an alert ID was reduced to its bounded identifier in both new normalization and API compatibility handling.
+- No OpenWeather key/account, generic network tool, coordinate inference, production-history rewrite, schema migration, or voice-acceptance claim was introduced. V0.3.1 final voice acceptance remains paused pending Architect direction.
