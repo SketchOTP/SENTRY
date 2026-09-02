@@ -19,10 +19,10 @@ history supplies working conversation continuity; it is not authoritative
 physical truth or a governed long-term personal-memory store.
 
 ## Active directive
-`SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001` is completing final repository
-and Notion synchronization. The old planner → host → synthesis path remains a
-historical compatibility surface. V0.3.2 focus behavior is preserved and still
-awaits its own final acceptance.
+`SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001` is implemented/qualified at
+`0730a1c` and awaits Architect disposition. The old planner → host → synthesis
+path remains a historical compatibility surface. V0.3.2 focus behavior is
+preserved and still awaits its own final acceptance.
 
 ## Persistent Codex session correction — 2026-09-01
 - The prior production agent used `codex exec --ephemeral` and manually injected

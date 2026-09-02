@@ -1394,6 +1394,7 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Completed: 2026-09-01
 - Verdict: **IMPLEMENTED / QUALIFIED — OPERATOR OVERRIDE**
 - Starting SHA: `98e892abd5054d2f7a6aaf2401c26775659b60f5`
+- Implementation SHA: `0730a1c`
 
 ### Result
 - Production no longer starts an ephemeral Codex thread for every request or

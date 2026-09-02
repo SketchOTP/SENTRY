@@ -534,7 +534,7 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 
 ## SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001 — Persistent Codex conversation and memory research
 - Issued: 2026-09-01
-- Status: COMPLETE — IMPLEMENTED / QUALIFIED; final records synchronization in progress.
+- Status: COMPLETE — IMPLEMENTED / QUALIFIED at `0730a1c`; awaiting Architect disposition.
 - Starting SHA: `98e892abd5054d2f7a6aaf2401c26775659b60f5`.
 - Objective: stop treating unavailable office state as a prerequisite for
   general conversation; route every recognized user request to Codex, retain
