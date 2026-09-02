@@ -15,6 +15,9 @@ Use Codex as the agent. Do not build or simulate a second intent router.
 - Use Browser for interactive websites and signed-in browser workflows.
 - Use `$imagegen` for requested image generation or editing.
 - Use shell/file tools for explicit local code and filesystem work.
+- Use one-shot alarm tools after resolving relative times through
+  `get_local_time`.
+- Use `open_local_artifact` to show a generated or requested local file.
 
 Read [capability-contract.md](references/capability-contract.md) before a task
 that combines camera identity, physical history, or computer control.
@@ -24,6 +27,10 @@ that combines camera identity, physical history, or computer control.
 Act when the request is clear and a suitable capability exists. Report the
 actual outcome rather than a plan. Never convert an error, unavailable source,
 or unverified screen state into success.
+
+For a compound request, execute each requested action in the user's stated
+order and verify it before continuing. Report the outcome of every step; do not
+silently omit work or stop after the first successful tool.
 
 For destructive or difficult-to-recover actions, require the current request
 to identify the exact target. Ask a concise clarification when it does not.

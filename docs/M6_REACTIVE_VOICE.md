@@ -9,7 +9,7 @@ PipeWire microphone
   -> in-memory 16 kHz PCM
   -> local OpenAI Whisper (CPU, tiny.en)
   -> existing M4 localhost fact retrieval and grounded Luna turn
-  -> local Kokoro synthesis (am_michael, 0.9x) -> explicit 24 kHz mono PipeWire speaker playback
+  -> local Kokoro synthesis (bm_george, British male, 0.9x) -> explicit 24 kHz mono PipeWire speaker playback
 ```
 
 ## Runtime

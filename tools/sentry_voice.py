@@ -38,7 +38,7 @@ def main() -> int:
     parser.add_argument("--model", default="tiny.en", help="local Whisper model name, default: tiny.en")
     parser.add_argument("--whisper-cache", type=Path, default=Path("~/.cache/whisper"))
     parser.add_argument("--kokoro-python", help="local Python interpreter that has the Kokoro package installed")
-    parser.add_argument("--kokoro-voice", default="am_michael")
+    parser.add_argument("--kokoro-voice", default="bm_george")
     parser.add_argument("--kokoro-speed", type=float, default=0.9)
     parser.add_argument("--lead-in-seconds", type=float, default=3.0, help="visible countdown before recording starts")
     parser.add_argument("--no-indicator", action="store_true", help="disable the temporary local speech-timing window")

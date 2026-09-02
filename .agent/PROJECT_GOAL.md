@@ -38,8 +38,16 @@ useful, appropriately restrained assistance.
 - New dependencies, upstream derivation/forking, cloud video, infrastructure expansion, and scope changes require documented evidence and Architect authorization.
 - Vosk with the single wake token `Sentry` is the operator-selected and
   committed V0.3.1 wake authority, qualified at `a3f6d67`. Conversational uses
-  of that token are accepted activations. Always-available voice remains
-  opt-in and inactive unless the operator explicitly enables it.
+  of that token are accepted activations. The operator explicitly enabled the
+  current deployment: SENTRY's visible status window and British-male voice are
+  the interaction surface, while one direct Codex turn is the hidden execution
+  brain. Continuous camera perception is independently controllable; current
+  visual questions may invoke the bounded on-demand camera MCP tool.
+- Natural-language operator requests may compose Codex web, image, installed
+  skill/plugin, browser/computer, local code/file, and typed SENTRY MCP
+  capabilities. Compound requests execute in stated order and report every
+  step. Consequential external commitments still require an explicit current
+  instruction; failures must be reported rather than invented as success.
 
 ## Goal-change rule
 The project goal may change only through explicit user/authorized strategic decision. Roadmaps, milestones, and implementation plans may change when evidence changes without rewriting historical records.

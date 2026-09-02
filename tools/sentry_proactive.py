@@ -49,7 +49,11 @@ def main(argv: list[str] | None = None) -> int:
         mirror = storage.get("atlas_mirror_path")
         policy = ProactivePolicyConfig.from_mapping(config.get("proactivity"))
         weather_policy = WeatherContextPolicy.from_mapping(config.get("weather"))
-        speech = SpeechDispatcher() if not args.no_speech else SpeechDispatcher(executable="")
+        voice = config.get("voice", {}) if isinstance(config.get("voice"), dict) else {}
+        speech = SpeechDispatcher(
+            kokoro_voice=str(voice.get("kokoro_voice", "bm_george")),
+            kokoro_speed=float(voice.get("kokoro_speed", 0.9)),
+        ) if not args.no_speech else SpeechDispatcher(executable="")
         with PresenceStore(database, atlas_mirror_path=mirror, mirror_interval_seconds=float(storage.get("mirror_interval_seconds", 60.0))) as store:
             processor = ProactiveProcessor(store, policy, speech=speech, weather_policy=weather_policy)
             if args.watch:

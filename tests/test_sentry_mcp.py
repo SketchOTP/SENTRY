@@ -15,7 +15,7 @@ class SentryMCPTests(unittest.IsolatedAsyncioTestCase):
         async with Client(mcp) as client:
             result = await client.list_tools()
         names = {tool.name for tool in result.tools}
-        self.assertEqual(len(names), 25)
+        self.assertEqual(len(names), 29)
         self.assertTrue({
             "get_current_office_state",
             "inspect_office_camera",
@@ -23,6 +23,10 @@ class SentryMCPTests(unittest.IsolatedAsyncioTestCase):
             "open_web_page",
             "get_system_volume",
             "capture_desktop",
+            "open_local_artifact",
+            "get_alarms",
+            "create_one_shot_alarm",
+            "cancel_alarm",
         }.issubset(names))
 
     async def test_camera_tool_returns_metadata_and_ephemeral_image(self):

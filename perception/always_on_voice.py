@@ -82,17 +82,22 @@ class AlwaysOnVoiceConfig:
     pre_speech_ms: int = 1000
     minimum_speech_ms: int = 250
     end_silence_ms: int = 1000
-    maximum_utterance_seconds: float = 12.0
+    # Compound operator requests may contain several ordered actions. Keep the
+    # audio buffer finite and memory-only without truncating natural requests
+    # at the former short-command boundary.
+    maximum_utterance_seconds: float = 45.0
     followup_window_seconds: float = 8.0
     conversation_followup_enabled: bool = True
     conversation_followup_window_seconds: float = 8.0
     conversation_followup_max_turns: int = 2
     post_speech_rearm_ms: int = 500
     whisper_model: str = "tiny.en"
+    kokoro_voice: str = "bm_george"
+    kokoro_speed: float = 0.9
     base_url: str = "http://127.0.0.1:48174"
     room_id: str = "office"
     effort: str = "medium"
-    timeout_seconds: int = 300
+    timeout_seconds: int = 900
 
     def __post_init__(self) -> None:
         if self.sample_rate != 16_000:
@@ -119,6 +124,10 @@ class AlwaysOnVoiceConfig:
             raise ValueError("voice.conversation_followup_max_turns must be non-negative")
         if not self.whisper_model or not self.base_url.startswith("http://127.0.0.1"):
             raise ValueError("voice must use local state API and a Whisper model")
+        if not self.kokoro_voice.startswith("bm_"):
+            raise ValueError("voice.kokoro_voice must be a British male Kokoro voice")
+        if not 0.75 <= self.kokoro_speed <= 1.3:
+            raise ValueError("voice.kokoro_speed must be from 0.75 through 1.3")
 
     @classmethod
     def from_mapping(cls, values: dict[str, Any] | None) -> "AlwaysOnVoiceConfig":
@@ -145,17 +154,19 @@ class AlwaysOnVoiceConfig:
             pre_speech_ms=int(values.get("pre_speech_ms", 1000)),
             minimum_speech_ms=int(values.get("minimum_speech_ms", 250)),
             end_silence_ms=int(values.get("end_silence_ms", 1000)),
-            maximum_utterance_seconds=float(values.get("maximum_utterance_seconds", 12.0)),
+            maximum_utterance_seconds=float(values.get("maximum_utterance_seconds", 45.0)),
             followup_window_seconds=float(values.get("followup_window_seconds", 8.0)),
             conversation_followup_enabled=bool(values.get("conversation_followup_enabled", True)),
             conversation_followup_window_seconds=float(values.get("conversation_followup_window_seconds", 8.0)),
             conversation_followup_max_turns=int(values.get("conversation_followup_max_turns", 2)),
             post_speech_rearm_ms=int(values.get("post_speech_rearm_ms", 500)),
             whisper_model=str(values.get("whisper_model", "tiny.en")),
+            kokoro_voice=str(values.get("kokoro_voice", "bm_george")),
+            kokoro_speed=float(values.get("kokoro_speed", 0.9)),
             base_url=str(values.get("base_url", "http://127.0.0.1:48174")),
             room_id=str(values.get("room_id", "office")),
             effort=str(values.get("effort", "medium")),
-            timeout_seconds=int(values.get("timeout_seconds", 300)),
+            timeout_seconds=int(values.get("timeout_seconds", 900)),
         )
 
 

@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     process = None
     if args.window:
-        title = "SENTRY Voice"
+        title = "SENTRY"
         active_geometry = _active_window_geometry()
         process = subprocess.Popen(
             ["zenity", "--progress", f"--title={title}", "--text=SENTRY VOICE — STARTING", "--percentage=0", "--no-cancel", "--width=520"],

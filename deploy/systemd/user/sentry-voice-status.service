@@ -1,0 +1,14 @@
+[Unit]
+Description=SENTRY visible voice status
+PartOf=sentry-voice.service
+After=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
+ExecCondition=/usr/bin/sh -c 'test -n "$DISPLAY$WAYLAND_DISPLAY"'
+ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_voice_status.py --watch --window
+Restart=on-failure
+RestartSec=3s
+KillMode=control-group
+NoNewPrivileges=true

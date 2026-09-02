@@ -14,13 +14,15 @@ They are not expected future phases unless the owner explicitly reopens them.
 
 **SENTRY V0.1 is accepted within the office-only boundary:** M0, practical M1 presence, M2 durable presence memory, M3 primary-user identity, M4 grounded conversation, M5 restrained proactivity, reactive voice, and the 30-minute unattended M6 integration soak passed within their recorded evidence boundaries. Historical detector edge cases and the M3 simultaneous-person limitation remain documented operational risks. The live SQLite database is local to the Ubuntu host; Atlas receives integrity-checked SQLite snapshots and remains the shared durable mirror. The owner/operator permanently waived the former 72-hour soak in favor of the passed 30-minute final soak.
 
-**V0.2 resident runtime, routine statistics, routine-grounded conversation, preference/feedback memory, weather context, contextual weather proactivity, and event-triggered reminders are qualified. V0.3.1 always-available voice is qualified:** the accepted one-room stack includes Vosk wake, Whisper command STT, grounded conversation, and local Kokoro speech. Schema 8 remains current. Production NWS weather uses private local coordinates and a cache-refresh timer. Reminders remain explicit, durable, at-most-once local speech.
+**V0.2 resident runtime, routine statistics, routine-grounded conversation, preference/feedback memory, weather context, contextual weather proactivity, and event-triggered reminders are qualified. V0.3.1 always-available voice is qualified:** the accepted one-room stack includes Vosk wake, Whisper command STT, direct Codex execution, and local British-male Kokoro speech. Schema 9 is current. Production NWS weather uses private local coordinates and a cache-refresh timer. Office-session reminders and one-shot clock alarms remain explicit, durable, claim-before-speech local actions.
 
 **Operator-authorized, technically qualified V0.3 expansion:** the production conversation entry point now
 uses Codex directly as SENTRY's agent. A dedicated write-capable profile exposes
-local SENTRY/desktop MCP tools while retaining native web search, installed
-skills/plugins, image generation, and shell/file workflows. Live representative
-proofs and the complete Ubuntu regression `243/243` passed. See
+29 local SENTRY/desktop MCP tools while retaining native web search, installed
+skills/plugins, image generation, browser/computer-use surfaces, and shell/file
+workflows. Compound requests execute in spoken order and return a per-step
+result. Live representative proofs and the complete Ubuntu regression `251/251`
+passed. See
 [`docs/V0.3_CODEX_NATIVE_AGENT.md`](docs/V0.3_CODEX_NATIVE_AGENT.md).
 
 ## Project links
@@ -113,6 +115,23 @@ The one-shot reminder capability is documented in [`docs/V0.2_EVENT_REMINDERS.md
 
 The qualified, opt-in local listener is documented in [`docs/V0.3_ALWAYS_ON_VOICE.md`](docs/V0.3_ALWAYS_ON_VOICE.md). It provides `PipeWire → local Vosk “Sentry” wake detection → VAD/Whisper tiny.en command capture → bounded conversational orchestration → Kokoro/PipeWire`, while keeping ambient audio ephemeral and never enabling continuous listening without explicit local configuration. `Sentry` is the owner-selected wake token; ordinary conversational uses of that word are accepted activations.
 
+The current operator deployment explicitly enables that listener. Its coupled
+Zenity SENTRY window shows when to speak and whether the assistant is listening,
+working, accepting a follow-up, or speaking. Compound utterances are bounded to
+45 seconds and one Codex turn to 15 minutes so elaborate ordered requests can
+finish without creating an unbounded audio or process lifetime. Conversational,
+proactive, reminder, and alarm speech use Kokoro `bm_george` at `0.9x`.
+
+## One-shot alarms
+
+Schema 9 adds durable primary-user one-shot alarms exposed to Codex through
+typed SENTRY MCP tools. Relative times are resolved from the local
+`America/New_York` clock before persistence. At most 32 alarms may be pending;
+due alarms are claimed before local speech and an uncertain claimed restart is
+failed rather than replayed. `sentry-alarms.timer` checks every 15 seconds and
+loads Kokoro only when delivery is actually due. This is not a recurring alarm,
+snooze, timer, or general calendar scheduler.
+
 ## Reuse strategy
 
 ### Accepted V0.1 reasoning layer
@@ -141,7 +160,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 12. **V0.2 — Read-only weather context**: explicit-location NWS snapshots, freshness-gated localhost weather facts, and an independent refresh timer (qualified; production location not configured).
 13. **V0.2 — Event-triggered reminders**: one explicit next-office-session reminder with deterministic intent/API handling, same-session exclusion, durable claim-before-speech delivery, and restart-safe dedupe (qualified).
 14. **V0.3.1 — Always-available voice foundation**: optional local Vosk `Sentry` wake detection, VAD/Whisper command capture, bounded conversational orchestration, and shared TTS capture suppression (qualified; opt-in).
-15. **V0.3 — Codex-native agent surface**: direct natural-language Codex turns with local SENTRY/desktop MCP tools, native web, installed skills/plugins, image generation, and explicit local write capability (active qualification).
+15. **V0.3 — Codex-native agent surface**: direct natural-language Codex turns with local SENTRY/desktop MCP tools, native web, installed skills/plugins, image generation, explicit local write capability, ordered compound execution, and one-shot alarms (technically qualified under operator authorization).
 
 M6 and V0.2 are accepted. Routine facts entering proactive judgment and general scheduling require a new Architect directive. Multi-room and whole-home hardware are superseded by the permanent one-room product scope.
 

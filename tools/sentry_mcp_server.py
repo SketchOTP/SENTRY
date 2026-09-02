@@ -27,6 +27,7 @@ from tools.sentry_desktop import (
     get_volume as _get_volume,
     launch_application as _launch_application,
     media_control as _media_control,
+    open_local_artifact as _open_local_artifact,
     open_web_page as _open_web_page,
     send_key_combo as _send_key_combo,
     set_muted as _set_muted,
@@ -127,6 +128,28 @@ def get_local_time() -> dict:
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
+def get_alarms(status: Literal["pending", "delivered", "failed", "cancelled"] | None = None) -> dict:
+    """Read the operator's bounded durable one-shot alarms."""
+    return _read("get_alarms", {"status": status} if status else {})
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
+def create_one_shot_alarm(scheduled_for: str, label: str = "Alarm") -> dict:
+    """Create one future alarm from an explicit offset-aware ISO timestamp; use get_local_time first for relative wording."""
+    return _read("create_one_shot_alarm", {
+        "scheduled_for": scheduled_for,
+        "display_timezone": DISPLAY_TIMEZONE,
+        "label": label,
+    })
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False))
+def cancel_alarm(alarm_id: str) -> dict:
+    """Cancel one exact pending alarm."""
+    return _read("cancel_alarm", {"alarm_id": alarm_id})
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 def inspect_office_camera(duration_seconds: float = 3.0) -> list[TextContent | ImageContent]:
     """Inspect the office camera now, match enrolled identity locally, and return one ephemeral still."""
     metadata, jpeg = _inspect_office_camera(CONFIG_PATH, duration_seconds=duration_seconds)
@@ -153,6 +176,12 @@ def launch_application(app_id: str) -> dict:
 def open_web_page(url: str) -> dict:
     """Open one explicit HTTP(S) page in the operator's configured browser."""
     return _open_web_page(url)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
+def open_local_artifact(path: str) -> dict:
+    """Show one existing operator-home file in its configured desktop application."""
+    return _open_local_artifact(path)
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))

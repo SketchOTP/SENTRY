@@ -143,29 +143,48 @@ class ProactiveOutcome:
 
 
 class SpeechDispatcher:
-    """Small bounded Speech Dispatcher adapter with cancellation."""
+    """Bounded local speech adapter, using Kokoro by default."""
 
-    def __init__(self, executable: str | None = None, *, application_name: str = "SENTRY", speech_activity: SpeechActivityGate | None = None) -> None:
-        self.executable = executable or shutil.which("spd-say")
+    def __init__(
+        self, executable: str | None = None, *, application_name: str = "SENTRY",
+        speech_activity: SpeechActivityGate | None = None, kokoro_python: str | None = None,
+        kokoro_voice: str = "bm_george", kokoro_speed: float = 0.9,
+    ) -> None:
+        self.executable = executable
         self.application_name = application_name
         self._lock = threading.RLock()
         self._process: subprocess.Popen[str] | None = None
         self.speech_activity = speech_activity or SpeechActivityGate()
+        self._speaker = None
+        if executable is None:
+            from .voice import KokoroSpeaker
+            self._speaker = KokoroSpeaker(
+                python_executable=kokoro_python,
+                voice=kokoro_voice,
+                speed=kokoro_speed,
+                speech_activity=self.speech_activity,
+            )
 
     @property
     def available(self) -> bool:
-        return bool(self.executable)
+        return bool(self._speaker.available if self._speaker is not None else self.executable)
 
     @property
     def is_speaking(self) -> bool:
         with self._lock:
-            return (self._process is not None and self._process.poll() is None) or self.speech_activity.is_active()
+            return (
+                (self._speaker is not None and self._speaker.is_speaking)
+                or (self._process is not None and self._process.poll() is None)
+                or self.speech_activity.is_active()
+            )
 
     def speak(self, text: str) -> bool:
         if not self.available:
             return False
         if not isinstance(text, str) or not text.strip():
             return False
+        if self._speaker is not None:
+            return bool(self._speaker.speak(text))
         with self.speech_activity.acquire() as acquired:
             if not acquired:
                 return False
@@ -193,6 +212,8 @@ class SpeechDispatcher:
     def cancel(self) -> bool:
         if not self.available:
             return False
+        if self._speaker is not None:
+            return bool(self._speaker.cancel())
         try:
             subprocess.run(
                 [self.executable, "--cancel", "--application-name", self.application_name],

@@ -1,6 +1,6 @@
 # Repository Map
 
-Last verified against: `main` and working-tree inspection on 2026-08-30.
+Last verified against: `main` plus the 2026-09-01 operator-Jarvis working tree.
 
 ## Entry points
 - `README.md` — concise project contract, V0.1 boundary, milestones, and current status.
@@ -12,20 +12,29 @@ Last verified against: `main` and working-tree inspection on 2026-08-30.
 - `perception/identity.py` — OpenCV Zoo YuNet/SFace loading, face quality/track association, conservative temporal matching, and in-memory enrollment prototype construction.
 - `perception/calibration.py`, `tools/m1_detector_calibration.py`, and `tools/m1_0303_raw_reconcile.py` — metadata-only raw-candidate/raw-output capture and offline threshold evaluation used by the 0202 and 0303 detector gates; no raw frames are written.
 - `perception/calibration.py` and `tools/m1_detector_calibration.py` — metadata-only raw-candidate capture and offline confidence-threshold evaluation for the bounded M1 calibration directive; no frames are persisted and candidates do not enter the tracker.
-- `perception/config.example.json` — configurable camera, detector, and tracker settings.
+- `perception/config.example.json` — configurable camera, detector, tracker,
+  Vosk/Whisper/Kokoro voice, and one-shot alarm settings.
 - `tests/test_sentry_perception.py` — deterministic M1 contract tests.
 - `tools/sentry_codex_bridge.py` — bounded one-event OAuth Codex/Luna adapter; no background worker or persistence.
 - `tools/sentry_identity_evaluate.py` and `tools/sentry_identity_live_verify.py` — metadata-only held-out and live identity qualification runners; no frames or embeddings are written.
 - `tools/sentry_codex_response.schema.json` — structured output contract for the bounded bridge.
 - `tools/sentry_codex_bridge.py` — bounded OAuth/Luna launcher reused by the event proof and grounded query path; runtime calls execute from a temporary non-repository cwd and copy the selected schema to an absolute local path.
 - `perception/voice.py`, `tools/sentry_voice.py`, and `tools/sentry_kokoro_worker.py` — bounded push-to-talk PipeWire/in-memory Whisper `tiny.en` STT adapter reusing M4 `sentry_ask.py` and an installed local Kokoro runtime with local PipeWire playback; no audio persistence or continuous Luna calls.
-- `deploy/systemd/user/` — native user-systemd units and resident-runtime operations guide for perception, the localhost API, and continuous proactive polling.
+- `deploy/systemd/user/` — native user-systemd units and resident-runtime
+  operations guide for perception, localhost API, proactivity, visible Vosk
+  voice/status, weather/routines, and one-shot alarm delivery.
 - `tools/sentry_install_user_services.py` — reproducible installer for the local mode-600 production config and enabled user units.
 - `tools/sentry_resident_live_probe.py` — bounded metadata-only live probe for service health, API health, Atlas mirror status, and perception heartbeat.
 - `perception/routines.py` — standard-library routine feature extraction, circular clock-time/robust duration statistics, evidence exclusions, and maturity gates.
 - `tools/sentry_routines.py` — bounded routine snapshot refresh/show CLI over the local SQLite source.
 - `tools/sentry_routine_intent.py` — deterministic habitual-question routing to the fixed routine vocabulary and explicit scopes.
-- `tools/sentry_grounding.py` / `tools/sentry_ask.py` — bounded M4 fact packets, deterministic current-state fail-closed routing, local-time presentation, and maturity-aware routine conversation.
+- `tools/sentry_ask.py` / `tools/sentry_codex_agent.py` — production natural
+  language enters one ephemeral direct Codex turn with bounded RAM-only recent
+  context and ordered multi-action result reporting. Historical deterministic
+  and planner/synthesis helpers remain compatibility surfaces.
+- `tools/sentry_mcp_server.py` / `tools/sentry_desktop.py` — typed local office,
+  on-demand camera, alarm, application, browser-page, artifact, volume/media,
+  screenshot, keyboard, and pointer capabilities for the direct agent.
 - `tools/sentry_state_api.py` / `docs/V0.3_M4_CURRENT_STATE_TRUTHFULNESS.md` — localhost-only database health plus independent perception-heartbeat freshness contract; current physical facts are gated on live usable perception.
 - `deploy/systemd/user/sentry-routines.service` and `sentry-routines.timer` — independent six-hour derived-statistics refresh.
 - `tests/test_routines.py` — metadata-only routine statistics, schema-v5, API, Atlas restore, idempotence, DST, and privacy tests.
@@ -33,7 +42,11 @@ Last verified against: `main` and working-tree inspection on 2026-08-30.
 - `tools/sentry_preference_intent.py` / `tests/test_preferences.py` — deterministic supported preference/feedback intent routing and schema-v6 qualification coverage.
 - `perception/weather.py` / `tools/sentry_weather.py` — bounded NWS normalization, local schema-v7 snapshot refresh/show, explicit-location and freshness behavior.
 - `tools/sentry_weather_intent.py` / `tools/sentry_grounding.py` — deterministic weather question routing and allow-listed weather facts in the existing M4 boundary.
-- `perception/presence_store.py` — schema-v7 weather snapshots plus schema-v6 append-only preference and proactive-feedback ledgers, current-value derivation, recent delivered-action resolution, and Atlas mirroring.
+- `perception/presence_store.py` — schema-9 physical/history, preference,
+  weather, event-reminder, and durable one-shot alarm persistence with Atlas
+  mirroring.
+- `perception/alarms.py` / `tools/sentry_alarms.py` — claim-before-speech,
+  at-most-once one-shot alarm delivery through local British-male Kokoro.
 - `perception/proactive.py` / `tools/sentry_state_api.py` — deterministic `user_preference` M5 gate and localhost preference/feedback/recent-action surfaces.
 - `docs/V0.2_PREFERENCE_FEEDBACK_MEMORY.md` — narrow preference vocabulary, provenance, privacy, feedback semantics, and M5 boundary.
 - `docs/V0.2_WEATHER_CONTEXT.md` — explicit-location NWS contract, normalized snapshot/freshness boundary, timer behavior, and production configuration status.

@@ -12,7 +12,12 @@ services:
   minutes, with an initial five-minute delay after the user manager starts.
 - `sentry-voice.service` — optional always-available local microphone listener.
   It is installed but remains disabled unless the local mode-0600 config sets
-  `voice.always_on_enabled` to `true`.
+  `voice.always_on_enabled` to `true`. Starting it also starts the coupled
+  `sentry-voice-status.service`, which keeps the visible SENTRY listening,
+  working, speaking, and follow-up state on the operator desktop.
+- `sentry-alarms.timer` — lightweight 15-second delivery check for durable
+  one-shot alarms. Alarms are claimed before British-male Kokoro speech and a
+  claimed alarm is never replayed after an uncertain restart.
 
 Perception publishes a small metadata-only heartbeat at
 `perception-data/runtime/health/perception.json`; it contains process/camera
@@ -37,9 +42,11 @@ The generated profile is mode `0600` and points to the local SENTRY MCP server.
 It is required by both push-to-talk and always-on natural-language requests.
 
 The installer creates `~/.config/sentry/config.json` once from the checked-in
-example, enables proactivity for the resident deployment, installs the units
-under `~/.config/systemd/user/`, and starts them. An existing production config
-is never overwritten; it must already have proactivity enabled.
+example and installs the units under `~/.config/systemd/user/`. The localhost
+API is resident. Continuous perception and proactivity are enabled only when
+their explicit `resident.continuous_*_enabled` fields are true; the current
+operator policy leaves both false and uses bounded on-demand camera inspection.
+An existing production config is never overwritten.
 
 The user-manager startup condition is the authenticated `sketch` desktop/user
 session. The units are enabled for `default.target`; they are not a system
@@ -56,7 +63,9 @@ systemctl --user --no-pager --full status sentry-routines.timer sentry-routines.
 systemctl --user is-enabled sentry-weather.timer
 systemctl --user --no-pager --full status sentry-weather.timer sentry-weather.service
 systemctl --user is-enabled sentry-voice.service
-systemctl --user --no-pager --full status sentry-voice.service
+systemctl --user --no-pager --full status sentry-voice.service sentry-voice-status.service
+systemctl --user is-enabled sentry-alarms.timer
+systemctl --user --no-pager --full status sentry-alarms.timer sentry-alarms.service
 python tools/sentry_voice_status.py
 curl --fail http://127.0.0.1:48174/health
 journalctl --user -u sentry-perception.service -u sentry-state-api.service -u sentry-proactive.service --since today

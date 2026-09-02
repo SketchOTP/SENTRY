@@ -6,7 +6,17 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.sentry_install_user_services import ROUTINE_UNIT_NAMES, UNIT_NAMES, VOICE_UNIT_NAMES, WEATHER_UNIT_NAMES, install, production_config
+from tools.sentry_install_user_services import (
+    ALARM_UNIT_NAMES,
+    ROUTINE_UNIT_NAMES,
+    UNIT_NAMES,
+    VOICE_UNIT_NAMES,
+    WEATHER_UNIT_NAMES,
+    _continuous_perception_enabled,
+    _continuous_proactivity_enabled,
+    install,
+    production_config,
+)
 from tools.sentry_proactive import watch_loop
 from tools.sentry_resident_live_probe import _unit_states
 
@@ -42,6 +52,15 @@ class ResidentRuntimeTests(unittest.TestCase):
         self.assertTrue(source["proactivity"]["enabled"])
         self.assertEqual(source["detector"]["name"], "openvino_yolox_s")
         self.assertEqual(source["detector"]["device"], "CPU")
+        self.assertFalse(_continuous_perception_enabled(source))
+        self.assertFalse(_continuous_proactivity_enabled(source))
+
+    def test_resident_camera_and_proactivity_require_explicit_service_opt_in(self):
+        config = production_config(Path("perception/config.example.json"))
+        config["resident"]["continuous_perception_enabled"] = True
+        config["resident"]["continuous_proactivity_enabled"] = True
+        self.assertTrue(_continuous_perception_enabled(config))
+        self.assertTrue(_continuous_proactivity_enabled(config))
 
     def test_install_preserves_existing_production_config(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -54,7 +73,7 @@ class ResidentRuntimeTests(unittest.TestCase):
             with patch("tools.sentry_install_user_services._run_systemctl"):
                 install(config, start=False, systemd_user_dir=units)
             self.assertEqual(json.loads(config.read_text(encoding="utf-8")), custom)
-            self.assertEqual(sorted(path.name for path in units.iterdir()), sorted((*UNIT_NAMES, *ROUTINE_UNIT_NAMES, *WEATHER_UNIT_NAMES, *VOICE_UNIT_NAMES)))
+            self.assertEqual(sorted(path.name for path in units.iterdir()), sorted((*UNIT_NAMES, *ROUTINE_UNIT_NAMES, *WEATHER_UNIT_NAMES, *VOICE_UNIT_NAMES, *ALARM_UNIT_NAMES)))
 
     def test_units_use_accepted_paths_and_isolated_services(self):
         unit_root = Path("deploy/systemd/user")
@@ -64,6 +83,8 @@ class ResidentRuntimeTests(unittest.TestCase):
         routines = (unit_root / "sentry-routines.timer").read_text(encoding="utf-8")
         weather = (unit_root / "sentry-weather.timer").read_text(encoding="utf-8")
         voice = (unit_root / "sentry-voice.service").read_text(encoding="utf-8")
+        voice_status = (unit_root / "sentry-voice-status.service").read_text(encoding="utf-8")
+        alarms = (unit_root / "sentry-alarms.timer").read_text(encoding="utf-8")
         self.assertIn("WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY", perception)
         self.assertIn("--config %h/.config/sentry/config.json", perception)
         self.assertIn("--heartbeat-file /srv/ATLAS/100_ACTIVE/Projects/SENTRY/perception-data/runtime/health/perception.json", perception)
@@ -80,7 +101,12 @@ class ResidentRuntimeTests(unittest.TestCase):
         self.assertIn("OnUnitActiveSec=10min", weather)
         self.assertIn("tools/sentry_always_on_voice.py", voice)
         self.assertIn("Environment=CODEX_HOME=%h/.codex", voice)
+        self.assertIn("Wants=sentry-voice-status.service", voice)
+        self.assertIn("tools/sentry_voice_status.py --watch --window", voice_status)
+        self.assertIn("PartOf=sentry-voice.service", voice_status)
         self.assertIn("Restart=on-failure", voice)
+        self.assertIn("OnUnitActiveSec=15s", alarms)
+        self.assertIn("Persistent=true", alarms)
 
     def test_live_probe_uses_user_systemd_and_localhost_api(self):
         self.assertEqual(_unit_states.__module__, "tools.sentry_resident_live_probe")

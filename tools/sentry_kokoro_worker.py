@@ -22,7 +22,7 @@ def main() -> int:
     text = str(request.get("text", "")).strip()
     if not text:
         raise ValueError("text is required")
-    voice = str(request.get("voice", "am_michael"))
+    voice = str(request.get("voice", "bm_george"))
     speed = float(request.get("speed", 0.9))
     language = "b" if voice.startswith("b") else "a"
     pipeline = KPipeline(lang_code=language, repo_id="hexgrad/Kokoro-82M")

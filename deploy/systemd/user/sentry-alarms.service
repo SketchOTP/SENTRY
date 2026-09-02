@@ -1,0 +1,9 @@
+[Unit]
+Description=Deliver due one-shot SENTRY alarms
+After=default.target pipewire.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
+ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_alarms.py --config %h/.config/sentry/config.json
+NoNewPrivileges=true

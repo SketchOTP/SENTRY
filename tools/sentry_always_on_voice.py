@@ -56,7 +56,11 @@ def main(argv: list[str] | None = None) -> int:
             vad=SileroVad(),
             wake_detector=wake_detector,
             transcriber=WhisperTranscriber(model_name=voice.whisper_model),
-            speaker=KokoroSpeaker(python_executable=args.kokoro_python),
+            speaker=KokoroSpeaker(
+                python_executable=args.kokoro_python,
+                voice=voice.kokoro_voice,
+                speed=voice.kokoro_speed,
+            ),
             ask_fn=ask,
             diagnostics=diagnostics,
         )

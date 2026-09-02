@@ -78,10 +78,10 @@ def relevant_weather(store: PresenceStore, at: datetime) -> None:
 
 
 class EventReminderTests(unittest.TestCase):
-    def test_schema_eight_migration_and_empty_reminder_state(self):
+    def test_schema_nine_migration_preserves_empty_reminder_state(self):
         with tempfile.TemporaryDirectory() as directory:
             with PresenceStore(Path(directory) / "sentry.db") as store:
-                self.assertEqual(store.health()["schema_version"], 8)
+                self.assertEqual(store.health()["schema_version"], 9)
                 columns = {row[1] for row in store._connection.execute("PRAGMA table_info(event_reminders)")}
                 self.assertTrue({"reminder_id", "created_session_id", "delivery_action_id", "failure_reason"} <= columns)
                 self.assertEqual(store.event_reminders(), [])

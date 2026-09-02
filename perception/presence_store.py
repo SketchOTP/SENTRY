@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .presence_state import RoomState
 from .storage_mirror import (
@@ -25,7 +26,7 @@ from .storage_mirror import (
 )
 
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 PREFERENCE_KEY = "proactivity.primary_user_session_acknowledgement"
 PREFERENCE_VALUES = {"allow", "suppress"}
 FEEDBACK_TYPES = {"helpful", "not_helpful", "too_frequent", "do_not_repeat"}
@@ -87,6 +88,7 @@ class PresenceStore:
         )
         self._migrate()
         self.reconcile_claimed_reminders()
+        self.reconcile_claimed_alarms()
 
     def close(self) -> None:
         with self._lock:
@@ -400,6 +402,41 @@ class PresenceStore:
                     (8, datetime.now(timezone.utc).isoformat()),
                 )
                 migrated = True
+                applied.add(8)
+            if 9 not in applied:
+                self._connection.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS alarms (
+                        alarm_id TEXT PRIMARY KEY,
+                        person_id TEXT NOT NULL CHECK (person_id = 'primary_user'),
+                        label TEXT NOT NULL CHECK (length(label) BETWEEN 1 AND 120),
+                        scheduled_for TEXT NOT NULL,
+                        display_timezone TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        source_surface TEXT NOT NULL,
+                        source_request_id TEXT NOT NULL,
+                        status TEXT NOT NULL CHECK (status IN ('pending', 'claimed', 'delivered', 'failed', 'cancelled')),
+                        claimed_at TEXT,
+                        delivered_at TEXT,
+                        failed_at TEXT,
+                        cancelled_at TEXT,
+                        cancelled_source_surface TEXT,
+                        cancelled_source_request_id TEXT,
+                        failure_reason TEXT,
+                        UNIQUE(source_surface, source_request_id)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_alarms_due
+                        ON alarms(status, scheduled_for);
+                    CREATE INDEX IF NOT EXISTS idx_alarms_person_time
+                        ON alarms(person_id, created_at DESC);
+                    """
+                )
+                self._connection.execute(
+                    "INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+                    (9, datetime.now(timezone.utc).isoformat()),
+                )
+                migrated = True
+                applied.add(9)
         if migrated:
             self._maybe_mirror(force=True)
 
@@ -1104,6 +1141,201 @@ class PresenceStore:
                         "UPDATE proactive_actions SET delivery_status = 'failed', suppression_reason = 'delivery_failed' "
                         "WHERE action_id = ?", (row["delivery_action_id"],),
                     )
+        if rows:
+            self._maybe_mirror(force=True)
+        return len(rows)
+
+    @staticmethod
+    def _validate_alarm_label(label: str) -> str:
+        if not isinstance(label, str) or any(ord(char) < 32 for char in label):
+            raise ValueError("alarm label must be 1-120 characters without control characters")
+        normalized = " ".join(label.strip().split())
+        if not normalized or len(normalized) > 120:
+            raise ValueError("alarm label must be 1-120 characters without control characters")
+        return normalized
+
+    @staticmethod
+    def _validate_display_timezone(display_timezone: str) -> str:
+        if not isinstance(display_timezone, str) or not display_timezone:
+            raise ValueError("alarm display timezone is required")
+        try:
+            ZoneInfo(display_timezone)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError("alarm display timezone must be a valid IANA timezone") from exc
+        return display_timezone
+
+    def alarms(
+        self, *, person_id: str = "primary_user", status: str | None = None, limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        if person_id != "primary_user":
+            raise ValueError("only primary_user alarms are supported")
+        if status is not None and status not in {"pending", "claimed", "delivered", "failed", "cancelled"}:
+            raise ValueError("alarm status is invalid")
+        if not 1 <= limit <= 100:
+            raise ValueError("alarm limit must be from 1 through 100")
+        sql = (
+            "SELECT alarm_id, person_id, label, scheduled_for, display_timezone, created_at, "
+            "source_surface, source_request_id, status, claimed_at, delivered_at, failed_at, "
+            "cancelled_at, cancelled_source_surface, cancelled_source_request_id, failure_reason "
+            "FROM alarms WHERE person_id = ?"
+        )
+        parameters: list[Any] = [person_id]
+        if status is not None:
+            sql += " AND status = ?"
+            parameters.append(status)
+        sql += " ORDER BY scheduled_for ASC, rowid ASC LIMIT ?"
+        parameters.append(limit)
+        with self._lock:
+            rows = self._connection.execute(sql, parameters).fetchall()
+        return [dict(row) for row in rows]
+
+    def alarm(self, alarm_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            row = self._connection.execute("SELECT * FROM alarms WHERE alarm_id = ?", (alarm_id,)).fetchone()
+        return dict(row) if row is not None else None
+
+    def create_alarm(
+        self, *, scheduled_for: datetime | str, display_timezone: str, source_surface: str,
+        source_request_id: str, label: str = "Alarm", person_id: str = "primary_user",
+        created_at: datetime | str | None = None,
+    ) -> dict[str, Any]:
+        if person_id != "primary_user":
+            raise ValueError("only primary_user alarms are supported")
+        if not source_surface or not source_request_id:
+            raise ValueError("alarm provenance is required")
+        with self._lock:
+            existing = self._connection.execute(
+                "SELECT * FROM alarms WHERE source_surface = ? AND source_request_id = ?",
+                (source_surface, source_request_id),
+            ).fetchone()
+        if existing is not None:
+            return dict(existing)
+        normalized_label = self._validate_alarm_label(label)
+        timezone_name = self._validate_display_timezone(display_timezone)
+        scheduled = _parse_utc_time(_utc_iso(scheduled_for))
+        created = _parse_utc_time(_utc_iso(created_at or datetime.now(timezone.utc)))
+        if scheduled is None or created is None:
+            raise ValueError("alarm timestamps must be timezone-aware")
+        if scheduled <= created:
+            raise ValueError("alarm must be scheduled in the future")
+        if scheduled - created > timedelta(days=366):
+            raise ValueError("alarm must be within 366 days")
+        with self._lock, self._connection:
+            pending_count = int(self._connection.execute(
+                "SELECT COUNT(*) FROM alarms WHERE person_id = ? AND status = 'pending'", (person_id,),
+            ).fetchone()[0])
+            if pending_count >= 32:
+                raise ValueError("the maximum of 32 pending alarms has been reached")
+            alarm_id = str(uuid.uuid4())
+            try:
+                self._connection.execute(
+                    "INSERT INTO alarms(alarm_id, person_id, label, scheduled_for, display_timezone, created_at, "
+                    "source_surface, source_request_id, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')",
+                    (
+                        alarm_id, person_id, normalized_label, scheduled.isoformat(), timezone_name,
+                        created.isoformat(), source_surface, source_request_id,
+                    ),
+                )
+            except sqlite3.IntegrityError:
+                existing = self._connection.execute(
+                    "SELECT * FROM alarms WHERE source_surface = ? AND source_request_id = ?",
+                    (source_surface, source_request_id),
+                ).fetchone()
+                if existing is None:
+                    raise
+                return dict(existing)
+            row = self._connection.execute("SELECT * FROM alarms WHERE alarm_id = ?", (alarm_id,)).fetchone()
+        self._maybe_mirror(force=True)
+        return dict(row)
+
+    def cancel_alarm(
+        self, alarm_id: str, *, source_surface: str, source_request_id: str,
+        cancelled_at: datetime | str | None = None,
+    ) -> dict[str, Any]:
+        if not alarm_id or not source_surface or not source_request_id:
+            raise ValueError("alarm id and cancellation provenance are required")
+        timestamp = _utc_iso(cancelled_at or datetime.now(timezone.utc))
+        with self._lock, self._connection:
+            row = self._connection.execute("SELECT * FROM alarms WHERE alarm_id = ?", (alarm_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"alarm not found: {alarm_id}")
+            if row["status"] == "cancelled":
+                return dict(row)
+            if row["status"] != "pending":
+                raise ValueError(f"alarm cannot be cancelled from status {row['status']}")
+            self._connection.execute(
+                "UPDATE alarms SET status = 'cancelled', cancelled_at = ?, cancelled_source_surface = ?, "
+                "cancelled_source_request_id = ? WHERE alarm_id = ? AND status = 'pending'",
+                (timestamp, source_surface, source_request_id, alarm_id),
+            )
+            updated = self._connection.execute("SELECT * FROM alarms WHERE alarm_id = ?", (alarm_id,)).fetchone()
+        self._maybe_mirror(force=True)
+        return dict(updated)
+
+    def claim_due_alarms(self, *, now: datetime | str | None = None, limit: int = 10) -> list[dict[str, Any]]:
+        if not 1 <= limit <= 32:
+            raise ValueError("due alarm limit must be from 1 through 32")
+        evaluated = _parse_utc_time(_utc_iso(now or datetime.now(timezone.utc)))
+        if evaluated is None:
+            raise ValueError("alarm evaluation time must be timezone-aware")
+        claimed: list[dict[str, Any]] = []
+        with self._lock, self._connection:
+            rows = self._connection.execute(
+                "SELECT * FROM alarms WHERE status = 'pending' AND scheduled_for <= ? "
+                "ORDER BY scheduled_for ASC, rowid ASC LIMIT ?",
+                (evaluated.isoformat(), limit),
+            ).fetchall()
+            for row in rows:
+                updated = self._connection.execute(
+                    "UPDATE alarms SET status = 'claimed', claimed_at = ? "
+                    "WHERE alarm_id = ? AND status = 'pending'",
+                    (evaluated.isoformat(), row["alarm_id"]),
+                ).rowcount
+                if updated == 1:
+                    value = dict(row)
+                    value["status"] = "claimed"
+                    value["claimed_at"] = evaluated.isoformat()
+                    claimed.append(value)
+        if claimed:
+            self._maybe_mirror(force=True)
+        return claimed
+
+    def finalize_alarm(
+        self, alarm_id: str, *, status: str, timestamp: datetime | str | None = None,
+        failure_reason: str | None = None,
+    ) -> dict[str, Any]:
+        if status not in {"delivered", "failed"}:
+            raise ValueError("invalid alarm final status")
+        finished_at = _utc_iso(timestamp or datetime.now(timezone.utc))
+        with self._lock, self._connection:
+            if status == "delivered":
+                updated = self._connection.execute(
+                    "UPDATE alarms SET status = 'delivered', delivered_at = ? "
+                    "WHERE alarm_id = ? AND status = 'claimed'",
+                    (finished_at, alarm_id),
+                ).rowcount
+            else:
+                updated = self._connection.execute(
+                    "UPDATE alarms SET status = 'failed', failed_at = ?, failure_reason = ? "
+                    "WHERE alarm_id = ? AND status = 'claimed'",
+                    (finished_at, failure_reason or "delivery_failed", alarm_id),
+                ).rowcount
+            row = self._connection.execute("SELECT * FROM alarms WHERE alarm_id = ?", (alarm_id,)).fetchone()
+        if updated != 1 or row is None:
+            raise ValueError(f"alarm is not claimed: {alarm_id}")
+        self._maybe_mirror(force=True)
+        return dict(row)
+
+    def reconcile_claimed_alarms(self) -> int:
+        timestamp = datetime.now(timezone.utc).isoformat()
+        with self._lock, self._connection:
+            rows = self._connection.execute("SELECT alarm_id FROM alarms WHERE status = 'claimed'").fetchall()
+            for row in rows:
+                self._connection.execute(
+                    "UPDATE alarms SET status = 'failed', failed_at = ?, failure_reason = ? "
+                    "WHERE alarm_id = ? AND status = 'claimed'",
+                    (timestamp, "unknown_delivery_after_restart", row["alarm_id"]),
+                )
         if rows:
             self._maybe_mirror(force=True)
         return len(rows)

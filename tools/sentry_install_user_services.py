@@ -14,7 +14,8 @@ UNIT_ROOT = REPO_ROOT / "deploy" / "systemd" / "user"
 UNIT_NAMES = ("sentry-perception.service", "sentry-state-api.service", "sentry-proactive.service")
 ROUTINE_UNIT_NAMES = ("sentry-routines.service", "sentry-routines.timer")
 WEATHER_UNIT_NAMES = ("sentry-weather.service", "sentry-weather.timer")
-VOICE_UNIT_NAMES = ("sentry-voice.service",)
+VOICE_UNIT_NAMES = ("sentry-voice.service", "sentry-voice-status.service")
+ALARM_UNIT_NAMES = ("sentry-alarms.service", "sentry-alarms.timer")
 
 
 def production_config(example_path: Path) -> dict:
@@ -42,6 +43,27 @@ def _voice_enabled(config: dict) -> bool:
     return isinstance(voice, dict) and bool(voice.get("always_on_enabled"))
 
 
+def _alarms_enabled(config: dict) -> bool:
+    alarms = config.get("alarms", {})
+    return isinstance(alarms, dict) and bool(alarms.get("enabled", True))
+
+
+def _continuous_perception_enabled(config: dict) -> bool:
+    resident = config.get("resident", {})
+    return isinstance(resident, dict) and bool(resident.get("continuous_perception_enabled", False))
+
+
+def _continuous_proactivity_enabled(config: dict) -> bool:
+    resident = config.get("resident", {})
+    proactivity = config.get("proactivity", {})
+    return (
+        isinstance(resident, dict)
+        and bool(resident.get("continuous_proactivity_enabled", False))
+        and isinstance(proactivity, dict)
+        and bool(proactivity.get("enabled", False))
+    )
+
+
 def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | None = None) -> Path:
     """Install units and create a production config without overwriting one."""
 
@@ -49,8 +71,8 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
     config_path.parent.mkdir(parents=True, exist_ok=True)
     if config_path.exists():
         existing = json.loads(config_path.read_text(encoding="utf-8"))
-        if not isinstance(existing, dict) or not existing.get("proactivity", {}).get("enabled", False):
-            raise RuntimeError(f"existing production config is not enabled for proactivity: {config_path}")
+        if not isinstance(existing, dict):
+            raise RuntimeError(f"existing production config must be an object: {config_path}")
     else:
         config_path.write_text(json.dumps(production_config(REPO_ROOT / "perception" / "config.example.json"), indent=2) + "\n", encoding="utf-8")
         config_path.chmod(0o600)
@@ -58,29 +80,52 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
 
     unit_dir = systemd_user_dir or (Path.home() / ".config" / "systemd" / "user")
     unit_dir.mkdir(parents=True, exist_ok=True)
-    for name in (*UNIT_NAMES, *ROUTINE_UNIT_NAMES, *WEATHER_UNIT_NAMES, *VOICE_UNIT_NAMES):
+    for name in (*UNIT_NAMES, *ROUTINE_UNIT_NAMES, *WEATHER_UNIT_NAMES, *VOICE_UNIT_NAMES, *ALARM_UNIT_NAMES):
         source = UNIT_ROOT / name
         if not source.is_file():
             raise FileNotFoundError(source)
         shutil.copyfile(source, unit_dir / name)
     _run_systemctl("daemon-reload")
-    _run_systemctl("enable", *UNIT_NAMES)
+    _run_systemctl("enable", "sentry-state-api.service")
+    if _continuous_perception_enabled(existing):
+        _run_systemctl("enable", "sentry-perception.service")
+    else:
+        _run_systemctl("disable", "sentry-perception.service")
+    if _continuous_proactivity_enabled(existing):
+        _run_systemctl("enable", "sentry-proactive.service")
+    else:
+        _run_systemctl("disable", "sentry-proactive.service")
     _run_systemctl("enable", "sentry-routines.timer")
     if _weather_configured(existing):
         _run_systemctl("enable", "sentry-weather.timer")
     else:
         _run_systemctl("disable", "sentry-weather.timer")
     if _voice_enabled(existing):
-        _run_systemctl("enable", *VOICE_UNIT_NAMES)
+        _run_systemctl("enable", "sentry-voice.service")
+        _run_systemctl("disable", "sentry-voice-status.service")
     else:
         _run_systemctl("disable", *VOICE_UNIT_NAMES)
+    if _alarms_enabled(existing):
+        _run_systemctl("enable", "sentry-alarms.timer")
+    else:
+        _run_systemctl("disable", "sentry-alarms.timer")
     if start:
-        _run_systemctl("restart", *UNIT_NAMES)
+        _run_systemctl("restart", "sentry-state-api.service")
+        if _continuous_perception_enabled(existing):
+            _run_systemctl("restart", "sentry-perception.service")
+        else:
+            _run_systemctl("stop", "sentry-perception.service")
+        if _continuous_proactivity_enabled(existing):
+            _run_systemctl("restart", "sentry-proactive.service")
+        else:
+            _run_systemctl("stop", "sentry-proactive.service")
         _run_systemctl("start", "sentry-routines.timer")
         if _weather_configured(existing):
             _run_systemctl("start", "sentry-weather.timer")
         if _voice_enabled(existing):
-            _run_systemctl("start", *VOICE_UNIT_NAMES)
+            _run_systemctl("start", "sentry-voice.service")
+        if _alarms_enabled(existing):
+            _run_systemctl("start", "sentry-alarms.timer")
     return config_path
 
 

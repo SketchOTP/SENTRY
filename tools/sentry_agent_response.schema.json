@@ -8,7 +8,23 @@
     "capabilities_used": {"type": "array", "items": {"type": "string"}, "maxItems": 20},
     "local_fact_ids": {"type": "array", "items": {"type": "string"}, "maxItems": 50},
     "artifacts": {"type": "array", "items": {"type": "string"}, "maxItems": 20},
+    "steps": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sequence": {"type": "integer", "minimum": 1},
+          "request": {"type": "string", "minLength": 1},
+          "status": {"type": "string", "enum": ["completed", "partial", "failed", "skipped", "needs_confirmation"]},
+          "outcome": {"type": "string", "minLength": 1},
+          "artifacts": {"type": "array", "items": {"type": "string"}, "maxItems": 10}
+        },
+        "required": ["sequence", "request", "status", "outcome", "artifacts"]
+      }
+    },
     "limitations": {"type": "array", "items": {"type": "string"}, "maxItems": 20}
   },
-  "required": ["answer", "status", "capabilities_used", "local_fact_ids", "artifacts", "limitations"]
+  "required": ["answer", "status", "capabilities_used", "local_fact_ids", "artifacts", "steps", "limitations"]
 }

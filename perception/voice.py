@@ -281,7 +281,7 @@ class KokoroSpeaker:
         *,
         python_executable: str | None = None,
         worker_script: str | Path | None = None,
-        voice: str = "am_michael",
+        voice: str = "bm_george",
         speed: float = 0.9,
         player: str | None = None,
         timeout_seconds: int = 300,

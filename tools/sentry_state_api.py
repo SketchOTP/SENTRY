@@ -196,6 +196,13 @@ class _Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/v1/reminders":
             person_id = query.get("person_id", ["primary_user"])[0]
             self._send(200, {"reminders": store.event_reminders(person_id=person_id, room_id=room_id, limit=limit)})
+        elif parsed.path == "/v1/alarms":
+            person_id = query.get("person_id", ["primary_user"])[0]
+            status = query.get("status", [None])[0]
+            try:
+                self._send(200, {"alarms": store.alarms(person_id=person_id, status=status, limit=limit)})
+            except ValueError as exc:
+                self._send(400, {"error": str(exc)})
         elif parsed.path == "/v1/proactive-actions/recent":
             person_id = query.get("person_id", ["primary_user"])[0]
             window = float(query.get("window_seconds", ["600"])[0])
@@ -276,6 +283,27 @@ class _Handler(BaseHTTPRequestHandler):
                 )
                 self._send(200, {"ok": True, "reminder": result})
                 return
+            if self.path.split("?", 1)[0] == "/v1/alarms":
+                person_id = body.get("person_id", "primary_user")
+                label = body.get("label", "Alarm")
+                scheduled_for = body.get("scheduled_for")
+                display_timezone = body.get("display_timezone", getattr(self.server, "display_timezone", "America/New_York"))
+                source_surface = body.get("source_surface", "api")
+                source_request_id = body.get("source_request_id")
+                if not all(isinstance(item, str) and item for item in (
+                    person_id, label, scheduled_for, display_timezone, source_surface, source_request_id,
+                )):
+                    raise ValueError("person_id, label, scheduled_for, display_timezone, source_surface, and source_request_id are required strings")
+                result = store.create_alarm(
+                    scheduled_for=scheduled_for,
+                    display_timezone=display_timezone,
+                    label=label,
+                    person_id=person_id,
+                    source_surface=source_surface,
+                    source_request_id=source_request_id,
+                )
+                self._send(200, {"ok": True, "alarm": result})
+                return
             path = self.path.split("?", 1)[0]
             if path.startswith("/v1/reminders/") and path.endswith("/cancel"):
                 reminder_id = path[len("/v1/reminders/"):-len("/cancel")]
@@ -287,6 +315,17 @@ class _Handler(BaseHTTPRequestHandler):
                     reminder_id, source_surface=source_surface, source_request_id=source_request_id,
                 )
                 self._send(200, {"ok": True, "reminder": result})
+                return
+            if path.startswith("/v1/alarms/") and path.endswith("/cancel"):
+                alarm_id = path[len("/v1/alarms/"):-len("/cancel")]
+                source_surface = body.get("source_surface", "api")
+                source_request_id = body.get("source_request_id")
+                if not alarm_id or not isinstance(source_surface, str) or not source_surface or not isinstance(source_request_id, str) or not source_request_id:
+                    raise ValueError("alarm id, source_surface, and source_request_id are required")
+                result = store.cancel_alarm(
+                    alarm_id, source_surface=source_surface, source_request_id=source_request_id,
+                )
+                self._send(200, {"ok": True, "alarm": result})
                 return
             if self.path.split("?", 1)[0] == "/v1/proactive-feedback":
                 fields = (body.get("action_id"), body.get("person_id", "primary_user"), body.get("feedback_type"), body.get("source_surface", "api"), body.get("source_request_id"))

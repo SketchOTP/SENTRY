@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from tools.sentry_codex_agent import CodexNativeAgent, RecentAgentContext, invoke_sentry_agent
+from tools.sentry_codex_agent import CodexNativeAgent, RecentAgentContext, _prompt, invoke_sentry_agent
 
 
 class CodexNativeAgentTests(unittest.TestCase):
@@ -17,6 +17,7 @@ class CodexNativeAgentTests(unittest.TestCase):
             "capabilities_used": ["sentry_office.find_applications"],
             "local_fact_ids": [],
             "artifacts": [],
+            "steps": [{"sequence": 1, "request": "find Ted", "status": "completed", "outcome": "found", "artifacts": []}],
             "limitations": [],
         }
         stdout = "\n".join([
@@ -71,6 +72,7 @@ class CodexNativeAgentTests(unittest.TestCase):
                     "capabilities_used": [],
                     "local_fact_ids": [],
                     "artifacts": [],
+                    "steps": [],
                     "limitations": [],
                 },
                 "observed_tools": [],
@@ -82,6 +84,14 @@ class CodexNativeAgentTests(unittest.TestCase):
         self.assertEqual(observed[0][1], [])
         self.assertEqual(observed[1][1], [{"user": "What is the weather?", "assistant": "answer 1"}])
         self.assertNotIn("transcript", agent.ask("And alerts?", conversation_id="voice-1"))
+
+    def test_prompt_makes_sentry_visible_and_executes_compound_work_in_order(self):
+        prompt = _prompt("Open a browser, create an image, then set an alarm.", [], "medium")
+        self.assertIn("SENTRY is the name and persona", prompt)
+        self.assertIn("execute them strictly in the spoken order", prompt)
+        self.assertIn("do not silently omit a step", prompt)
+        self.assertIn("create_one_shot_alarm", prompt)
+        self.assertIn("open_local_artifact", prompt)
 
 
 if __name__ == "__main__":

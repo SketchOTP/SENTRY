@@ -106,6 +106,29 @@ def open_web_page(url: str) -> dict[str, Any]:
     return {"opened": True, "url": url, "launcher_pid": process.pid}
 
 
+def open_local_artifact(path: str) -> dict[str, Any]:
+    """Open one existing operator-owned local file in its default application."""
+
+    if not isinstance(path, str) or not path or "\x00" in path:
+        raise ValueError("artifact path must be a non-empty local path")
+    target = Path(path).expanduser().resolve()
+    home = Path.home().resolve()
+    try:
+        target.relative_to(home)
+    except ValueError as exc:
+        raise ValueError("artifact must be inside the operator home directory") from exc
+    if not target.is_file():
+        raise ValueError("artifact does not exist or is not a regular file")
+    process = subprocess.Popen(
+        ["xdg-open", str(target)],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    return {"opened": True, "path": str(target), "launcher_pid": process.pid}
+
+
 def get_volume() -> dict[str, Any]:
     """Read the current default PipeWire sink volume and mute state."""
 

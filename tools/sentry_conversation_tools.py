@@ -27,6 +27,7 @@ READ_TOOLS = {
     "get_current_office_state",
     "get_office_history",
     "get_office_reminders",
+    "get_alarms",
     "get_acknowledgement_preference",
     "get_recent_proactive_action",
     "get_routines",
@@ -39,6 +40,8 @@ MUTATION_TOOLS = {
     "set_acknowledgement_preference",
     "clear_acknowledgement_preference",
     "record_proactive_feedback",
+    "create_one_shot_alarm",
+    "cancel_alarm",
 }
 ALL_TOOLS = READ_TOOLS | MUTATION_TOOLS
 SCOPES = {
@@ -98,6 +101,12 @@ def tool_catalog() -> list[dict[str, Any]]:
          "description": "Create the one supported reminder only when the user directly requests it."},
         {"name": "cancel_pending_office_reminder", "kind": "mutation", "arguments": {},
          "description": "Cancel the one pending office reminder only when directly requested."},
+        {"name": "get_alarms", "kind": "read", "arguments": {"status": "optional pending, delivered, failed, or cancelled"},
+         "description": "Read bounded one-shot alarm state."},
+        {"name": "create_one_shot_alarm", "kind": "mutation", "arguments": {"scheduled_for": "offset-aware ISO timestamp", "display_timezone": "IANA timezone", "label": "string, 1..120 characters"},
+         "description": "Create one durable one-shot alarm only when the user directly requests it."},
+        {"name": "cancel_alarm", "kind": "mutation", "arguments": {"alarm_id": "exact alarm identifier"},
+         "description": "Cancel one exact pending alarm only when directly requested."},
         {"name": "get_acknowledgement_preference", "kind": "read", "arguments": {},
          "description": "Read the explicit primary-user session acknowledgement preference."},
         {"name": "set_acknowledgement_preference", "kind": "mutation", "arguments": {"value": "allow or suppress"},
@@ -155,6 +164,9 @@ class ConversationToolHost:
             "set_acknowledgement_preference": {"value"}, "record_proactive_feedback": {"feedback_type"},
             "get_routines": {"routine_type", "scope"}, "get_weather": {"topic"},
             "use_native_web_search": set(),
+            "get_alarms": {"status"},
+            "create_one_shot_alarm": {"scheduled_for", "display_timezone", "label"},
+            "cancel_alarm": {"alarm_id"},
         }
         if set(arguments) - expected[name]:
             return "tool arguments contain unsupported fields"
@@ -176,6 +188,18 @@ class ConversationToolHost:
                 return "routine scope is not supported"
         if name == "get_weather" and arguments.get("topic", "current") not in {"current", "forecast", "alerts"}:
             return "weather topic is not supported"
+        if name == "get_alarms" and arguments.get("status") not in {None, "pending", "delivered", "failed", "cancelled"}:
+            return "alarm status is not supported"
+        if name == "create_one_shot_alarm":
+            scheduled_for = arguments.get("scheduled_for")
+            label = arguments.get("label", "Alarm")
+            display_timezone = arguments.get("display_timezone")
+            if not isinstance(scheduled_for, str) or not scheduled_for or not isinstance(display_timezone, str) or not display_timezone:
+                return "alarm scheduled_for and display_timezone are required strings"
+            if not isinstance(label, str) or not label.strip() or len(label) > 120 or re.search(r"[\x00-\x1f\x7f]", label):
+                return "alarm label must be a non-empty single-line string of at most 120 characters"
+        if name == "cancel_alarm" and (not isinstance(arguments.get("alarm_id"), str) or not arguments["alarm_id"]):
+            return "alarm_id is required"
         return None
 
     def _health(self) -> dict[str, Any]:
@@ -285,6 +309,82 @@ class ConversationToolHost:
             return _mutation_result("cancel_pending_office_reminder", status="succeeded", result={"reminder_id": reminder.get("reminder_id"), "status": reminder.get("status")})
         except Exception as exc:  # noqa: BLE001
             return _mutation_result("cancel_pending_office_reminder", status="unavailable", limitations=[f"reminder cancellation unavailable: {type(exc).__name__}"])
+
+    def _get_alarms(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        try:
+            params = {"person_id": "primary_user", "limit": "32"}
+            if arguments.get("status"):
+                params["status"] = arguments["status"]
+            response = self._get_json(self.base_url, "/v1/alarms", params=params)
+            alarms = response.get("alarms")
+            if not isinstance(alarms, list):
+                raise ValueError("alarm list is invalid")
+            allowed = (
+                "alarm_id", "label", "scheduled_for", "display_timezone", "created_at", "status",
+                "claimed_at", "delivered_at", "failed_at", "cancelled_at", "failure_reason",
+            )
+            normalized = []
+            for item in alarms[:32]:
+                if not isinstance(item, dict):
+                    continue
+                value = {key: item[key] for key in allowed if key in item}
+                try:
+                    instant = datetime.fromisoformat(str(item["scheduled_for"]).replace("Z", "+00:00"))
+                    zone = ZoneInfo(str(item["display_timezone"]))
+                    value["scheduled_for_local_display"] = instant.astimezone(zone).strftime(
+                        "%B %-d, %Y at %-I:%M %p %Z"
+                    )
+                except (KeyError, TypeError, ValueError, ZoneInfoNotFoundError):
+                    pass
+                normalized.append(value)
+            fact = {"fact_id": "one-shot-alarms", "kind": "alarms", "as_of": _as_of(), "data": {"alarms": normalized}}
+            return _read_result("get_alarms", status="supported", facts=[fact])
+        except Exception as exc:  # noqa: BLE001
+            return _read_result("get_alarms", status="unavailable", limitations=[f"alarm state unavailable: {type(exc).__name__}"])
+
+    def _create_alarm(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        try:
+            response = self._post_json(self.base_url, "/v1/alarms", {
+                "person_id": "primary_user",
+                "scheduled_for": arguments["scheduled_for"],
+                "display_timezone": arguments["display_timezone"],
+                "label": arguments.get("label", "Alarm").strip(),
+                "source_surface": self.source_surface,
+                "source_request_id": self.source_request_id,
+            })
+            alarm = response.get("alarm")
+            if not isinstance(alarm, dict):
+                raise ValueError("alarm mutation response is invalid")
+            local_display = None
+            try:
+                instant = datetime.fromisoformat(str(alarm["scheduled_for"]).replace("Z", "+00:00"))
+                zone = ZoneInfo(str(alarm["display_timezone"]))
+                local_display = instant.astimezone(zone).strftime("%B %-d, %Y at %-I:%M %p %Z")
+            except (KeyError, TypeError, ValueError, ZoneInfoNotFoundError):
+                pass
+            return _mutation_result("create_one_shot_alarm", status="succeeded", result={
+                "alarm_id": alarm.get("alarm_id"), "status": alarm.get("status"),
+                "label": alarm.get("label"), "scheduled_for": alarm.get("scheduled_for"),
+                "display_timezone": alarm.get("display_timezone"),
+                "scheduled_for_local_display": local_display,
+            })
+        except Exception as exc:  # noqa: BLE001
+            return _mutation_result("create_one_shot_alarm", status="unavailable", limitations=[f"alarm creation unavailable: {type(exc).__name__}: {exc}"])
+
+    def _cancel_alarm(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        try:
+            response = self._post_json(self.base_url, f"/v1/alarms/{arguments['alarm_id']}/cancel", {
+                "source_surface": self.source_surface,
+                "source_request_id": self.source_request_id,
+            })
+            alarm = response.get("alarm")
+            if not isinstance(alarm, dict):
+                raise ValueError("alarm cancellation response is invalid")
+            return _mutation_result("cancel_alarm", status="succeeded", result={
+                "alarm_id": alarm.get("alarm_id"), "status": alarm.get("status"),
+            })
+        except Exception as exc:  # noqa: BLE001
+            return _mutation_result("cancel_alarm", status="unavailable", limitations=[f"alarm cancellation unavailable: {type(exc).__name__}: {exc}"])
 
     def _get_preference(self) -> dict[str, Any]:
         try:
@@ -407,6 +507,9 @@ class ConversationToolHost:
             "get_office_reminders": self._get_reminders,
             "create_next_office_reminder": lambda: self._create_reminder(arguments),
             "cancel_pending_office_reminder": self._cancel_reminder,
+            "get_alarms": lambda: self._get_alarms(arguments),
+            "create_one_shot_alarm": lambda: self._create_alarm(arguments),
+            "cancel_alarm": lambda: self._cancel_alarm(arguments),
             "get_acknowledgement_preference": self._get_preference,
             "set_acknowledgement_preference": lambda: self._set_preference(arguments["value"]),
             "clear_acknowledgement_preference": lambda: self._set_preference(None),

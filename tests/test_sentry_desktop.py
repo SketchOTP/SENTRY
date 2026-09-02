@@ -53,6 +53,17 @@ class SentryDesktopTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             sentry_desktop.open_web_page("file:///etc/passwd")
 
+    def test_open_local_artifact_is_existing_operator_home_file(self):
+        with tempfile.TemporaryDirectory(dir=Path.home()) as tmp:
+            artifact = Path(tmp, "result.png")
+            artifact.write_bytes(b"png")
+            with patch("tools.sentry_desktop.subprocess.Popen", return_value=SimpleNamespace(pid=43)) as popen:
+                result = sentry_desktop.open_local_artifact(str(artifact))
+            self.assertEqual(result["path"], str(artifact.resolve()))
+            self.assertEqual(popen.call_args.args[0][0], "xdg-open")
+        with self.assertRaises(ValueError):
+            sentry_desktop.open_local_artifact("/etc/passwd")
+
 
 if __name__ == "__main__":
     unittest.main()

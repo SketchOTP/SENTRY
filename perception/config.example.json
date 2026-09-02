@@ -1,4 +1,8 @@
 {
+  "resident": {
+    "continuous_perception_enabled": false,
+    "continuous_proactivity_enabled": false
+  },
   "camera": {
     "index": 0,
     "device_path": "/dev/v4l/by-id/usb-webcamvendor_NexiGo_N60_FHD_Webcam_Jan_29_2024-10:32:28-N60-video-index0",
@@ -96,15 +100,20 @@
     "pre_speech_ms": 1000,
     "minimum_speech_ms": 250,
     "end_silence_ms": 1000,
-    "maximum_utterance_seconds": 12,
+    "maximum_utterance_seconds": 45,
     "followup_window_seconds": 8,
     "conversation_followup_enabled": true,
     "conversation_followup_window_seconds": 8,
     "conversation_followup_max_turns": 2,
     "post_speech_rearm_ms": 500,
     "whisper_model": "tiny.en",
+    "kokoro_voice": "bm_george",
+    "kokoro_speed": 0.9,
     "effort": "medium",
-    "timeout_seconds": 300
+    "timeout_seconds": 900
+  },
+  "alarms": {
+    "enabled": true
   },
   "proactivity": {
     "enabled": false,

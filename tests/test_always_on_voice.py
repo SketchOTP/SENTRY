@@ -229,6 +229,12 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         self.assertEqual(AlwaysOnVoiceConfig.from_mapping({}).wake_token, "sentry")
         with self.assertRaises(ValueError):
             AlwaysOnVoiceConfig.from_mapping({"always_on_enabled": True})
+
+    def test_config_requires_a_british_male_kokoro_voice(self):
+        config = AlwaysOnVoiceConfig.from_mapping({"kokoro_voice": "bm_george", "kokoro_speed": 0.9})
+        self.assertEqual(config.kokoro_voice, "bm_george")
+        with self.assertRaises(ValueError):
+            AlwaysOnVoiceConfig.from_mapping({"kokoro_voice": "am_michael"})
         with self.assertRaises(ValueError):
             AlwaysOnVoiceConfig.from_mapping({"base_url": "https://example.com"})
 
