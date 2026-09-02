@@ -3,23 +3,48 @@
 Last updated: 2026-09-01
 
 ## Current stage
-Operator-authorized Codex-native SENTRY agent expansion is implemented and
-technically qualified at `cb3e97c`. V0.3.2 bounded turn-taking remains
-implemented/unqualified. Schema remains 8.
+Operator-authorized SENTRY/Jarvis execution is implemented and technically
+qualified at `73dbbdf`. SENTRY is the visible wake/UI/voice persona and one
+direct Codex turn is the hidden execution brain. V0.3.2 bounded turn-taking
+remains implemented/unqualified. Schema is 9.
 
 ## Current objective
 Use Codex itself as SENTRY's natural-language agent. One ephemeral CLI turn can
-select native web search, installed skills/plugins, image generation, local
-shell/file work, and 25 typed SENTRY Office MCP tools for grounded office facts,
-on-demand vision, and Linux desktop actions. Preserve host-owned physical and
-identity truth, RAM-only conversation context, and the one-room boundary.
+execute ordered compound instructions using native web search, installed
+skills/plugins, image generation, browser/computer features, local shell/file
+work, and 29 typed SENTRY Office MCP tools for facts, on-demand vision, Linux
+desktop actions, artifact display, and durable one-shot alarms. Preserve
+host-owned physical/identity truth, RAM-only context, and the one-room boundary.
 
 ## Active directive
-`SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001` is complete and awaits Architect
-disposition. The old planner → host →
-synthesis path and its typed native-web marker remain historical compatibility
-surfaces, not the production conversational authority. V0.3.2 focus behavior
-is preserved and still awaits its own final acceptance.
+`SENTRY-OPERATOR-JARVIS-EXECUTION-001` is complete and awaits Architect
+disposition. The prior Codex-native agent at `cb3e97c` is extended rather than
+replaced. The old planner → host → synthesis path remains a historical
+compatibility surface. V0.3.2 focus behavior is preserved and still awaits its
+own final acceptance.
+
+## Operator Jarvis execution expansion — 2026-09-01
+- Wake remains exact Vosk token `Sentry`; normal requests reach one direct
+  ephemeral Codex turn. The agent prompt requires every compound step to run in
+  spoken order and the strict response schema records each outcome.
+- The voice buffer is finite at 45 seconds and the Codex turn at 900 seconds.
+  `sentry-voice.service` starts a coupled visible SENTRY status window. Normal
+  conversational/proactive/reminder/alarm speech uses local Kokoro 0.9.4
+  `bm_george` at 0.9x.
+- Schema 9 adds bounded one-shot alarms. Creation is provenance-idempotent,
+  future-only, offset-aware, limited to 32 pending, and exposed through typed
+  API/MCP list/create/cancel tools. The timer claims before speech and never
+  replays uncertain claimed delivery after restart.
+- Live ordered proof opened a restaurant reservation page without submitting,
+  generated/displayed a bat-winged fish image, moved only a controlled PNG,
+  researched tomorrow weather, and created/verified/cancelled an exact test
+  alarm. On-demand camera fallback observed an empty room and retained no frame.
+- Focused final suites passed 48/48; full Ubuntu regression passed 253/253.
+  British conversational and alarm speech delivered with zero self-trigger.
+- Current resident policy: state API, Vosk voice, visible status, weather timer,
+  and alarm timer are enabled/active. Continuous perception and proactivity are
+  disabled/inactive; visual requests use the explicit ephemeral camera tool.
+  Private config/profile are mode 0600 and `Linger=no` remains unchanged.
 
 ## V0.3 conversational orchestration — 2026-08-31
 - `tools/sentry_ask.py` now sends normal user text through `ConversationOrchestrator`, rather than using reminder/preference/weather/routine selectors as the primary natural-language router. The old selectors remain compatibility helpers only.

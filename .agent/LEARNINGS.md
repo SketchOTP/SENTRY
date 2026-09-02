@@ -419,3 +419,31 @@ The initial openWakeWord-compatible result used only 10 positives because the tr
 
 ### Final result
 After correcting input selection, the complete 40-positive/40-negative local set still failed held-out openWakeWord-compatible validation with 22 negative false positives and 66.7% recall. The failure is now attributable to the bounded clean data route/model quality, not merely the positive-directory defect.
+
+## LEARNING-SENTRY-032 — Compose Codex capabilities behind one visible SENTRY contract
+- Date: 2026-09-01
+- Evidence source: `SENTRY-OPERATOR-JARVIS-EXECUTION-001`; implementation
+  `73dbbdf`; live ordered five-step turn; 253/253 regression
+- Confidence: VERIFIED
+
+### Learning
+Natural multi-action assistance does not require another SENTRY intent router.
+One direct ephemeral Codex turn can compose native web, image generation,
+shell/files, installed skills/plugins, and typed local MCP capabilities when
+the host supplies a clear persona, strict ordered-step result schema, and
+authoritative local tools for physical/persistent state.
+
+### Operational boundary
+Keep long operator requests bounded rather than short-command-only: 45 seconds
+of memory-only microphone audio and 900 seconds of agent execution were enough
+for the representative image/browser/file/weather/alarm sequence. Persistent
+alarm delivery belongs in SQLite/systemd, not in the ephemeral agent. Idle
+timer runs must not initialize heavyweight TTS; lazy Kokoro loading reduced the
+empty check to roughly 0.20-0.27 seconds.
+
+### Safety boundary
+The operator-facing freedom to use Codex tools does not make visual identity or
+external commitments fictional. Enrolled local identity remains authoritative;
+booking/payment/message submission requires an explicit request; every step
+must report its actual outcome. Continuous camera service and on-demand camera
+inspection are distinct runtime policies and must remain explicit.

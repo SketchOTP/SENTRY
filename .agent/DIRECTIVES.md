@@ -509,3 +509,25 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
   one-room physical scope. V0.3.2 turn-taking remains implemented/unqualified
   and is not accepted by this directive.
 - Source: explicit operator request supplied 2026-09-01.
+
+## SENTRY-OPERATOR-JARVIS-EXECUTION-001 — Ordered direct-Codex resident execution
+- Issued: 2026-09-01
+- Status: COMPLETE — IMPLEMENTED / TECHNICALLY QUALIFIED; awaiting Architect disposition.
+- Starting SHA: `1fbf1170535ca43c91fffcfb4c006652ac0b8b43`.
+- Implementation SHA: `73dbbdf`.
+- Objective: make SENTRY the visible wake/UI/voice persona while one direct
+  Codex CLI turn executes natural-language requests, including multi-step web,
+  image, file, desktop, office-camera, weather, and alarm work in stated order.
+- Operator override: natural-language local code/file work, desktop control,
+  public web, image generation/display, and installed Codex capabilities are
+  authorized. Consequential external commitments still require an explicit
+  current instruction and actual success must be verified.
+- Runtime policy: exact wake token `Sentry`; British-male Kokoro `bm_george`;
+  visible status UI coupled to the voice unit; continuous perception and
+  proactivity disabled; request-scoped camera inspection remains available.
+- Persistence boundary: schema 9 adds bounded one-shot alarms only. No
+  recurrence, snooze, countdown timer, or general calendar scheduler.
+- Validation: focused 48/48; full Ubuntu 253/253; live five-step ordered turn,
+  on-demand camera, British speech, alarm speech, self-trigger, privacy, and
+  resident-policy proofs passed.
+- Source: explicit operator request supplied 2026-09-01.

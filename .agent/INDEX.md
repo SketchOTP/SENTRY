@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: operator-authorized Codex-native SENTRY agent is implemented and technically qualified at `cb3e97c`; V0.3.2 bounded turn-taking remains implemented/unqualified.
-- Active directive: none; awaiting Architect disposition on `SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001`.
-- Completed task packet: `.agent/tasks/completed/SENTRY-OPERATOR-CODEX-NATIVE-AGENT-001/`.
-- Last accepted outcome: V0.3.1 always-available Vosk voice remains qualified; the Codex-native agent expansion is operator-authorized and technically qualified, pending Architect acceptance.
-- Latest recorded outcome: one direct ephemeral Codex agent turn now selects 25 local SENTRY/desktop MCP tools plus native web, image generation, installed skills/plugins, and write-capable shell/files. Live web/image/file/desktop/application/camera proofs passed; focused `43/43` and full Ubuntu `243/243` passed. Interactive Browser control remains connection-dependent.
-- Last state sync: 2026-09-01; implementation commit `cb3e97c`; schema 8; voice opt-in/inactive; weather timer remains enabled/active under existing policy.
+- Current stage: operator-authorized SENTRY/Jarvis execution layer is implemented and technically qualified at `73dbbdf`; V0.3.2 bounded turn-taking remains implemented/unqualified.
+- Active directive: none; awaiting Architect disposition on `SENTRY-OPERATOR-JARVIS-EXECUTION-001`.
+- Completed task packet: `.agent/tasks/completed/SENTRY-OPERATOR-JARVIS-EXECUTION-001/`.
+- Last accepted outcome: V0.3.1 always-available Vosk voice remains accepted; the ordered direct-Codex, British-voice, on-demand-vision, and schema-9 alarm expansion is operator-authorized and technically qualified, pending Architect acceptance.
+- Latest recorded outcome: SENTRY is the visible persona and one direct Codex turn is the hidden execution brain. The profile exposes 29 local MCP tools plus native web, image generation, installed skills/plugins, browser/computer features, and write-capable shell/files. A five-step live compound request passed in order; on-demand camera, British-male speech, alarm delivery, 48/48 focused tests, and full Ubuntu 253/253 passed.
+- Last state sync: 2026-09-01; implementation commit `73dbbdf`; schema 9; voice/UI, state API, weather, and alarm timer active; continuous perception/proactivity disabled; `Linger=no`.
 
 ## Mandatory kernel
 Read these before substantial work:

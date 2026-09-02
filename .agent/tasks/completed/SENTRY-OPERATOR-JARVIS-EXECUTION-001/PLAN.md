@@ -8,4 +8,4 @@
 4. [complete] Add focused tests and run the complete Ubuntu regression.
 5. [complete] Run bounded live web/image/file/weather/alarm/voice proofs and inspect
    privacy/process state.
-6. [in progress] Update Authority and Notion, commit/push, and return evidence.
+6. [complete] Update Authority and Notion, commit/push, and return evidence.

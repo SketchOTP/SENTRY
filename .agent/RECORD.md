@@ -645,3 +645,29 @@ surface and is reported unavailable without one. Native web, desktop control,
 and image generation are independently working. Physical identity remains
 local/conservative, camera checks are explicit, conversation context is RAM
 only, schema remains 8, and V0.3.2 turn-taking remains unaccepted.
+
+## RECORD-SENTRY-047 — SENTRY becomes the visible ordered-execution resident
+- Date: 2026-09-01
+- Type: OPERATOR ARCHITECTURE OVERRIDE / TECHNICAL QUALIFICATION
+- Related directive: `SENTRY-OPERATOR-JARVIS-EXECUTION-001`
+
+### Decision
+The visible product surface is SENTRY: exact `Sentry` wake, state window,
+British-male voice, and natural conversation. Codex remains the hidden direct
+execution engine and may compose its installed capabilities with typed SENTRY
+tools. Compound instructions execute in spoken order rather than being reduced
+to one intent or returned as a plan.
+
+### Persistence and runtime
+Schema 9 introduces bounded durable one-shot alarms; claim-before-speech and
+at-most-once uncertain-restart handling reuse the accepted reminder principle.
+The current deployment enables voice/UI, state API, weather, and alarm timer.
+Continuous perception and proactive polling are disabled by explicit resident
+flags; on-demand camera inspection remains a request-scoped MCP capability.
+
+### Evidence
+Implementation `73dbbdf` passed 48/48 focused and 253/253 complete Ubuntu
+tests. The live five-step restaurant/image/file/weather/alarm sequence passed
+in order. British conversational/alarm speech, self-trigger suppression,
+on-demand camera, mode-0600 config/profile, and no-audio/transcript/frame
+retention were verified. V0.3.2 turn-taking is not accepted by this record.

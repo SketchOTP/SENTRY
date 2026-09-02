@@ -162,3 +162,25 @@ No external discovery was required for this governance-only bootstrap. The direc
 - Findings: PocketSphinx exposes dedicated `keyphrase`, `kws`, `kws_delay`, and `kws_threshold` controls for continuous KWS. The source artifact is BSD-style; its bundled CMUdict entry is `sentry S EH N T R IY`. Vosk 0.3.45 was used only in an isolated evaluator, and the official model table identifies `vosk-model-small-en-us-0.15` as Apache-2.0 with dynamic vocabulary support.
 - Artifact evidence: PocketSphinx 5.1.1 source SHA-256 `675778b309a22dfc9b7d37f7621976bba491d2a5f8c59696bd77fd6d07271355`; isolated native library SHA-256 `ae6a577b4015b7d1936dac2962df85e0c020075bd71b6e8b535a217cfc661bfd`; Vosk small-en-us model archive SHA-256 `30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498`.
 - Disposition: PocketSphinx is rejected because contextual uses of the one-word target caused detections. Vosk is a promising but **not formally selected** isolated candidate: Stage A passed only under the owner's explicitly relaxed single-word policy, and full Stage B/ambient qualification was stopped early. No external model is integrated into SENTRY.
+
+## EXTERNAL-SENTRY-015 — Codex composable tool surface for SENTRY
+- Date: 2026-09-01
+- Freshness: official OpenAI developer references and installed CLI/profile
+  behavior checked during `SENTRY-OPERATOR-JARVIS-EXECUTION-001`.
+- Sources: [Responses API reference](https://developers.openai.com/api/reference/cli/resources/beta/subresources/responses) and [OpenAI developer use cases](https://developers.openai.com/use-cases).
+- Findings: the current OpenAI tool surface documents web search, shell,
+  custom functions, skills, MCP, computer-use output, and image-generation
+  composition. The installed SENTRY Codex profile independently exposed native
+  web, shell/files, image generation, installed skills/plugins,
+  browser/computer feature flags, and the local SENTRY MCP server.
+- Disposition: **EXTEND the existing direct Codex agent; do not build another
+  assistant runtime.** Keep physical truth and durable alarm state in SENTRY
+  host tools while Codex chooses and composes capabilities from natural
+  language.
+- Live qualification: one turn executed web/browser, image generation/display,
+  local file mutation, weather research, and durable alarm tools in order. The
+  result supports composition, not a claim that every optional connected app
+  or browser runtime is always available.
+- Recheck trigger: Codex CLI profile/tool semantics change, a native capability
+  is removed, or SENTRY proposes externally consequential autonomy without an
+  explicit operator request.

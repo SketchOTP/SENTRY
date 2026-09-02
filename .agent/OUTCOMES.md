@@ -1348,3 +1348,44 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Schema remains 8. Recent conversational context remains RAM-only. No raw camera frame, desktop screenshot, microphone audio, ambient transcript, private coordinate, biometric vector, or API key was committed or retained by SENTRY.
 - Voice remains opt-in/disabled/inactive. Perception, state API, and proactivity remain inactive after qualification. The weather timer retains its separately authorized enabled/active state.
 - This operator-authorized expansion does not itself accept V0.3.2 bounded turn-taking, add persistent conversational memory, weaken physical truth, or expand beyond one office.
+
+## OUTCOME-SENTRY-OPERATOR-JARVIS-EXECUTION-001 — SENTRY ordered Codex execution
+- Completed: 2026-09-01
+- Verdict: **IMPLEMENTED / TECHNICALLY QUALIFIED — OPERATOR OVERRIDE**
+- Starting SHA: `1fbf1170535ca43c91fffcfb4c006652ac0b8b43`
+- Implementation SHA: `73dbbdf`
+
+### Result
+- SENTRY is the visible persona; Codex is the hidden execution engine. The
+  existing direct-agent prompt and strict schema now require up to 20 compound
+  tasks to execute and report in the operator's stated order.
+- The dedicated profile retains native web, installed skills/plugins, image
+  generation, browser/computer features, and write-capable shell/files. SENTRY
+  Office MCP expands from 25 to 29 typed tools with one-shot alarms and safe
+  local-artifact display.
+- Schema 9 adds durable one-shot alarms with IANA/UTC time semantics, 32-pending
+  bound, request idempotence, cancellation provenance, claim-before-speech,
+  durable outcome, and conservative no-replay restart reconciliation.
+- Voice now supports a bounded 45-second compound utterance and 900-second
+  direct-agent turn. The voice service automatically starts the visible SENTRY
+  state window. Kokoro 0.9.4 `bm_george` at 0.9x is the default across speech
+  paths.
+
+### Evidence and boundary
+- A live five-step turn opened a restaurant reservation page without booking,
+  generated/displayed a flat-cartoon fish with bat wings, moved one exact test
+  PNG without overwrite, researched tomorrow's local weather, and created,
+  verified, then cancelled one exact test alarm. Every step was returned in
+  order; total turn latency was 127.482 seconds.
+- On-demand camera fallback worked with continuous perception stopped. The
+  ephemeral result was empty/no identity and no frame was persisted. British
+  conversational and isolated alarm speech both delivered; listener dispatch
+  remained zero across SENTRY's own audio.
+- Focused final suites passed 48/48 and full Ubuntu regression passed 253/253.
+  Production migrated to schema 9 after a local backup; history was not
+  rewritten. The one production qualification alarm is cancelled.
+- Current services: voice, visible status, state API, weather timer, and alarm
+  timer active; continuous perception and proactivity disabled/inactive;
+  `Linger=no`. No runtime audio, transcript archive, camera frame, embedding,
+  secret, or private coordinate was committed or retained.
+- V0.3.2 bounded turn-taking remains separately implemented/unqualified.

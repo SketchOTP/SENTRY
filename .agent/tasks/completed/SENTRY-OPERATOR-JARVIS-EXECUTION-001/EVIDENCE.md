@@ -42,6 +42,7 @@
 - Schema-9 migration, Atlas restore, API, local display time, alarm
   idempotence/cancellation, speech success/failure, and uncertain-restart
   no-replay are covered.
+- Implementation commit: `73dbbdf` (`feat: make Sentry an ordered Codex assistant`).
 
 ## Live evidence
 
