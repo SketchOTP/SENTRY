@@ -7,12 +7,12 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: operator-authorized SENTRY/Jarvis execution layer is implemented and technically qualified at `73dbbdf`; V0.3.2 bounded turn-taking remains implemented/unqualified.
-- Active directive: none; awaiting Architect disposition on `SENTRY-OPERATOR-JARVIS-EXECUTION-001`.
-- Completed task packet: `.agent/tasks/completed/SENTRY-OPERATOR-JARVIS-EXECUTION-001/`.
-- Last accepted outcome: V0.3.1 always-available Vosk voice remains accepted; the ordered direct-Codex, British-voice, on-demand-vision, and schema-9 alarm expansion is operator-authorized and technically qualified, pending Architect acceptance.
-- Latest recorded outcome: SENTRY is the visible persona and one direct Codex turn is the hidden execution brain. The profile exposes 29 local MCP tools plus native web, image generation, installed skills/plugins, browser/computer features, and write-capable shell/files. A five-step live compound request passed in order; on-demand camera, British-male speech, alarm delivery, 48/48 focused tests, and full Ubuntu 253/253 passed.
-- Last state sync: 2026-09-01; implementation commit `73dbbdf`; schema 9; voice/UI, state API, weather, and alarm timer active; continuous perception/proactivity disabled; `Linger=no`.
+- Current stage: operator-authorized persistent Codex session continuity and state-independent general conversation are implemented/qualified in the current task; V0.3.2 bounded turn-taking remains separately implemented/unqualified.
+- Active directive: `SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001` — final records/commit synchronization.
+- Completed task packet: `.agent/tasks/completed/SENTRY-OPERATOR-JARVIS-EXECUTION-001/`; the continuity correction has no separate task packet.
+- Last accepted outcome: V0.3.1 always-available Vosk voice remains accepted; ordered direct-Codex execution is technically qualified. The current correction makes one resumed Codex thread the conversation authority and removes office-state availability as a gate for unrelated requests.
+- Latest recorded outcome: separate-process live proof resumed one exact Codex thread and recalled prior context; with the state API stopped, an unrelated request still completed. Native auto-compaction is configured at 217,600 tokens (80% of Luna's 272,000-token window). Focused tests passed 37/37 and full Ubuntu regression passed 255/255. Durable memory remains future governed V0.4 work.
+- Last state sync: 2026-09-01; starting HEAD `98e892a`; schema 9; live voice/UI and state API active after restart; continuous perception/proactivity disabled; `Linger=no`.
 
 ## Mandatory kernel
 Read these before substantial work:

@@ -1389,3 +1389,29 @@ The Architect accepted the substantive conversational-orchestration result at im
   `Linger=no`. No runtime audio, transcript archive, camera frame, embedding,
   secret, or private coordinate was committed or retained.
 - V0.3.2 bounded turn-taking remains separately implemented/unqualified.
+
+## OUTCOME-SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001 — Persistent Codex conversation
+- Completed: 2026-09-01
+- Verdict: **IMPLEMENTED / QUALIFIED — OPERATOR OVERRIDE**
+- Starting SHA: `98e892abd5054d2f7a6aaf2401c26775659b60f5`
+
+### Result
+- Production no longer starts an ephemeral Codex thread for every request or
+  manually injects four recent turns. One private thread pointer is resumed
+  with `codex exec resume`, serialized by `flock`, and reused by text/PTT/voice.
+- Native compaction is configured at 217,600 tokens, exactly 80% of Luna's
+  installed 272,000-token window. Usage, utilization, and observed compaction
+  counts are metadata-visible without copying transcript content into SENTRY.
+- General requests no longer depend on the localhost state API or perception.
+  State tools are used only when the request actually needs office facts.
+
+### Evidence and boundary
+- Two separate processes used the same thread and the second recalled the
+  phrase established by the first. The production pointer then separately
+  resumed its exact thread and correctly summarized the prior turn.
+- With the state API deliberately stopped, an unrelated request still received
+  a normal Codex answer; the API was restored. Focused tests passed 37/37 and
+  the complete Ubuntu suite passed 255/255.
+- The pointer and lock are mode 0600 and contain no question/transcript. Codex's
+  own local thread is working context, not durable governed personal memory.
+  Hindsight and Mem0 are research candidates only; no memory engine was added.

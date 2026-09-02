@@ -531,3 +531,22 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
   on-demand camera, British speech, alarm speech, self-trigger, privacy, and
   resident-policy proofs passed.
 - Source: explicit operator request supplied 2026-09-01.
+
+## SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001 — Persistent Codex conversation and memory research
+- Issued: 2026-09-01
+- Status: COMPLETE — IMPLEMENTED / QUALIFIED; final records synchronization in progress.
+- Starting SHA: `98e892abd5054d2f7a6aaf2401c26775659b60f5`.
+- Objective: stop treating unavailable office state as a prerequisite for
+  general conversation; route every recognized user request to Codex, retain
+  one ongoing Codex session, configure automatic compaction at 80% context,
+  and assess governed long-term agent-memory systems.
+- Operator requirement: SENTRY remains the visible voice/persona and Codex the
+  hidden brain. Office tools remain available and authoritative when relevant,
+  but their failure cannot block independent web, image, desktop, code, file,
+  alarm, or conversational work.
+- Boundary: working thread history is allowed in Codex's local store. SENTRY
+  stores only a private thread pointer and token/compaction metadata. No
+  long-term memory engine or automatic transcript-mining policy is authorized.
+- Validation: real separate-process resume and recall passed; state-API-outage
+  isolation passed; focused 37/37 and full Ubuntu 255/255 passed.
+- Source: explicit operator request supplied 2026-09-01.

@@ -184,3 +184,27 @@ No external discovery was required for this governance-only bootstrap. The direc
 - Recheck trigger: Codex CLI profile/tool semantics change, a native capability
   is removed, or SENTRY proposes externally consequential autonomy without an
   explicit operator request.
+
+## EXTERNAL-SENTRY-016 — Codex compaction and long-term agent-memory candidates
+- Date: 2026-09-01
+- Freshness: official/current OpenAI, candidate documentation, repositories,
+  and installed Codex CLI/model metadata checked during
+  `SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001`.
+- Sources: [OpenAI Responses reference](https://developers.openai.com/api/reference/cli/resources/responses/methods/create), [Hindsight](https://github.com/vectorize-io/hindsight), [Mem0](https://github.com/mem0ai/mem0), [Graphiti](https://github.com/getzep/graphiti), [LangGraph memory concepts](https://docs.langchain.com/oss/python/concepts/memory), [Letta](https://github.com/letta-ai/letta), and [CoALA](https://arxiv.org/abs/2309.02427).
+- Findings: the installed Luna catalog reports a 272,000-token window and the
+  installed Codex CLI supports resumed sessions plus native automatic
+  compaction. Hindsight is the strongest ready-made self-hosted/MCP benchmark
+  candidate; Mem0 is a simpler second candidate; Graphiti contributes useful
+  temporal/provenance design but heavier graph and governance costs; LangGraph
+  and Letta are agent runtimes that would duplicate Codex if adopted wholesale.
+- Disposition: **ADOPT native Codex thread continuity now. BENCHMARK Hindsight
+  and Mem0 behind a future SENTRY governance adapter. REFERENCE Graphiti,
+  LangGraph, Letta, and CoALA.** Compare against a SENTRY-native SQLite
+  baseline before selecting V0.4 storage/retrieval.
+- Boundary: no candidate is installed. Automatic whole-turn retention and
+  transcript mining are prohibited unless a later explicit memory directive
+  changes that policy. Any selected layer must support provenance, temporal
+  correction, forgetting, inspection, local/private deployment, and bounded
+  retrieval through SENTRY tools rather than replacing Codex.
+- Recheck trigger: V0.4 memory directive, candidate licensing/runtime changes,
+  or Codex native memory/compaction semantics change.

@@ -43,6 +43,7 @@ class SentryMCPTests(unittest.IsolatedAsyncioTestCase):
             text = profile_text(python_executable=Path(tmp, "python"), config_path=Path(tmp, "config.json"))
         self.assertIn('sandbox_mode = "danger-full-access"', text)
         self.assertIn('approval_policy = "never"', text)
+        self.assertIn("model_auto_compact_token_limit = 217600", text)
         self.assertIn("browser_use = true", text)
         self.assertIn("computer_use = true", text)
         self.assertIn("image_generation = true", text)

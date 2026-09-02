@@ -522,6 +522,14 @@ class AlwaysOnVoiceLoop:
         self.diagnostics.record_answer_latency((self.clock() - answer_started_at) * 1000)
         answer = response.get("answer") if isinstance(response, dict) else None
         luna_invocations = int(response.get("luna_invocations", 0)) if isinstance(response, dict) else 0
+        if isinstance(response, dict):
+            self.diagnostics.update(
+                codex_thread_active=bool(response.get("thread_id")),
+                codex_session_resumed=bool(response.get("session_resumed")),
+                codex_context_utilization=response.get("context_utilization"),
+                codex_auto_compact_token_limit=response.get("auto_compact_token_limit"),
+                codex_compactions_observed=response.get("compactions_observed", 0),
+            )
         if not isinstance(answer, str) or not answer.strip():
             self._reset_wake_detector("no_answer")
             self._close_focus("capture_failure")

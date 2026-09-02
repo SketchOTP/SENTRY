@@ -12,6 +12,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_NAME = "sentry"
+MODEL_CONTEXT_WINDOW_TOKENS = 272_000
+AUTO_COMPACT_TOKEN_LIMIT = 217_600
 
 
 def profile_text(*, python_executable: Path, config_path: Path) -> str:
@@ -24,6 +26,7 @@ def profile_text(*, python_executable: Path, config_path: Path) -> str:
     xauthority = os.environ.get("XAUTHORITY", str(Path(runtime_dir) / "gdm/Xauthority"))
     return f'''model = "gpt-5.6-luna"
 model_reasoning_effort = "medium"
+model_auto_compact_token_limit = {AUTO_COMPACT_TOKEN_LIMIT}
 sandbox_mode = "danger-full-access"
 approval_policy = "never"
 model_instructions_file = "{instructions}"
@@ -88,6 +91,7 @@ def status(*, codex_home: Path) -> dict:
         "path": str(destination),
         "mode": oct(destination.stat().st_mode & 0o777),
         "model": data.get("model"),
+        "model_auto_compact_token_limit": data.get("model_auto_compact_token_limit"),
         "sandbox_mode": data.get("sandbox_mode"),
         "approval_policy": data.get("approval_policy"),
         "mcp_servers": sorted((data.get("mcp_servers") or {}).keys()),

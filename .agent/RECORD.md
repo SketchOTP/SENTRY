@@ -671,3 +671,25 @@ tests. The live five-step restaurant/image/file/weather/alarm sequence passed
 in order. British conversational/alarm speech, self-trigger suppression,
 on-demand camera, mode-0600 config/profile, and no-audio/transcript/frame
 retention were verified. V0.3.2 turn-taking is not accepted by this record.
+
+## RECORD-SENTRY-048 — One persistent Codex thread becomes SENTRY working context
+- Date: 2026-09-01
+- Type: OPERATOR ARCHITECTURE OVERRIDE / TECHNICAL QUALIFICATION
+- Related directive: `SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001`
+
+### Decision
+The prior per-request ephemeral Codex process contract is superseded. SENTRY
+resumes one dedicated Codex thread so ordinary natural conversation and actions
+retain continuity across voice turns and process restarts. Office-state
+availability is no longer a general conversation gate.
+
+### Context boundary
+Codex performs native compaction at 217,600 tokens, 80% of the installed Luna
+window. SENTRY persists only the private thread pointer and operational usage
+metadata. This continuity does not turn old conversation into physical truth
+and does not satisfy V0.4 durable personal-memory requirements.
+
+### Evidence
+Separate-process recall, production-thread resume, and state-API isolation
+passed. Focused tests passed 37/37 and full Ubuntu regression passed 255/255.
+The live voice service was restarted on the corrected runtime.

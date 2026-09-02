@@ -3,25 +3,47 @@
 Last updated: 2026-09-01
 
 ## Current stage
-Operator-authorized SENTRY/Jarvis execution is implemented and technically
-qualified at `73dbbdf`. SENTRY is the visible wake/UI/voice persona and one
-direct Codex turn is the hidden execution brain. V0.3.2 bounded turn-taking
-remains implemented/unqualified. Schema is 9.
+Operator-authorized SENTRY/Jarvis execution now uses one resumed, dedicated
+Codex thread as the hidden execution brain. SENTRY remains the visible
+wake/UI/voice persona. V0.3.2 bounded turn-taking remains separately
+implemented/unqualified. Schema is 9.
 
 ## Current objective
-Use Codex itself as SENTRY's natural-language agent. One ephemeral CLI turn can
-execute ordered compound instructions using native web search, installed
+Use Codex itself as SENTRY's natural-language agent. One persistent local Codex
+thread can execute ordered compound instructions using native web search, installed
 skills/plugins, image generation, browser/computer features, local shell/file
 work, and 29 typed SENTRY Office MCP tools for facts, on-demand vision, Linux
 desktop actions, artifact display, and durable one-shot alarms. Preserve
-host-owned physical/identity truth, RAM-only context, and the one-room boundary.
+host-owned physical/identity truth and the one-room boundary. Codex thread
+history supplies working conversation continuity; it is not authoritative
+physical truth or a governed long-term personal-memory store.
 
 ## Active directive
-`SENTRY-OPERATOR-JARVIS-EXECUTION-001` is complete and awaits Architect
-disposition. The prior Codex-native agent at `cb3e97c` is extended rather than
-replaced. The old planner → host → synthesis path remains a historical
-compatibility surface. V0.3.2 focus behavior is preserved and still awaits its
-own final acceptance.
+`SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001` is completing final repository
+and Notion synchronization. The old planner → host → synthesis path remains a
+historical compatibility surface. V0.3.2 focus behavior is preserved and still
+awaits its own final acceptance.
+
+## Persistent Codex session correction — 2026-09-01
+- The prior production agent used `codex exec --ephemeral` and manually injected
+  only four recent turns. It now starts or resumes one exact dedicated Codex
+  thread under a private mode-0600 pointer file and a process-safe local lock.
+- Luna's installed model window is 272,000 tokens. Both the named SENTRY profile
+  and every invocation set native `model_auto_compact_token_limit=217600`,
+  exactly 80% of that window. Codex owns compaction and its local thread store;
+  SENTRY persists no duplicate question/transcript text.
+- The agent contract now states that office-state tools are request-specific.
+  A stopped/unavailable local source may constrain a physical question but may
+  not block ordinary chat, web, image, browser, desktop, code, file, or alarm
+  work, nor collapse an unrelated request into “SENTRY state unavailable.”
+- Separate-process live proof resumed one exact thread and correctly recalled
+  the preceding confirmation. A separate isolated proof answered normally while the state API
+  was deliberately stopped, after which the API was restored.
+- Focused affected tests passed 37/37; complete Ubuntu regression passed 255/255.
+  The live voice/status services were restarted on this code and are active.
+- Long-term memory research recommends a separately governed MCP/tool layer,
+  with Hindsight and Mem0 benchmarked against a SENTRY-native SQLite baseline.
+  No long-term memory engine is installed by this correction.
 
 ## Operator Jarvis execution expansion — 2026-09-01
 - Wake remains exact Vosk token `Sentry`; normal requests reach one direct

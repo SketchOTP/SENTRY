@@ -447,3 +447,21 @@ external commitments fictional. Enrolled local identity remains authoritative;
 booking/payment/message submission requires an explicit request; every step
 must report its actual outcome. Continuous camera service and on-demand camera
 inspection are distinct runtime policies and must remain explicit.
+
+## LEARNING-SENTRY-033 — Conversation continuity and durable memory are separate systems
+- Date: 2026-09-01
+- Evidence source: `SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001`; live
+  cross-process resume; state-API isolation; 255/255 regression
+- Confidence: VERIFIED
+
+### Learning
+A direct Codex agent loses its real conversational advantage when every turn is
+launched with `--ephemeral` and only a tiny host-authored transcript summary is
+re-injected. Resuming one exact Codex thread preserves the model's own tool and
+conversation context, while native compaction keeps that thread bounded.
+
+### Safety boundary
+Thread continuity is not long-term personal memory and must not be used as
+authoritative physical evidence. Durable memory needs explicit write policy,
+provenance, inspect/correct/forget operations, and protection against automatic
+ambient or whole-transcript mining.

@@ -1,4 +1,4 @@
-"""Ask one natural-language question using current SENTRY API facts and one Luna turn."""
+"""Send one natural-language SENTRY request through its persistent Codex thread."""
 
 from __future__ import annotations
 

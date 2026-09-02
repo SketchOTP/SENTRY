@@ -21,7 +21,7 @@
 
 ## Important integrations
 - Direct OAuth-authenticated Codex invocation is the operator-selected agent layer. The dedicated `sentry` profile loads the local SENTRY Office MCP server, repository-owned skill/instructions, installed Codex plugins/skills, native web search, image generation, and write-capable shell/file execution.
-- Codex CLI `0.150.0-alpha.8`, authenticated with ChatGPT OAuth on the current host, is the current on-demand runtime. Continuous perception never invokes it.
+- Codex CLI `0.150.0-alpha.8`, authenticated with ChatGPT OAuth on the current host, is the current on-demand runtime. SENTRY resumes one dedicated local Codex thread and requests native compaction at 217,600 tokens, 80% of Luna's 272,000-token context window. Continuous perception never invokes it.
 - Xiaomi Miloco, https://github.com/XiaoMi/xiaomi-miloco, is an architectural reference only and is not a dependency.
 - Notion is the strategic project record; GitHub is the committed repository record.
 
@@ -30,7 +30,7 @@
   whole-home, multi-room, distributed sensing, and TV embodiment directions
   are superseded unless the owner explicitly reauthorizes them.
 - Preserve explicit degraded/offline states, conservative `unknown` identity behavior, local physical-event history, and restrained proactive speech as the implementation evolves.
-- M5 keeps its accepted post-persistence bounded proactive processor. User-initiated PTT and optional V0.3 Vosk voice now converge on one direct Codex agent turn; Codex can call typed local SENTRY/desktop tools and its native capabilities. Local Whisper `tiny.en` remains STT and Kokoro remains local PipeWire playback. Physical truth, reminders, preference, weather, and identity contracts remain host-owned.
+- M5 keeps its accepted post-persistence bounded proactive processor. User-initiated PTT and optional V0.3 Vosk voice now converge on one resumed Codex thread; Codex can call typed local SENTRY/desktop tools and its native capabilities. Local Whisper `tiny.en` remains STT and Kokoro remains local PipeWire playback. Physical truth, reminders, preference, weather, and identity contracts remain host-owned. Codex history is working context, not authoritative sensor evidence or durable personal memory.
 - V0.2 resident runtime uses separate native systemd user services. In the
   current operator deployment, the localhost state API, Vosk listener, coupled
   visible SENTRY status window, weather timer, and schema-9 one-shot alarm timer
