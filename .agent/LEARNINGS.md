@@ -505,3 +505,23 @@ substitute deterministic mocks for acoustic discrimination evidence, and do not
 hide a failed semantic gate behind a longer silence timer. Preserve the unified
 PCM timeline; the next architecture must use streaming recognition to observe
 linguistic continuation without truncating the canonical capture.
+
+## LEARNING-SENTRY-036 — Current-turn intent and deferred approval are different contracts
+- Date: 2026-09-02
+- Evidence source: `SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001`; direct live move;
+  334/334 exact-code regression; GitHub Actions 33699907202
+- Confidence: VERIFIED within the owner-selected interaction policy
+
+### Learning
+A clear operator action request is already authority for that exact supported
+action after host validation and pre-execution audit. Adding a generic second
+confirmation to every action makes the resident less natural without improving
+argument binding. Deferred dialogue is still useful when the operator explicitly
+asks to wait or when a material detail is unresolved, but it is a separate state
+machine rather than the default execution path.
+
+### Evidence boundary
+The direct move is a live observation. The operator waived artificial deferred
+approval, cancellation, and revision drills after that proof; those paths are
+qualified by deterministic fail-closed tests only and must not be described as
+live operator evidence.

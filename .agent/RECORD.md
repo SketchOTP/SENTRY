@@ -734,3 +734,27 @@ unfinished turns and closed 10/10 completed turns; no threshold can meet both
 full regression, commit, or push followed. The mandated result is `BLOCKED —
 STREAMING STT REQUIRED`; voice/status remain stopped and the uncommitted V0.3.3
 tree remains authoritative evidence.
+
+## RECORD-SENTRY-051 — Trusted-operator Codex execution authority released
+- Date: 2026-09-02
+- Type: OPERATOR OVERRIDE / TECHNICAL QUALIFICATION
+- Related directive: `SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001`
+
+### Decision
+SENTRY now treats a clear current-turn operator action request as authority for
+the exact host-validated supported action. Redundant generic confirmation is
+not the default. Explicit wait/ask/show/prepare-first wording or unresolved
+material detail enters a separate one-use deferred dialogue. Codex remains the
+persistent reasoning brain inside the restricted `sentry-resident` profile;
+typed host executors, permission boundaries, and the private audit remain the
+actual mutation authority.
+
+### Evidence and boundary
+The direct controlled file move passed live with exact source/destination hash
+continuity and `direct_current_turn` audit evidence. The operator waived staged
+deferred live drills; their cancellation, revision, expiry, replay, request,
+thread, restart, argument, and active-window bindings remain automated evidence
+only. Implementation `67b7cd51083230e25da61a7eaaa295f8a6f98c68`, CI correction
+`70755b11e7066ac876c7ed5d027e09a2cb2cf0eb`, local 334/334 regression, and
+green GitHub Actions run 33699907202 establish the release. Schema remains 9.
+Durable Obsidian memory and V0.3.2 completion remain separate future work.

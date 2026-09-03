@@ -3,22 +3,19 @@
 Last updated: 2026-09-02
 
 ## Current stage
-V0.3.3 trusted-operator execution has passed the owner-selected live proof and
-exact local qualification in the preserved working tree. One restricted
+V0.3.3 trusted-operator execution is qualified and released. One restricted
 resident profile, persistent Codex thread, dual-Vosk/sample-indexed command
 capture, host authority broker, exceptional natural pending-action dialogue,
-and private execution audit are implemented. Release, GitHub Actions, final
-records synchronization, and runtime restoration remain. Schema remains 9.
+and private execution audit are committed. Exact local regression and GitHub
+Actions are green. Schema remains 9.
 
 ## Current objective
-Release the exact locally qualified implementation without adding capability:
-commit and push the reviewed code/tests/docs, require honest GitHub Actions,
-synchronize Authority and Notion, and restore only the intended restricted
-resident services.
+Return to Architect for the next bounded project decision. Do not infer that
+V0.3.2 turn-taking or durable Obsidian memory is qualified from V0.3.3.
 
 ## Active directive
-`SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001` is **LOCAL QUALIFICATION PASSED /
-RELEASE IN PROGRESS**. Direct current-turn actions execute after host
+`SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001` is **QUALIFIED / COMPLETE**.
+Direct current-turn actions execute after host
 validation/audit without redundant confirmation. Explicit wait/ask/show/
 prepare-first wording or a genuinely unresolved material detail enters the
 separate deferred dialogue. No memory or V0.3.2 work is authorized here.
@@ -47,8 +44,14 @@ separate deferred dialogue. No memory or V0.3.2 work is authorized here.
 - Affected final suites pass 198/198; execution/profile/Codex suites pass 45/45;
   complete exact-code regression passes 334/334. Compilation, JSON parsing,
   `git diff --check`, changed-file secret scan, audit privacy scan, and the
-  current V0.3.3 audio-artifact scan pass. CI and final release SHAs remain
-  pending.
+  current V0.3.3 audio-artifact scan pass. Implementation
+  `67b7cd51083230e25da61a7eaaa295f8a6f98c68` and CI correction
+  `70755b11e7066ac876c7ed5d027e09a2cb2cf0eb` are pushed. GitHub Actions run
+  33699907202 passed both full deterministic and security-focused jobs.
+- Final deployment uses only `sentry-resident`. Voice/status, state API,
+  weather, alarms, and routine timers are active; continuous perception and
+  proactive processing remain disabled/inactive. No actionable authorization
+  or test alarm remains.
 
 ## Dual-Vosk streaming command candidate — 2026-09-02
 - Recovery snapshot `/home/sketch/.local/state/sentry/recovery/streaming-command-20260902-wuNfvA`

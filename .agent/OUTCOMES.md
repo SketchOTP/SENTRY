@@ -1464,3 +1464,33 @@ The Architect accepted the substantive conversational-orchestration result at im
   Tier-2 authorization, filesystem mutation, full regression, commit, or push
   occurred. Voice/status remain stopped and streaming STT is the required next
   architecture decision.
+
+## OUTCOME-SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001 — Qualified and released
+- Completed: 2026-09-02
+- Verdict: **V0.3.3 TRUSTED-OPERATOR EXECUTION QUALIFIED**
+- Starting SHA: `325cc24ae8745f0eeb4d506012943da85dedbebd`
+- Implementation SHA: `67b7cd51083230e25da61a7eaaa295f8a6f98c68`
+- CI correction SHA: `70755b11e7066ac876c7ed5d027e09a2cb2cf0eb`
+- Schema: 9
+
+### Result
+- One clear spoken current-turn file move executed exactly once through the
+  restricted resident profile without redundant confirmation. Source and
+  destination content hashes matched; the private audit recorded
+  `direct_current_turn` and completed execution.
+- Dual-Vosk streaming endpoint evidence retained the complete long request;
+  Vosk remains the sole wake authority and Whisper remains final command STT.
+- The operator waived artificial deferred approval/cancellation/revision live
+  drills. Deferred dialogue exists only for explicit wait/ask/show/prepare-first
+  wording or unresolved material detail and remains automated, fail-closed
+  evidence—not a claimed live observation.
+- Consolidated authority, injection, path, network, persistent-thread,
+  active-window, audit, privacy, and profile matrices passed. Affected suites
+  passed 198/198; security/profile/Codex suites passed 45/45; exact-code full
+  regression passed 334/334.
+- GitHub Actions run 33699907202 passed its deterministic and security-focused
+  jobs after public-runner model prerequisites were made reproducible from
+  checksummed upstream artifacts. Notion was updated and re-fetched.
+- Final deployment uses `sentry-resident`; voice/status, state API, weather,
+  alarms, and routine timers are active. Perception and proactive remain
+  disabled/inactive. No actionable authorization or test alarm remains.

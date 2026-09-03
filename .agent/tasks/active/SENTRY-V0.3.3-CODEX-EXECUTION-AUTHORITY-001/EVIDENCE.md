@@ -143,3 +143,27 @@ Further qualification evidence will be appended before handoff.
   audit, audit-content privacy scan, and current V0.3.3 no-new-WAV/PCM scan pass.
   Historical explicitly captured wake-training WAVs remain outside Git and are
   not V0.3.3 runtime artifacts.
+
+## Release and CI — 2026-09-02
+
+- Implementation commit `67b7cd51083230e25da61a7eaaa295f8a6f98c68`
+  contains the restricted runtime, authority broker, audit, dual-Vosk capture,
+  tests, public architecture/security/privacy documentation, and CI workflow.
+- Initial GitHub Actions run 33699531546 exposed only public-runner prerequisite
+  drift: ignored OpenVINO/OpenCV model artifacts were absent and the narrow
+  security job omitted OpenCV. Runtime tests remained green locally.
+- CI correction `70755b11e7066ac876c7ed5d027e09a2cb2cf0eb` adds a public,
+  checksummed model bootstrap and installs the pinned production requirements
+  in the security job. It does not add a product capability or private input.
+- GitHub Actions run 33699907202 passed both jobs. The deterministic job
+  bootstrapped public checksummed artifacts and passed all 334 tests; the
+  security-focused job passed its execution-authority/Codex/MCP scope.
+- The final installed profile reports `sentry-resident`, approval policy
+  `never`, command network disabled, one `sentry_office` MCP server, native
+  image generation enabled, apps/plugins/Browser/CDP/computer-use/memories
+  disabled, and native compaction at 217,600 tokens.
+- Final runtime inspection: voice and visible status active at `LISTENING`;
+  state API, weather timer, alarm timer, and routine timer active; perception
+  and proactive disabled/inactive. The voice service launches through the
+  restricted launcher. Pending authorization is expired/non-actionable and
+  the pending-alarm list is empty.

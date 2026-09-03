@@ -8,12 +8,11 @@
 6. Run automated, adversarial, and bounded live qualification; restore the required service state.
 7. Synchronize Authority and Notion, commit/push, and verify `main == origin/main` with a clean tree.
 
-Current checkpoint: steps 1-5 are implemented in the preserved working tree.
-The superseding `SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001` trusted-operator
-policy is implemented. A real spoken direct move completed once without a
-redundant confirmation, preserved the file hash, and recorded
-`direct_current_turn`. The operator then explicitly waived synthetic live
-approval/cancellation/revision drills as unrepresentative of normal use; those
-paths remain covered by host-side tests. Final security matrices, exact-code
-regression, release, CI, records synchronization, and service restoration are
-in progress.
+Final status: all seven steps are complete under the superseding
+`SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001` trusted-operator policy. A real
+spoken direct move completed once without redundant confirmation, preserved the
+file hash, and recorded `direct_current_turn`. The operator explicitly waived
+synthetic deferred approval/cancellation/revision live drills; those paths
+remain covered by deterministic fail-closed tests. Exact-code regression passed
+334/334, GitHub Actions 33699907202 is green, Authority and Notion are
+synchronized, and the restricted resident services are restored.

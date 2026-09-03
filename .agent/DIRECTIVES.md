@@ -604,7 +604,7 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 
 ## SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001 — Trusted-operator execution
 - Issued: 2026-09-02
-- Status: **LOCAL QUALIFICATION PASSED / RELEASE IN PROGRESS**.
+- Status: **QUALIFIED / COMPLETE**.
 - Objective: keep low-friction natural current-turn execution over the quiet
   restricted resident profile, host validation, exact typed executors, and
   private audit. A clear current operator request authorizes its exact supported
@@ -620,3 +620,8 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
   as live observations.
 - Source: Architect directive plus explicit operator clarification supplied
   2026-09-02.
+- Final result: implementation `67b7cd51083230e25da61a7eaaa295f8a6f98c68`;
+  CI correction `70755b11e7066ac876c7ed5d027e09a2cb2cf0eb`; exact local
+  regression 334/334; GitHub Actions run 33699907202 green. Direct live action
+  proof passed. Deferred-dialogue live drills were owner-waived and remain
+  automated, fail-closed evidence only.
