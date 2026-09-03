@@ -35,6 +35,32 @@ from tools.sentry_codex_agent import CodexNativeAgent
 _AGENT = CodexNativeAgent()
 
 
+def complete_action_presentation(
+    authorization_id: str, *, surface: str = "kokoro_voice",
+    response_window_seconds: int = 120,
+) -> dict[str, Any]:
+    return _AGENT.complete_action_presentation(
+        authorization_id, surface=surface,
+        response_window_seconds=response_window_seconds,
+    )
+
+
+def fail_action_presentation(
+    authorization_id: str, *, surface: str = "kokoro_voice",
+) -> dict[str, Any]:
+    return _AGENT.fail_action_presentation(authorization_id, surface=surface)
+
+
+def expire_action_response(
+    authorization_id: str, *, reason: str = "response_timeout",
+) -> dict[str, Any]:
+    return _AGENT.expire_action_response(authorization_id, reason=reason)
+
+
+def invalidate_action_dialogue_for_restart() -> dict[str, Any]:
+    return _AGENT.authority.invalidate_active_for_restart(_AGENT.authority_epoch)
+
+
 def _insufficient_routine_response(fact_ids: list[str], facts: list[dict[str, Any]]) -> dict[str, Any]:
     details = "; ".join(
         (

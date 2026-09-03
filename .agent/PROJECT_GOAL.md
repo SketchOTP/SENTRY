@@ -31,10 +31,13 @@ useful, appropriately restrained assistance.
 - Raw webcam frames and biometric enrollment data remain local by default and out of source control.
 - SENTRY owns grounded physical events and sessions locally; an LLM is not the continuous vision processor or physical-event database.
 - Direct OAuth-authenticated Codex CLI invocation is SENTRY's agent layer. The
-  operator-authorized V0.3 profile gives Codex native web, installed skills,
-  image generation, shell/file work, and typed local SENTRY/desktop MCP tools.
-  SENTRY owns physical truth and local persistence; Codex selects and uses
-  tools from natural language. DAWN remains historical reference only.
+  operator-authorized resident profile gives Codex native public web search,
+  image generation, workspace-bounded shell/file work, and typed local
+  SENTRY/desktop MCP tools. Apps, plugins, Browser/CDP, generic computer use,
+  command networking, broad host writes, sensitive reads, and Codex-generated
+  memories are disabled in unattended voice. SENTRY owns physical truth and
+  local persistence; Codex selects allowed tools from natural language. DAWN
+  remains historical reference only.
 - New dependencies, upstream derivation/forking, cloud video, infrastructure expansion, and scope changes require documented evidence and Architect authorization.
 - Vosk with the single wake token `Sentry` is the operator-selected and
   committed V0.3.1 wake authority, qualified at `a3f6d67`. Conversational uses
@@ -43,11 +46,12 @@ useful, appropriately restrained assistance.
   the interaction surface, while one resumed dedicated Codex thread is the
   hidden execution brain. Continuous camera perception is independently controllable; current
   visual questions may invoke the bounded on-demand camera MCP tool.
-- Natural-language operator requests may compose Codex web, image, installed
-  skill/plugin, browser/computer, local code/file, and typed SENTRY MCP
-  capabilities. Compound requests execute in stated order and report every
-  step. Consequential external commitments still require an explicit current
-  instruction; failures must be reported rather than invented as success.
+- Natural-language operator requests may compose Codex web, image,
+  workspace-local code/file, and typed SENTRY MCP capabilities. Compound
+  requests execute in stated order and report every step. Consequential
+  external commitments require both an explicit current instruction and a
+  supported host-owned executor; unsupported surfaces remain blocked.
+  Failures must be reported rather than invented as success.
 - Codex thread history supplies bounded working continuity and is compacted
   natively at 80% of the installed Luna context window. Durable personal memory
   remains a separately governed capability with explicit provenance,

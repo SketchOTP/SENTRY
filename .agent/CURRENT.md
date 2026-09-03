@@ -1,28 +1,108 @@
 # Current Project State
 
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ## Current stage
-Operator-authorized SENTRY/Jarvis execution now uses one resumed, dedicated
-Codex thread as the hidden execution brain. SENTRY remains the visible
-wake/UI/voice persona. V0.3.2 bounded turn-taking remains separately
-implemented/unqualified. Schema is 9.
+V0.3.3 trusted-operator execution has passed the owner-selected live proof and
+exact local qualification in the preserved working tree. One restricted
+resident profile, persistent Codex thread, dual-Vosk/sample-indexed command
+capture, host authority broker, exceptional natural pending-action dialogue,
+and private execution audit are implemented. Release, GitHub Actions, final
+records synchronization, and runtime restoration remain. Schema remains 9.
 
 ## Current objective
-Use Codex itself as SENTRY's natural-language agent. One persistent local Codex
-thread can execute ordered compound instructions using native web search, installed
-skills/plugins, image generation, browser/computer features, local shell/file
-work, and 29 typed SENTRY Office MCP tools for facts, on-demand vision, Linux
-desktop actions, artifact display, and durable one-shot alarms. Preserve
-host-owned physical/identity truth and the one-room boundary. Codex thread
-history supplies working conversation continuity; it is not authoritative
-physical truth or a governed long-term personal-memory store.
+Release the exact locally qualified implementation without adding capability:
+commit and push the reviewed code/tests/docs, require honest GitHub Actions,
+synchronize Authority and Notion, and restore only the intended restricted
+resident services.
 
 ## Active directive
-`SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001` is implemented/qualified at
-`0730a1c` and awaits Architect disposition. The old planner → host → synthesis
-path remains a historical compatibility surface. V0.3.2 focus behavior is
-preserved and still awaits its own final acceptance.
+`SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001` is **LOCAL QUALIFICATION PASSED /
+RELEASE IN PROGRESS**. Direct current-turn actions execute after host
+validation/audit without redundant confirmation. Explicit wait/ask/show/
+prepare-first wording or a genuinely unresolved material detail enters the
+separate deferred dialogue. No memory or V0.3.2 work is authorized here.
+
+## Trusted-operator execution checkpoint — 2026-09-02
+- A complete long Vosk-authorized request reached Whisper, the restricted
+  persistent Codex thread, and an exact non-executed file-move proposal. This
+  accepts the dual-Vosk/sample-indexed capture boundary; Whisper does not need
+  to rediscover the already-authoritative wake token.
+- A subsequent direct spoken request, `Sentry, move move-test.txt to Downloads`,
+  executed one exact non-overwriting move without a second confirmation. Source
+  and destination SHA-256 both equal
+  `b7f1d73d3dabf5b5b99abb8e450d8754a954366fdbae24b973a80d3389910b0c`.
+  Audit action `6faaa3eb-1db3-4b91-b4f2-c4d3c77c50b8` records
+  `direct_current_turn`, `EXECUTED`, and `completed`.
+- The operator explicitly rejected artificial deferred confirmation/cancel/
+  revise live drills after the direct proof: a command is normally issued
+  because the operator wants it performed. Deferred handling remains available
+  only when explicitly requested or necessary, and its timing, natural forms,
+  cancellation, revision, expiry, replay, and fail-closed behavior remain
+  automated-test evidence rather than claimed live observations.
+- The installed resident profile is mode 0600, denies both the original and
+  resident-home aliases for Codex authentication/thread state, allows only the
+  SENTRY MCP server, disables command networking/apps/plugins/Browser/CDP/
+  computer use/Codex memories, and bounds writes to the private workspace.
+- Affected final suites pass 198/198; execution/profile/Codex suites pass 45/45;
+  complete exact-code regression passes 334/334. Compilation, JSON parsing,
+  `git diff --check`, changed-file secret scan, audit privacy scan, and the
+  current V0.3.3 audio-artifact scan pass. CI and final release SHAs remain
+  pending.
+
+## Dual-Vosk streaming command candidate — 2026-09-02
+- Recovery snapshot `/home/sketch/.local/state/sentry/recovery/streaming-command-20260902-wuNfvA`
+  protects the complete pre-edit tracked and untracked source tree with mode
+  0700/0600 files and SHA-256 checksums. It contains no audio, transcripts,
+  credentials, private config, database, biometric data, or coordinates.
+- Production Smart Turn imports/configuration/dependency pins have been removed;
+  its negative Authority/Notion evidence and optional local artifact remain.
+- One Vosk 0.3.45 acoustic model is shared by two independent decoder instances:
+  restricted `sentry` wake and full-vocabulary command progress. Streaming text
+  stays in process RAM and is not written to diagnostics or used as executable
+  command text.
+- Initial Vosk/timeline/always-on tests pass 60/60. The production defaults are
+  5000 ms continuation idle, 400 ms stability recheck, 500 ms retained trailing
+  tail, and 45-second maximum. Acoustic screening and the single live operator
+  proof have not yet occurred.
+
+## Smart Turn semantic endpoint result — 2026-09-02
+- Added a minimal local CPU-only Smart Turn v3.2 adapter around the exact
+  `smart-turn-v3.2-cpu.onnx` artifact and composed it with the existing Silero
+  pause observations and append-only active PCM capture.
+- Exact model SHA-256 is
+  `2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f`;
+  artifact size is 8,679,182 bytes and its upstream license is BSD-2-Clause.
+- Deterministic adapter/timeline/voice tests passed 56/56. A 13.184-second PCM
+  fixture crossed a 1.792-second internal pause, received three semantic
+  incomplete results, then froze once after two stable complete results with
+  sample-for-sample continuity.
+- The required actual-model screen failed before live use: incomplete 0/10,
+  complete 10/10. Incomplete scores ranged 0.568494–0.978554 and complete
+  scores 0.568494–0.984260, so no threshold can meet both 8/10 gates on this
+  set. Median inference was 51.806 ms; p95 57.552 ms; model load 63.147 ms.
+- No operator speech, Whisper request, Codex request, authorization, mutation,
+  post-live regression, commit, or push occurred. The controlled source remains
+  unchanged and the semantic cancellation destination remains absent.
+
+## Wake-to-command timeline result — 2026-09-02
+- Added one bounded sample-indexed PCM chronology and one append-only active
+  utterance capture. Vosk emits wake metadata only; Silero observes speech for
+  endpointing; full/post-wake Whisper views come from the same frozen capture.
+- Targeted timeline, Vosk, voice, resident-runtime, persistent-session and
+  execution-authority validation passed 86/86. Python compilation and
+  `git diff --check` passed.
+- In the one valid production-service attempt, Vosk accepted one wake and the
+  stream contained no sample gap, but endpointing froze a 3.144-second capture
+  (2.356-second post-wake view) from the substantially longer spoken request.
+  The truncated command was dispatched once and Codex replied, “Could you
+  clarify what you mean by Sentry”.
+- No pending Tier-2 authorization was created. The controlled source fixture
+  remains present and unchanged; the controlled Downloads destination remains
+  absent. No mutation or cancellation action occurred.
+- The directive's one-attempt boundary was reached. No second live attempt,
+  capture tuning, short-request/no-wake checks, security matrix, full regression,
+  implementation commit, or push was performed. Voice/status are inactive.
 
 ## Persistent Codex session correction — 2026-09-01
 - The prior production agent used `codex exec --ephemeral` and manually injected

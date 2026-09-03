@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 from zoneinfo import ZoneInfo
+from urllib.parse import urlparse
 
 from mcp.server import MCPServer
 from mcp.types import ImageContent, TextContent, ToolAnnotations
@@ -18,6 +19,12 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.sentry_conversation_tools import ConversationToolHost
+from tools.sentry_execution_authority import (
+    ExecutionAuthority,
+    RequestContext,
+    RISK_TIERS,
+    resolve_file_move_destination,
+)
 from tools.sentry_desktop import (
     active_window as _active_window,
     adjust_volume as _adjust_volume,
@@ -40,6 +47,7 @@ from tools.sentry_office_vision import inspect_office_camera as _inspect_office_
 BASE_URL = os.environ.get("SENTRY_BASE_URL", "http://127.0.0.1:48174")
 CONFIG_PATH = Path(os.environ.get("SENTRY_CONFIG_PATH", "~/.config/sentry/config.json")).expanduser()
 DISPLAY_TIMEZONE = os.environ.get("SENTRY_DISPLAY_TIMEZONE", "America/New_York")
+AUTHORITY = ExecutionAuthority()
 
 mcp = MCPServer(
     "SENTRY Office",
@@ -58,6 +66,10 @@ def _host() -> ConversationToolHost:
 
 def _read(name: str, arguments: dict | None = None) -> dict:
     return _host().execute(name, arguments or {})
+
+
+def _tier1(capability: str, arguments: dict, target: str, executor):
+    return AUTHORITY.execute_tier1(capability, arguments, target, executor, context=RequestContext.from_environment())
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
@@ -81,13 +93,13 @@ def get_office_reminders() -> dict:
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
 def create_next_office_reminder(message: str) -> dict:
     """Create the one supported reminder for the operator's next distinct office session."""
-    return _read("create_next_office_reminder", {"message": message})
+    return _tier1("create_next_office_reminder", {"message_length": len(message)}, "next-office reminder", lambda: _read("create_next_office_reminder", {"message": message}))
 
 
-@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False))
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def cancel_pending_office_reminder() -> dict:
     """Cancel the currently pending next-office-session reminder, if one exists."""
-    return _read("cancel_pending_office_reminder")
+    return _tier1("cancel_pending_office_reminder", {}, "pending next-office reminder", lambda: _read("cancel_pending_office_reminder"))
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
@@ -99,7 +111,7 @@ def get_acknowledgement_preference() -> dict:
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def set_acknowledgement_preference(value: Literal["allow", "suppress"]) -> dict:
     """Allow or suppress proactive primary-user session acknowledgements."""
-    return _read("set_acknowledgement_preference", {"value": value})
+    return _tier1("set_acknowledgement_preference", {"value": value}, f"acknowledgement preference {value}", lambda: _read("set_acknowledgement_preference", {"value": value}))
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
@@ -136,23 +148,25 @@ def get_alarms(status: Literal["pending", "delivered", "failed", "cancelled"] | 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
 def create_one_shot_alarm(scheduled_for: str, label: str = "Alarm") -> dict:
     """Create one future alarm from an explicit offset-aware ISO timestamp; use get_local_time first for relative wording."""
-    return _read("create_one_shot_alarm", {
-        "scheduled_for": scheduled_for,
-        "display_timezone": DISPLAY_TIMEZONE,
-        "label": label,
-    })
+    arguments = {"scheduled_for": scheduled_for, "display_timezone": DISPLAY_TIMEZONE, "label_length": len(label)}
+    return _tier1("create_one_shot_alarm", arguments, f"one-shot alarm at {scheduled_for}", lambda: _read("create_one_shot_alarm", {
+        "scheduled_for": scheduled_for, "display_timezone": DISPLAY_TIMEZONE, "label": label,
+    }))
 
 
-@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=False))
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def cancel_alarm(alarm_id: str) -> dict:
     """Cancel one exact pending alarm."""
-    return _read("cancel_alarm", {"alarm_id": alarm_id})
+    return _tier1("cancel_alarm", {"alarm_id": alarm_id}, f"alarm {alarm_id}", lambda: _read("cancel_alarm", {"alarm_id": alarm_id}))
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 def inspect_office_camera(duration_seconds: float = 3.0) -> list[TextContent | ImageContent]:
     """Inspect the office camera now, match enrolled identity locally, and return one ephemeral still."""
-    metadata, jpeg = _inspect_office_camera(CONFIG_PATH, duration_seconds=duration_seconds)
+    metadata, jpeg = _tier1(
+        "inspect_office_camera", {"duration_seconds": duration_seconds}, "ephemeral office camera inspection",
+        lambda: _inspect_office_camera(CONFIG_PATH, duration_seconds=duration_seconds),
+    )
     content: list[TextContent | ImageContent] = [TextContent(type="text", text=json.dumps(metadata, sort_keys=True))]
     if jpeg:
         import base64
@@ -169,19 +183,21 @@ def find_applications(query: str, limit: int = 10) -> dict:
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
 def launch_application(app_id: str) -> dict:
     """Launch one exact installed Linux desktop application id."""
-    return _launch_application(app_id)
+    return _tier1("launch_application", {"app_id": app_id}, f"application {app_id}", lambda: _launch_application(app_id))
 
 
-@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=True))
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
 def open_web_page(url: str) -> dict:
     """Open one explicit HTTP(S) page in the operator's configured browser."""
-    return _open_web_page(url)
+    host = urlparse(url).hostname or "invalid-host"
+    return _tier1("open_web_page", {"url": url}, f"public URL host {host}", lambda: _open_web_page(url))
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
 def open_local_artifact(path: str) -> dict:
     """Show one existing operator-home file in its configured desktop application."""
-    return _open_local_artifact(path)
+    validated = AUTHORITY.validate_home_artifact(path)
+    return _tier1("open_local_artifact", {"path": str(validated)}, f"local artifact {validated.name}", lambda: _open_local_artifact(str(validated)))
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
@@ -193,25 +209,25 @@ def get_system_volume() -> dict:
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def set_system_volume(percent: float) -> dict:
     """Set the default PipeWire output volume from 0 through 150 percent."""
-    return _set_volume(percent)
+    return _tier1("set_system_volume", {"percent": percent}, f"system volume {percent}%", lambda: _set_volume(percent))
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
 def adjust_system_volume(delta_percent: float) -> dict:
     """Raise or lower the default PipeWire output volume by a bounded percentage."""
-    return _adjust_volume(delta_percent)
+    return _tier1("adjust_system_volume", {"delta_percent": delta_percent}, f"system volume adjustment {delta_percent}%", lambda: _adjust_volume(delta_percent))
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
 def set_system_muted(muted: bool) -> dict:
     """Mute or unmute the default PipeWire output."""
-    return _set_muted(muted)
+    return _tier1("set_system_muted", {"muted": muted}, f"system mute {muted}", lambda: _set_muted(muted))
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
 def control_media(action: Literal["play_pause", "play", "pause", "next", "previous", "stop"], player: str | None = None) -> dict:
     """Control an active local MPRIS media player."""
-    return _media_control(action, player)
+    return _tier1("control_media", {"action": action, "player": player}, f"media action {action}", lambda: _media_control(action, player))
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
@@ -224,25 +240,77 @@ def get_active_window() -> dict:
 def capture_desktop() -> ImageContent:
     """Capture one current desktop screenshot for visual inspection."""
     import base64
-    return ImageContent(type="image", data=base64.b64encode(capture_desktop_png()).decode("ascii"), mime_type="image/png")
+    png = _tier1("capture_desktop", {}, "ephemeral desktop screenshot", capture_desktop_png)
+    return ImageContent(type="image", data=base64.b64encode(png).decode("ascii"), mime_type="image/png")
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
+def propose_file_move(source: str, destination: str) -> dict:
+    """Execute or explicitly defer one non-overwriting operator-requested file move."""
+    resolved_destination = resolve_file_move_destination(source, destination)
+    destination_path = Path(resolved_destination)
+    folder = destination_path.parent.name or str(destination_path.parent)
+    return AUTHORITY.request_action(
+        "move_file", {"source": source, "destination": resolved_destination},
+        f"move {Path(source).name} into {folder} as {destination_path.name}",
+        context=RequestContext.from_environment(),
+    )
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
 def press_keys(keys: str) -> dict:
-    """Send one explicit key or key combination to the active X11 window."""
-    return _send_key_combo(keys)
+    """Execute or explicitly defer one exact active-window key combination."""
+    window = _active_window()
+    if window.get("status") != "available":
+        raise RuntimeError("an exact active window is required for keyboard authorization")
+    return AUTHORITY.request_action(
+        "press_keys", {"keys": keys, "expected_window_id": window["window_id"]},
+        f"press keys {keys} in active window {window['window_id']}", context=RequestContext.from_environment(),
+    )
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
 def type_into_active_window(text: str) -> dict:
-    """Type bounded text into the active X11 window."""
-    return _type_text(text)
+    """Execute or explicitly defer bounded non-secret text in the active window."""
+    window = _active_window()
+    if window.get("status") != "available":
+        raise RuntimeError("an exact active window is required for typed-input authorization")
+    return AUTHORITY.request_action(
+        "type_into_active_window", {"text": text, "expected_window_id": window["window_id"]},
+        f"type {len(text)} characters into active window {window['window_id']}",
+        context=RequestContext.from_environment(),
+    )
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
 def click_desktop(x: int, y: int, button: int = 1) -> dict:
-    """Move the pointer and click the requested button at exact X11 coordinates."""
-    return _click_pointer(x, y, button)
+    """Execute or explicitly defer one exact active-window pointer click."""
+    window = _active_window()
+    if window.get("status") != "available":
+        raise RuntimeError("an exact active window is required for pointer authorization")
+    return AUTHORITY.request_action(
+        "click_desktop", {"x": x, "y": y, "button": button, "expected_window_id": window["window_id"]},
+        f"click button {button} at ({x}, {y}) in active window {window['window_id']}",
+        context=RequestContext.from_environment(),
+    )
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
+def get_execution_authority_status() -> dict:
+    """Read the resident execution profile, risk boundary, and pending-confirmation status."""
+    return AUTHORITY.status()
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
+def get_recent_execution_audit(limit: int = 20) -> dict:
+    """Read bounded metadata-only records of recent non-read execution attempts."""
+    return AUTHORITY.recent_audit(limit)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
+def get_pending_authorization() -> dict:
+    """Read the exact pending authorization summary without sensitive arguments."""
+    return AUTHORITY.pending_status(context=RequestContext.from_environment())
 
 
 if __name__ == "__main__":

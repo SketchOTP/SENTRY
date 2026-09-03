@@ -510,6 +510,38 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
   and is not accepted by this directive.
 - Source: explicit operator request supplied 2026-09-01.
 
+## SENTRY-V0.3.3-SEMANTIC-TURN-ENDPOINT-001 — Local semantic endpoint
+- Issued: 2026-09-02
+- Status: **BLOCKED — STREAMING STT REQUIRED** at the mandatory pre-live screen.
+- Starting/final committed SHA: `325cc24ae8745f0eeb4d506012943da85dedbebd`.
+- Objective: compose Smart Turn v3.2 with the unified PCM timeline so internal
+  pauses preserve capture and only a stable semantic completion freezes audio
+  for batch Whisper.
+- Result: deterministic adapter/timeline/voice tests passed 56/56 and a long
+  13.184-second fixture preserved exact PCM across a 1.792-second pause. The
+  actual model held 0/10 incomplete controlled turns and closed 10/10 complete
+  turns. Its overlapping score distributions do not permit the allowed bounded
+  threshold correction to satisfy both required gates.
+- Boundary: no operator attempt, downstream security/release validation, full
+  regression, commit, or push was authorized after the failed pre-live gate.
+- Source: Architect directive supplied 2026-09-02.
+
+## SENTRY-V0.3.3-WAKE-TO-COMMAND-AUDIO-TIMELINE-001 — Unified live audio ownership
+- Issued: 2026-09-02
+- Status: **BLOCKED — STREAMING OR ALTERNATE STT CAPTURE ARCHITECTURE REQUIRED**.
+- Starting SHA: `325cc24ae8745f0eeb4d506012943da85dedbebd`.
+- Objective: replace fragment-based wake/command reconstruction with one
+  bounded sample-indexed PCM timeline and append-only active utterance capture,
+  then perform one final long spoken Tier-2 proposal/cancellation proof.
+- Stop boundary: if the one technically valid live attempt still loses the
+  command's semantic core, stop voice, preserve the tree, perform no additional
+  tuning or operator repetition, and return the blocked verdict.
+- Result: deterministic validation passed 86/86, but the sole valid live attempt
+  froze after 3.144 seconds and dispatched a truncated request. No authorization
+  or filesystem mutation occurred. Downstream qualification and commits were
+  therefore not authorized.
+- Source: Architect directive supplied 2026-09-02.
+
 ## SENTRY-OPERATOR-JARVIS-EXECUTION-001 — Ordered direct-Codex resident execution
 - Issued: 2026-09-01
 - Status: COMPLETE — IMPLEMENTED / TECHNICALLY QUALIFIED; awaiting Architect disposition.
@@ -550,3 +582,41 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
 - Validation: real separate-process resume and recall passed; state-API-outage
   isolation passed; focused 37/37 and full Ubuntu 255/255 passed.
 - Source: explicit operator request supplied 2026-09-01.
+
+## SENTRY-V0.3.3-STREAMING-COMMAND-ASR-001 — Dual-Vosk streaming command capture
+- Issued: 2026-09-02
+- Status: **IN PROGRESS / PRE-LIVE GATES**.
+- Objective: preserve the accepted sample-indexed PCM timeline and replace the
+  failed Smart Turn endpoint with an independent full-vocabulary Vosk streaming
+  recognizer that shares the already-selected model with the restricted wake
+  recognizer. Aggregate progress across Vosk segments and natural pauses, close
+  only after 5000 ms without Silero speech or Vosk transcript progress plus a
+  250–500 ms stability recheck, then run one complete immutable PCM capture
+  through batch Whisper exactly once.
+- Authority boundary: restricted-grammar Vosk remains the sole wake authority;
+  streaming Vosk text is RAM-only endpoint evidence and may never become the
+  executable command or supply Tier-2/3 arguments. Command-recognizer failure
+  is voice-degraded and cannot fall back to Smart Turn or silence-only closure.
+- Live boundary: only after deterministic and 10-command controlled acoustic
+  screens pass, perform one controlled long file-move proposal followed by
+  cancellation. This directive creates no implementation/release commit.
+- Source: Architect directive supplied 2026-09-02.
+
+## SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001 — Trusted-operator execution
+- Issued: 2026-09-02
+- Status: **LOCAL QUALIFICATION PASSED / RELEASE IN PROGRESS**.
+- Objective: keep low-friction natural current-turn execution over the quiet
+  restricted resident profile, host validation, exact typed executors, and
+  private audit. A clear current operator request authorizes its exact supported
+  action without a redundant approval prompt.
+- Deferred boundary: create a one-use pending dialogue only when the operator
+  explicitly asks SENTRY to wait, ask, show, or prepare first, or a material
+  target/detail is genuinely unresolved. Its 120-second window starts only
+  after presentation and post-speech rearm.
+- Owner live-proof override: after one direct spoken controlled move executed
+  correctly, the operator waived artificial deferred approval/cancellation/
+  revision live drills as unrepresentative. Those dormant paths remain
+  deterministic, fail-closed, and regression-covered; they are not represented
+  as live observations.
+- Source: Architect directive plus explicit operator clarification supplied
+  2026-09-02.

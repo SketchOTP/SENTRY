@@ -1416,3 +1416,51 @@ The Architect accepted the substantive conversational-orchestration result at im
 - The pointer and lock are mode 0600 and contain no question/transcript. Codex's
   own local thread is working context, not durable governed personal memory.
   Hindsight and Mem0 are research candidates only; no memory engine was added.
+
+## OUTCOME-SENTRY-V0.3.3-WAKE-TO-COMMAND-AUDIO-TIMELINE-001 — Live gate blocked
+- Completed: 2026-09-02
+- Verdict: **BLOCKED — STREAMING OR ALTERNATE STT CAPTURE ARCHITECTURE REQUIRED**
+- Starting/final committed SHA: `325cc24ae8745f0eeb4d506012943da85dedbebd`
+- Implementation SHA: none; the V0.3.3 working tree remains preserved and uncommitted.
+
+### Result
+- A unified bounded `PcmTimeline` and append-only `ActiveUtteranceCapture`
+  replaced fragment joins in the candidate voice path. Vosk remains the sole
+  wake authority and emits only wake/sample metadata; Whisper receives exact
+  full/post-wake views from one frozen capture.
+- Deterministic targeted validation passed 86/86, including long synthetic
+  speech with internal VAD dips, late wake, duplicate wake, ring wrap, gap
+  failure, maximum duration, wake-only, post-wake fallback, non-wake, PTT,
+  resident runtime, persistent Codex and execution authority. Compilation and
+  `git diff --check` also passed.
+- The sole authorized live production-service attempt detected one Vosk wake
+  with no sample gap, but froze only 50,304 samples / 3.144 seconds and exposed
+  a 2.356-second post-wake STT view. It dispatched once and Codex safely asked
+  for clarification rather than proposing the requested move.
+- No new pending authorization existed, the controlled source retained SHA-256
+  `1caaefc907ad50c24cf8ed1e7e428ae11d01e99f1d31b83b71772edaeb38d9d7`,
+  and the controlled destination remained absent. No file mutation occurred.
+- Per the directive's one-attempt stop rule, no second attempt, more endpoint
+  tuning, consolidated security matrix, full regression, acceptance commit or
+  push was performed. Voice and status were stopped.
+
+## OUTCOME-SENTRY-V0.3.3-SEMANTIC-TURN-ENDPOINT-001 — Pre-live model gate blocked
+- Completed: 2026-09-02
+- Verdict: **BLOCKED — STREAMING STT REQUIRED**
+- Starting/final committed SHA: `325cc24ae8745f0eeb4d506012943da85dedbebd`
+- Implementation SHA: none; all V0.3.3 work remains preserved and uncommitted.
+
+### Result
+- The exact BSD-2-Clause Smart Turn v3.2 CPU model was checksum-verified and
+  wrapped through a minimal local ONNX adapter. Vosk remains sole wake authority,
+  Silero only nominates pauses, and the append-only timeline remains PCM authority.
+- Deterministic adapter/timeline/voice validation passed 56/56. A 13.184-second
+  capture survived a 1.792-second internal pause and froze once after three
+  incomplete then two stable complete mock decisions.
+- The mandatory local actual-model screen failed: incomplete held 0/10; complete
+  closed 10/10. Scores overlap such that no threshold satisfies both 8/10 gates.
+  Median/p95 inference was 51.806/57.552 ms.
+- The failure occurred before any operator speech. No Whisper/Codex request,
+  Tier-2 authorization, filesystem mutation, full regression, commit, or push
+  occurred. Voice/status remain stopped and streaming STT is the required next
+  architecture decision.

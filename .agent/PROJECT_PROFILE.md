@@ -20,7 +20,15 @@
 - Runtime environment: Ubuntu Linux x86_64 host on the canonical Atlas share. The Linux NexiGo N60 V4L2 path and pinned local runtime are established; M1 practical presence, M2/M3, M4, M5, M6, and the V0.2 resident runtime are accepted within recorded boundaries.
 
 ## Important integrations
-- Direct OAuth-authenticated Codex invocation is the operator-selected agent layer. The dedicated `sentry` profile loads the local SENTRY Office MCP server, repository-owned skill/instructions, installed Codex plugins/skills, native web search, image generation, and write-capable shell/file execution.
+- Direct OAuth-authenticated Codex invocation is the operator-selected agent
+  layer. Unattended voice uses the dedicated `sentry-resident` profile, which
+  loads only the repository-owned SENTRY Office MCP/skill/instructions, native
+  hosted web search, image generation, view-image, workspace dependencies, and
+  workspace-bounded shell/file execution. Apps, plugins, Browser/CDP, generic
+  computer use, command networking, broad host writes, sensitive reads, and
+  Codex-generated memories are disabled. The historical `sentry` development
+  profile is preserved for deliberate manual work and is not reachable from
+  the voice service.
 - Codex CLI `0.150.0-alpha.8`, authenticated with ChatGPT OAuth on the current host, is the current on-demand runtime. SENTRY resumes one dedicated local Codex thread and requests native compaction at 217,600 tokens, 80% of Luna's 272,000-token context window. Continuous perception never invokes it.
 - Xiaomi Miloco, https://github.com/XiaoMi/xiaomi-miloco, is an architectural reference only and is not a dependency.
 - Notion is the strategic project record; GitHub is the committed repository record.
@@ -37,6 +45,11 @@
   are enabled; continuous perception and proactive processing remain inactive
   and independently controlled. The listener retains bounded
   `Restart=on-failure`, `Linger=no`, RAM-only audio, and local-only STT/TTS.
+- Clear current-turn operator requests authorize the exact supported host
+  action after validation and audit; SENTRY does not add a redundant generic
+  confirmation. An action is deferred only when the operator explicitly asks
+  it to wait/prepare/show/ask first or a material target is unresolved. Deferred
+  records are one-use and request/thread/restart/argument bound.
 - Do not treat the suggested repository shape in the project scope as permission to create unneeded empty runtime modules.
 
 ## Safety / operational constraints

@@ -465,3 +465,43 @@ Thread continuity is not long-term personal memory and must not be used as
 authoritative physical evidence. Durable memory needs explicit write policy,
 provenance, inspect/correct/forget operations, and protection against automatic
 ambient or whole-transcript mining.
+
+## LEARNING-SENTRY-034 — Correct audio ownership does not prove live endpointing
+- Date: 2026-09-02
+- Evidence source: `SENTRY-V0.3.3-WAKE-TO-COMMAND-AUDIO-TIMELINE-001`;
+  86/86 deterministic tests; one production-service long-command attempt
+- Confidence: VERIFIED
+
+### Learning
+A single sample-indexed timeline removes ambiguous fragment ownership, duplicate
+joins, and wake-tail loss, but live command completeness still depends on an
+endpoint boundary that tolerates natural pauses inside long compound speech.
+The corrected timeline preserved exact samples without gaps, yet the live
+capture froze at 3.144 seconds while the operator's utterance continued.
+
+### Operational boundary
+Synthetic VAD-dip tests are necessary but insufficient evidence for live long
+speech. After a one-attempt governed failure, further threshold tuning and
+operator repetition would only obscure the architectural result. Preserve the
+timeline work and require an explicit Architect decision on streaming or an
+alternate STT/capture boundary before resuming qualification.
+
+## LEARNING-SENTRY-035 — A semantic endpoint must prove incomplete-turn separation before live use
+- Date: 2026-09-02
+- Evidence source: `SENTRY-V0.3.3-SEMANTIC-TURN-ENDPOINT-001`; exact Smart Turn
+  v3.2 CPU model; 20-fixture generated-audio screen
+- Confidence: VERIFIED NEGATIVE
+
+### Learning
+Fast local inference and correct state-machine composition do not establish a
+usable endpoint. The exact Smart Turn model met its CPU latency target and the
+host preserved incomplete mock decisions correctly, but it treated every one
+of ten controlled unfinished turns as complete. Complete and incomplete scores
+overlapped too strongly for threshold tuning to repair the separation.
+
+### Operational boundary
+Screen real model behavior before consuming a governed operator attempt. Do not
+substitute deterministic mocks for acoustic discrimination evidence, and do not
+hide a failed semantic gate behind a longer silence timer. Preserve the unified
+PCM timeline; the next architecture must use streaming recognition to observe
+linguistic continuation without truncating the canonical capture.

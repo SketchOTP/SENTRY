@@ -16,14 +16,18 @@ They are not expected future phases unless the owner explicitly reopens them.
 
 **V0.2 resident runtime, routine statistics, routine-grounded conversation, preference/feedback memory, weather context, contextual weather proactivity, and event-triggered reminders are qualified. V0.3.1 always-available voice is qualified:** the accepted one-room stack includes Vosk wake, Whisper command STT, direct Codex execution, and local British-male Kokoro speech. Schema 9 is current. Production NWS weather uses private local coordinates and a cache-refresh timer. Office-session reminders and one-shot clock alarms remain explicit, durable, claim-before-speech local actions.
 
-**Operator-authorized, technically qualified V0.3 expansion:** the production conversation entry point now
-uses Codex directly as SENTRY's agent. A dedicated write-capable profile exposes
-29 local SENTRY/desktop MCP tools while retaining native web search, installed
-skills/plugins, image generation, browser/computer-use surfaces, and shell/file
-workflows. Compound requests execute in spoken order and return a per-step
-result. Live representative proofs and the complete Ubuntu regression `251/251`
-passed. See
-[`docs/V0.3_CODEX_NATIVE_AGENT.md`](docs/V0.3_CODEX_NATIVE_AGENT.md).
+**V0.3 Codex-native execution is undergoing authority hardening:** Codex remains
+SENTRY's persistent reasoning agent, but the unattended resident path uses a
+dedicated `sentry-resident` permission profile and workspace. Command network,
+broad home writes, sensitive reads, apps/plugins, browser automation, generic
+computer use, and Codex-generated memories are disabled. The 33-tool SENTRY MCP
+surface is classified into automatic reads and host-brokered local actions
+authorized by the operator's clear current request. Confirmation is contextual
+and exceptional: it is used only when the operator explicitly asks SENTRY to
+wait or when a material target remains unresolved. The historical unrestricted `sentry`
+profile remains available only for deliberate manual development and is not
+used by resident voice. See [`docs/EXECUTION_AUTHORITY.md`](docs/EXECUTION_AUTHORITY.md)
+and [`SECURITY.md`](SECURITY.md).
 
 ## Project links
 
@@ -105,7 +109,7 @@ The production result is currently `insufficient` because natural history is spa
 
 The read-only NWS weather foundation is documented in [`docs/V0.2_WEATHER_CONTEXT.md`](docs/V0.2_WEATHER_CONTEXT.md). It uses schema-v7 snapshots, explicit operator coordinates, bounded retries, 24-hour point-resource caching, freshness states, and the localhost-only `/v1/weather` endpoint. Production weather is not enabled until explicit coordinates are supplied in the local configuration.
 
-The historical read-only public-web extension is documented in [`docs/V0.3_READ_ONLY_WEB.md`](docs/V0.3_READ_ONLY_WEB.md). It has been superseded for the production conversation path by the operator-authorized Codex-native agent described in [`docs/V0.3_CODEX_NATIVE_AGENT.md`](docs/V0.3_CODEX_NATIVE_AGENT.md). Native public web search remains available, while local code/file and desktop actions are now also permitted when naturally requested.
+The historical read-only public-web extension is documented in [`docs/V0.3_READ_ONLY_WEB.md`](docs/V0.3_READ_ONLY_WEB.md). It has been superseded for the production conversation path by the operator-authorized Codex-native agent described in [`docs/V0.3_CODEX_NATIVE_AGENT.md`](docs/V0.3_CODEX_NATIVE_AGENT.md). Native public web search remains available. Workspace-local code/file work is sandboxed; host desktop and out-of-workspace actions use the classified SENTRY MCP authority boundary.
 
 ## V0.2 Event Reminders
 
@@ -160,7 +164,7 @@ DAWN feasibility work is preserved as historical evidence and architectural refe
 12. **V0.2 — Read-only weather context**: explicit-location NWS snapshots, freshness-gated localhost weather facts, and an independent refresh timer (qualified; production location not configured).
 13. **V0.2 — Event-triggered reminders**: one explicit next-office-session reminder with deterministic intent/API handling, same-session exclusion, durable claim-before-speech delivery, and restart-safe dedupe (qualified).
 14. **V0.3.1 — Always-available voice foundation**: optional local Vosk `Sentry` wake detection, VAD/Whisper command capture, bounded conversational orchestration, and shared TTS capture suppression (qualified; opt-in).
-15. **V0.3 — Codex-native agent surface**: direct natural-language Codex turns with local SENTRY/desktop MCP tools, native web, installed skills/plugins, image generation, explicit local write capability, ordered compound execution, and one-shot alarms (technically qualified under operator authorization).
+15. **V0.3 — Codex-native agent surface**: direct natural-language Codex turns with native web, bounded workspace/image capability, classified local SENTRY/desktop MCP tools, ordered compound execution, and one-shot alarms. The resident authority hardening supersedes the earlier unrestricted runtime posture.
 
 M6 and V0.2 are accepted. Routine facts entering proactive judgment and general scheduling require a new Architect directive. Multi-room and whole-home hardware are superseded by the permanent one-room product scope.
 

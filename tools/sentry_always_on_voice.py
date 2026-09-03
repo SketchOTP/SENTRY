@@ -21,9 +21,19 @@ from perception.always_on_voice import (  # noqa: E402
     VoiceDiagnostics,
 )
 from perception.sentry_perception import load_config  # noqa: E402
-from perception.vosk_kws import VoskKwsEvaluator  # noqa: E402
+from perception.vosk_kws import (  # noqa: E402
+    VoskKwsEvaluator,
+    VoskSharedModel,
+    VoskStreamingCommandRecognizer,
+)
 from perception.voice import KokoroSpeaker, WhisperTranscriber  # noqa: E402
-from tools.sentry_ask import ask  # noqa: E402
+from tools.sentry_ask import (  # noqa: E402
+    ask,
+    complete_action_presentation,
+    expire_action_response,
+    fail_action_presentation,
+    invalidate_action_dialogue_for_restart,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -44,17 +54,30 @@ def main(argv: list[str] | None = None) -> int:
         stop_event = threading.Event()
         for signum in (signal.SIGTERM, signal.SIGINT):
             signal.signal(signum, lambda *_: stop_event.set())
+        invalidate_action_dialogue_for_restart()
         diagnostics = VoiceDiagnostics()
+        shared_vosk = VoskSharedModel(Path(voice.vosk_model_path or ""))
         wake_detector = VoskKwsEvaluator(
-            Path(voice.vosk_model_path or ""),
-            detect_partial=False,
+            shared_vosk.model_path,
+            # The restricted recognizer may not emit its final result until
+            # the whole utterance ends. Accept the exact partial token so the
+            # resident loop can preserve everything spoken after "Sentry" in
+            # its existing bounded in-memory capture.
+            detect_partial=True,
+            partial_confirmation_frames=1,
             debounce_seconds=voice.wake_debounce_ms / 1000,
+            shared_model=shared_vosk,
+        )
+        command_recognizer = VoskStreamingCommandRecognizer(
+            shared_vosk,
+            sample_rate=voice.sample_rate,
         )
         loop = AlwaysOnVoiceLoop(
             voice,
             stream=PipeWirePcmStream(source=voice.microphone_source, sample_rate=voice.sample_rate),
             vad=SileroVad(),
             wake_detector=wake_detector,
+            command_recognizer=command_recognizer,
             transcriber=WhisperTranscriber(model_name=voice.whisper_model),
             speaker=KokoroSpeaker(
                 python_executable=args.kokoro_python,
@@ -62,6 +85,9 @@ def main(argv: list[str] | None = None) -> int:
                 speed=voice.kokoro_speed,
             ),
             ask_fn=ask,
+            action_presentation_completed_fn=complete_action_presentation,
+            action_presentation_failed_fn=fail_action_presentation,
+            action_response_expired_fn=expire_action_response,
             diagnostics=diagnostics,
         )
     except Exception as exc:  # noqa: BLE001 - service startup must be diagnosable

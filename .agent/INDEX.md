@@ -7,12 +7,21 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: operator-authorized persistent Codex session continuity and state-independent general conversation are implemented/qualified at `0730a1c`; V0.3.2 bounded turn-taking remains separately implemented/unqualified.
-- Active directive: none; awaiting Architect disposition on `SENTRY-OPERATOR-CODEX-SESSION-CONTINUITY-001`.
-- Completed task packet: `.agent/tasks/completed/SENTRY-OPERATOR-JARVIS-EXECUTION-001/`; the continuity correction has no separate task packet.
-- Last accepted outcome: V0.3.1 always-available Vosk voice remains accepted; ordered direct-Codex execution is technically qualified. The current correction makes one resumed Codex thread the conversation authority and removes office-state availability as a gate for unrelated requests.
-- Latest recorded outcome: separate-process live proof resumed one exact Codex thread and recalled prior context; with the state API stopped, an unrelated request still completed. Native auto-compaction is configured at 217,600 tokens (80% of Luna's 272,000-token window). Focused tests passed 37/37 and full Ubuntu regression passed 255/255. Durable memory remains future governed V0.4 work.
-- Last state sync: 2026-09-01; implementation commit `0730a1c`; schema 9; live voice/UI and state API active after restart; continuous perception/proactivity disabled; `Linger=no`.
+- Current stage: V0.3.3 trusted-operator execution has passed its owner-selected
+  live proof and exact local validation; implementation release and CI are in
+  progress.
+- Active directive: `SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001` — **LOCAL QUALIFICATION PASSED / RELEASE IN PROGRESS**.
+- Active task packet: `.agent/tasks/active/SENTRY-V0.3.3-CODEX-EXECUTION-AUTHORITY-001/`.
+- Last accepted outcome: persistent Codex session continuity and state-independent general conversation at `0730a1c`; committed baseline remains `325cc24ae8745f0eeb4d506012943da85dedbebd`, schema 9, with 255/255 accepted regression.
+- Latest recorded outcome: the dual-Vosk/sample-indexed capture retained the
+  complete long request and reached the exact action boundary. Trusted
+  current-turn execution then moved one controlled file directly with matching
+  before/after SHA-256 and `direct_current_turn` audit evidence. The operator
+  waived artificial deferred-dialogue live drills; those paths remain
+  regression-covered. Affected suites pass 198/198, security/profile suites
+  45/45, and complete exact-code regression 334/334.
+- Last state sync: 2026-09-02; GitHub remains at `325cc24` until the current
+  release is pushed. Voice/status are inactive during release preparation.
 
 ## Mandatory kernel
 Read these before substantial work:

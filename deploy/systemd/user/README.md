@@ -35,11 +35,14 @@ always-on voice:
 ```bash
 /home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_codex_profile.py install
 /home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_codex_profile.py status
-codex --profile sentry mcp list
+CODEX_HOME=~/.local/share/sentry/codex-home codex --profile sentry-resident mcp list
 ```
 
-The generated profile is mode `0600` and points to the local SENTRY MCP server.
-It is required by both push-to-talk and always-on natural-language requests.
+The generated resident profile is mode `0600`, lives in a private dedicated
+Codex runtime home, and points only to the local SENTRY MCP server. It is
+required by both push-to-talk and always-on natural-language requests. The
+historical unrestricted `~/.codex/sentry.config.toml` remains a manual
+development profile and is not reachable from the resident service.
 
 The installer creates `~/.config/sentry/config.json` once from the checked-in
 example and installs the units under `~/.config/systemd/user/`. The localhost

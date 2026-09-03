@@ -693,3 +693,44 @@ and does not satisfy V0.4 durable personal-memory requirements.
 Separate-process recall, production-thread resume, and state-API isolation
 passed. Focused tests passed 37/37 and full Ubuntu regression passed 255/255.
 The live voice service was restarted on the corrected runtime.
+
+## RECORD-SENTRY-049 — Unified audio timeline reaches a governed live blocker
+- Date: 2026-09-02
+- Type: QUALIFICATION FAILURE / ARCHITECT REVIEW REQUIRED
+- Related directive: `SENTRY-V0.3.3-WAKE-TO-COMMAND-AUDIO-TIMELINE-001`
+
+### Decision
+The fragment-based wake-to-command path was replaced in the working tree by one
+bounded sample-indexed PCM timeline and append-only active utterance capture.
+Vosk remains the sole wake authority. This implementation is not accepted or
+committed because its one authorized live long-command proof lost the semantic
+core at endpointing.
+
+### Evidence and boundary
+Targeted deterministic validation passed 86/86, but the production path froze
+only 3.144 seconds of a longer request, dispatched a truncated command once,
+and received a safe clarification response. No Tier-2 proposal was created and
+the controlled filesystem remained unchanged. The mandated blocked verdict is
+`BLOCKED — STREAMING OR ALTERNATE STT CAPTURE ARCHITECTURE REQUIRED`.
+Voice/status are stopped, GitHub remains at `325cc24`, and the valuable dirty
+V0.3.3 tree must remain intact pending Architect disposition.
+
+## RECORD-SENTRY-050 — Smart Turn fails before a second live attempt
+- Date: 2026-09-02
+- Type: QUALIFICATION FAILURE / ARCHITECT REVIEW REQUIRED
+- Related directive: `SENTRY-V0.3.3-SEMANTIC-TURN-ENDPOINT-001`
+
+### Decision
+The working tree composes the exact local Smart Turn v3.2 CPU model with the
+sample-indexed timeline, but that model is not accepted as SENTRY's end-of-turn
+authority. The directive stops before live speech because its required acoustic
+screen failed.
+
+### Evidence and boundary
+Deterministic tests passed 56/56 and showed correct incomplete/complete host
+behavior over a continuous long capture. The real model held 0/10 controlled
+unfinished turns and closed 10/10 completed turns; no threshold can meet both
+8/10 gates on the observed scores. No operator attempt, authorization, mutation,
+full regression, commit, or push followed. The mandated result is `BLOCKED —
+STREAMING STT REQUIRED`; voice/status remain stopped and the uncommitted V0.3.3
+tree remains authoritative evidence.
