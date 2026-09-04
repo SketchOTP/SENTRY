@@ -49,10 +49,52 @@ SCOPES = {
     "thursday", "friday", "saturday", "sunday",
 }
 FEEDBACK_TYPES = {"helpful", "not_helpful", "too_frequent", "do_not_repeat"}
+_CELSIUS_UNITS = {"c", "celsius", "degc", "wmounit:degc"}
+_FAHRENHEIT_UNITS = {"f", "fahrenheit", "degf", "wmounit:degf"}
 
 
 def _as_of() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _fahrenheit_temperature(value: Any) -> Any:
+    """Normalize known NWS temperature quantities for the operator display contract."""
+
+    if not isinstance(value, dict) or not isinstance(value.get("value"), (int, float)):
+        return value
+    unit = str(value.get("unit", "")).casefold()
+    if unit in _CELSIUS_UNITS:
+        return {"value": round(float(value["value"]) * 9 / 5 + 32, 1), "unit": "degrees Fahrenheit"}
+    if unit in _FAHRENHEIT_UNITS:
+        return {"value": value["value"], "unit": "degrees Fahrenheit"}
+    return value
+
+
+def _normalize_weather_display_units(facts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep persisted provider values intact while exposing Fahrenheit to SENTRY."""
+
+    normalized: list[dict[str, Any]] = []
+    for fact in facts:
+        item = {**fact}
+        data = fact.get("data")
+        if fact.get("fact_id") == "weather:current" and isinstance(data, dict):
+            display = {**data}
+            for key in ("temperature", "apparent_temperature", "wind_chill"):
+                if key in display:
+                    display[key] = _fahrenheit_temperature(display[key])
+            item["data"] = display
+        elif fact.get("fact_id") == "weather:forecast:near-term" and isinstance(data, dict):
+            display = {**data}
+            periods = []
+            for period in data.get("periods", []):
+                normalized_period = {**period}
+                if str(normalized_period.get("temperature_unit", "")).casefold() in _FAHRENHEIT_UNITS:
+                    normalized_period["temperature_unit"] = "degrees Fahrenheit"
+                periods.append(normalized_period)
+            display["periods"] = periods
+            item["data"] = display
+        normalized.append(item)
+    return normalized
 
 
 def _read_result(name: str, *, status: str, facts: list[dict[str, Any]] | None = None,
@@ -120,7 +162,7 @@ def tool_catalog() -> list[dict[str, Any]]:
         {"name": "get_routines", "kind": "read", "arguments": {"routine_type": "optional accepted routine type", "scope": "optional accepted scope"},
          "description": "Read bounded accepted derived routine snapshots; insufficient evidence is not a habit claim."},
         {"name": "get_weather", "kind": "read", "arguments": {"topic": "current, forecast, or alerts"},
-         "description": "Read only cached normalized local weather; never fetch the network."},
+         "description": "Read only cached normalized local weather, with temperatures spoken as degrees Fahrenheit rather than an abbreviation; never fetch the network."},
         {"name": "use_native_web_search", "kind": "read", "arguments": {},
          "description": "Authorize Luna's native read-only live web search for a user-requested public lookup, current external information, named public place/date weather, or a user-supplied public URL. It cannot write, authenticate, submit forms, or receive SENTRY-private data. Use get_weather for SENTRY's configured private home weather cache."},
     ]
@@ -468,7 +510,7 @@ class ConversationToolHost:
         topic = arguments.get("topic", "current")
         try:
             response = self._get_json(self.base_url, "/v1/weather", params={"room_id": self.room_id})
-            facts = _normalize_weather(response)
+            facts = _normalize_weather_display_units(_normalize_weather(response))
             wanted = {"weather:source-health", {"current": "weather:current", "forecast": "weather:forecast:near-term", "alerts": "weather:alerts"}[topic]}
             facts = [fact for fact in facts if fact.get("fact_id") in wanted]
             health = next((fact for fact in facts if fact.get("fact_id") == "weather:source-health"), {"data": {}})

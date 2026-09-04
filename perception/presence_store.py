@@ -9,6 +9,7 @@ the history contract.
 from __future__ import annotations
 
 import json
+import hashlib
 import sqlite3
 import threading
 import uuid
@@ -792,6 +793,40 @@ class PresenceStore:
         value["prototype"] = prototype
         return value
 
+    def identity_profiles(self) -> list[dict[str, Any]]:
+        """Load all active profiles for local in-memory matching only."""
+
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT p.person_id, p.display_name, i.backend, i.model_version, i.model_checksum, "
+                "i.prototype, i.embedding_dim, i.calibrated_threshold, i.sample_count, i.created_at "
+                "FROM persons p JOIN identity_profiles i ON i.person_id = p.person_id "
+                "WHERE p.enrollment_status = 'active' ORDER BY p.person_id"
+            ).fetchall()
+        import numpy as np
+        profiles: list[dict[str, Any]] = []
+        for row in rows:
+            value = dict(row)
+            prototype = np.frombuffer(value.pop("prototype"), dtype=np.float32).copy()
+            if prototype.size != int(value["embedding_dim"]):
+                raise RuntimeError("stored identity prototype dimension mismatch")
+            value["prototype"] = prototype
+            profiles.append(value)
+        return profiles
+
+    def identity_profile_revision(self) -> str:
+        """Return a privacy-safe revision for the active enrollment catalog."""
+
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT p.person_id, p.display_name, p.updated_at, i.backend, i.model_version, "
+                "i.model_checksum, i.sample_count, i.created_at "
+                "FROM persons p JOIN identity_profiles i ON i.person_id = p.person_id "
+                "WHERE p.enrollment_status = 'active' ORDER BY p.person_id"
+            ).fetchall()
+        payload = json.dumps([dict(row) for row in rows], sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
     def enroll_identity(
         self, *, person_id: str, display_name: str, backend: str, model_version: str,
         model_checksum: str, prototype: Any, calibrated_threshold: float,
@@ -811,11 +846,6 @@ class PresenceStore:
             raise ValueError("identity threshold must be between 0 and 1")
         timestamp = _utc_iso(created_at or datetime.now(timezone.utc))
         with self._lock, self._connection:
-            other = self._connection.execute(
-                "SELECT person_id FROM persons WHERE person_id != ? AND enrollment_status = 'active' LIMIT 1", (person_id,)
-            ).fetchone()
-            if other:
-                raise ValueError("V0.1 supports exactly one active enrolled identity")
             self._connection.execute(
                 "INSERT INTO persons(person_id, display_name, enrollment_status, created_at, updated_at) VALUES (?, ?, 'active', ?, ?) "
                 "ON CONFLICT(person_id) DO UPDATE SET display_name=excluded.display_name, enrollment_status='active', updated_at=excluded.updated_at",

@@ -106,7 +106,10 @@ DIRECT_REQUEST_PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
     "cancel_alarm": (re.compile(r"\b(cancel|delete|remove|clear)\b.*\balarm\b"),),
     "launch_application": (re.compile(r"\b(open|launch|start|run)\b.*\b(app|application|program|[a-z0-9_.-]+)\b"),),
     "open_web_page": (re.compile(r"\b(open|visit|go to|show)\b.*\b(browser|page|website|site|https?://|www\.)\b"),),
-    "open_local_artifact": (re.compile(r"\b(open|show|display|view)\b.*\b(image|file|artifact|document|picture)\b"),),
+    "open_local_artifact": (
+        re.compile(r"\b(open|show|display|view)\b.*\b(image|file|artifact|document|picture)\b"),
+        re.compile(r"\b(open|show|display|view)\b(?:\s+me)?\s+(it|that|this)\b"),
+    ),
     "set_system_volume": (re.compile(r"\b(set|change|turn|adjust)\b.*\b(volume|sound)\b"),),
     "adjust_system_volume": (
         re.compile(r"\b(turn|adjust|raise|lower|increase|decrease)\b.*\b(volume|sound)\b"),

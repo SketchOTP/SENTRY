@@ -1494,3 +1494,140 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Final deployment uses `sentry-resident`; voice/status, state API, weather,
   alarms, and routine timers are active. Perception and proactive remain
   disabled/inactive. No actionable authorization or test alarm remains.
+
+## OUTCOME-SENTRY-V0.4-PERSISTENT-SLEEP-CONTROL-001 — Implemented and live-reproduced
+- Completed: 2026-09-03
+- Verdict: **PASSED — CHECKPOINT A WORKING-TREE CAPABILITY**
+- Branch: `feature/v0.4-personal-continuity`
+- Implementation SHA: none; preserved V0.4 work remains uncommitted.
+
+### Result
+- The native settings drawer now places a persistent, default-off Sleep switch
+  before all other settings. The same private atomic mode-0600 config writer
+  preserves Sleep, Kokoro voice, speech speed, and unrelated settings across
+  process and host restarts.
+- Sleep is enforced below the UI. When enabled, the voice service is stopped;
+  a later service start reads the persisted flag, publishes `SLEEPING`, and
+  exits before opening the microphone or constructing the wake/STT stack.
+  Therefore the `Sentry` wake token cannot activate the assistant while asleep.
+- Targeted loop tests prove zero stream, wake detector, wake cue, Whisper, and
+  Codex activity under Sleep. A production on/off/restart cycle reproduced an
+  inactive voice service with `SLEEPING` status, then restored `LISTENING` after
+  disabling Sleep. Final production state is Sleep off, UI active, voice active.
+- Focused UI/voice/service validation passed 93/93; Python compilation and
+  `git diff --check` passed. No full V0.4 regression or release commit was run.
+
+## OUTCOME-SENTRY-V0.4-WAKE-CUE-AND-SPEAKER-CONTEXT-001 — Implemented checkpoint
+- Completed: 2026-09-03
+- Verdict: **PASSED IN AUTOMATION / LIVE WAKE AUDITION PENDING**
+- Branch: `feature/v0.4-personal-continuity`
+- Implementation SHA: none; preserved V0.4 work remains uncommitted.
+
+### Result
+- Restored the listener-owned cached wake sound to the original freedesktop
+  `message.oga` bubble-pop after the interim volume-change sample was rejected
+  as dunk-like. The UI audio path remains removed, so there is still exactly one
+  wake-cue owner and no intentional second chime.
+- Successful recognized speaker metadata now remains authoritative for the
+  remainder of an absolute two-hour window across listener/settings restarts
+  and Codex thread rotation. It is stored in a private mode-0600 runtime cache;
+  images, embeddings, transcripts, audio, and face crops are excluded.
+- Expired or profile-revision-mismatched state fails closed and is removed.
+  Unresolved, unknown, unavailable, and no-person results are not cached and
+  are rechecked on the next explicit wake. Conversation does not extend TTL.
+- Focused voice/identity/UI/service validation passed 110/110. Current operator
+  state remains Sleep on with UI active, voice inactive, and status `SLEEPING`;
+  therefore the restored bubble-pop has not yet received a new live audition.
+
+## OUTCOME-SENTRY-V0.4-SLEEP-WAKE-STATUS-HANDOFF-001 — Live-reproduced correction
+- Completed: 2026-09-03
+- Verdict: **PASSED — STALE SLEEP DISPLAY CORRECTED**
+- Branch: `feature/v0.4-personal-continuity`
+- Implementation SHA: none; preserved V0.4 work remains uncommitted.
+
+### Result
+- The operator disabled Sleep but the native UI continued to display
+  `Sleeping`. The private config already contained `sleep_enabled=false` and
+  systemd had started the voice process; the stale status persisted only while
+  local Vosk/Silero/Whisper prerequisites loaded for approximately 20 seconds.
+- Added an explicit metadata-only `STARTING` runtime state before voice-stack
+  initialization. The native UI also latches `Waking SENTRY…` immediately when
+  Sleep is disabled and releases it only after the listener publishes coherent
+  `LISTENING`, `sleep_enabled=false`, and `wake_enabled=true` state.
+- Exact focused tests pass 111/111. Installed restart evidence observed
+  `STARTING → LISTENING`; final production state is Sleep off, UI active, voice
+  active, and wake enabled. No voice preference or identity TTL was changed.
+
+## OUTCOME-SENTRY-V0.4-NOTION-SOT-RECONCILIATION-001 — Current-state synchronization
+- Completed: 2026-09-04
+- Verdict: **PASSED — NOTION UPDATED AND RE-FETCHED**
+- Branch: `feature/v0.4-personal-continuity`
+- Implementation SHA: none; runtime/source work remains an uncommitted V0.4 checkpoint.
+
+### Result
+- Reconciled the canonical `SENTRY` Notion page and active V0.4 directive with
+  the live Git tree, installed service state, private configuration, Authority
+  evidence, and operator-observed results.
+- Replaced the stale 2026-09-03 snapshot with a 2026-09-04 checkpoint covering
+  the current 30 tracked changes, 13 untracked source files, 111/111 focused
+  validation, identity TTL/retry policy, native GTK UI/service migration, orb
+  and spirit-vapor system, voice controls, wake cue, persistent Sleep/STARTING,
+  turn-taking, Fahrenheit weather, artifact context, and remaining release gates.
+- Corrected the active directive's stale restart/thread invalidation policy to
+  the current operator-approved absolute two-hour retention behavior and
+  recorded the in-window chevron as the current settings affordance.
+- Refetch verification passed for both pages. The current snapshot, exact dirty
+  inventory, 111/111 evidence, Sleep-on runtime state, canonical UI service,
+  two-hour restart policy, and not-yet-implemented Obsidian boundary were all
+  present; the stale checkpoint header and stale invalidation clause were absent.
+- No runtime code, service configuration, user content, or release status was
+  changed by this synchronization.
+
+## OUTCOME-SENTRY-V0.4-DESKTOP-LAUNCHER-001 — Implemented and live-reproduced
+- Completed: 2026-09-04
+- Verdict: **PASSED — CHECKPOINT A WORKING-TREE CAPABILITY**
+- Branch: `feature/v0.4-personal-continuity`
+- Implementation SHA: none; preserved V0.4 work remains uncommitted.
+
+### Result
+- Added an idempotent configured-runtime launcher behind the existing native
+  SENTRY application entry. It starts missing configured support, timer, UI,
+  voice, perception, and proactivity units and activates the existing
+  single-instance GTK application rather than creating a parallel process.
+- The user-service installer now writes both the application-menu entry and an
+  executable, GNOME-trusted `SENTRY.desktop` shortcut in the XDG desktop
+  directory. The installed shortcut has mode 0755 and trusted metadata.
+- Generated and integrated one original SENTRY-specific 512x512 RGBA icon.
+  Its dark glass orb and contained cyan/violet ethereal vapor match the native
+  app's accepted visual identity while remaining recognizable at launcher
+  size. Both installed entries resolve `Icon=sentry`; the prior generic
+  microphone icon was removed.
+- Explicit Sleep and resident opt-ins remain authoritative. In the current
+  Sleep-on production state, desktop launch opened/presented the UI and kept
+  `sentry-voice.service` inactive; it did not rewrite the mode-0600 config.
+- Live installed evidence passed for both already-running and stopped UI
+  cases. The first retained the same UI PID. The second changed the stopped
+  unit from inactive to active with one systemd-owned GTK process and one
+  registered `local.sentry.Control` application.
+- Focused voice/UI/service/launcher suites pass `116/116`.
+  `desktop-file-validate`, Python compilation, and `git diff --check` pass.
+  Full V0.4 regression, CI, commit, push, and release remain pending under the
+  active directive.
+
+## OUTCOME-SENTRY-V0.4-SETTINGS-DRAWER-DEFAULT-001 — Corrected and observed
+- Completed: 2026-09-04
+- Verdict: **PASSED — COLLAPSED LAUNCH STATE**
+- Branch: `feature/v0.4-personal-continuity`
+- Implementation SHA: none; preserved V0.4 work remains uncommitted.
+
+### Result
+- Every GTK application activation now closes the in-window settings revealer,
+  restores the inward chevron, and restores its open-settings tooltip before
+  presenting the window. This covers both a fresh process and activation of an
+  already-running SENTRY instance whose drawer was previously left open.
+- The installed `sentry-ui.service` was restarted without touching voice or
+  Sleep. A window-specific live capture showed the drawer absent and the main
+  orb/status surface centered with only the collapsed chevron visible.
+- Focused voice/UI/service/launcher validation passes `117/117`; Python
+  compilation and `git diff --check` pass. Full V0.4 regression and release
+  gates remain pending.

@@ -208,6 +208,40 @@ class ConversationOrchestrationTests(unittest.TestCase):
                 server.server_close()
                 thread.join(timeout=3)
 
+    def test_weather_tool_presents_current_nws_temperatures_in_fahrenheit(self):
+        response = {
+            "status": "fresh",
+            "snapshot": {
+                "fetched_at": "2026-09-03T01:00:00+00:00",
+                "current": {
+                    "observed_at": "2026-09-03T00:50:00+00:00",
+                    "temperature": {"value": 33, "unit": "wmoUnit:degC"},
+                    "apparent_temperature": {"value": 35, "unit": "wmoUnit:degC"},
+                    "wind_chill": None,
+                },
+                "hourly": [{
+                    "start": "2026-09-03T08:00:00-04:00",
+                    "end": "2026-09-03T09:00:00-04:00",
+                    "temperature": 76,
+                    "temperature_unit": "F",
+                    "short_forecast": "Sunny",
+                }],
+            },
+        }
+        host = ConversationToolHost(
+            base_url="http://127.0.0.1:48174",
+            get_json=lambda *_args, **_kwargs: response,
+        )
+        result = host.execute("get_weather", {"topic": "current"})
+        current = next(fact for fact in result["facts"] if fact["fact_id"] == "weather:current")
+        self.assertEqual(current["data"]["temperature"], {"value": 91.4, "unit": "degrees Fahrenheit"})
+        self.assertEqual(current["data"]["apparent_temperature"], {"value": 95.0, "unit": "degrees Fahrenheit"})
+        self.assertIsNone(current["data"]["wind_chill"])
+        forecast_result = host.execute("get_weather", {"topic": "forecast"})
+        forecast = next(fact for fact in forecast_result["facts"] if fact["fact_id"] == "weather:forecast:near-term")
+        self.assertEqual(forecast["data"]["periods"][0]["temperature_unit"], "degrees Fahrenheit")
+        self.assertEqual(response["snapshot"]["current"]["temperature"]["unit"], "wmoUnit:degC")
+
     def test_tool_host_mutation_result_reflects_persisted_state(self):
         with tempfile.TemporaryDirectory() as directory, PresenceStore(Path(directory) / "sentry.db") as store:
             server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)

@@ -11,9 +11,30 @@ from tools.sentry_codex_profile import constrain_generated_images, install, prof
 from tools.sentry_execution_authority import ExecutionAuthority
 from tools.sentry_execution_authority import RISK_TIERS
 from tools.sentry_mcp_server import mcp
+from tools.sentry_office_vision import inspect_wake_speaker_context
 
 
 class SentryMCPTests(unittest.IsolatedAsyncioTestCase):
+    def test_automatic_wake_identity_path_requests_metadata_only(self):
+        metadata = {
+            "observed_at": "2026-09-02T22:14:00+00:00",
+            "people": [],
+            "frames_persisted": False,
+        }
+        with patch("tools.sentry_office_vision.inspect_office_camera", return_value=(metadata, None)) as inspect:
+            result = inspect_wake_speaker_context(Path("config.json"), duration_seconds=3.0, completion_timeout_seconds=5.0)
+        inspect.assert_called_once_with(
+            Path("config.json"), duration_seconds=3.0,
+            include_image=False, completion_timeout_seconds=5.0,
+        )
+        self.assertFalse(result["image_shared_with_codex"])
+        self.assertFalse(result["frames_persisted"])
+
+    def test_automatic_wake_identity_rejects_unexpected_image_bytes(self):
+        with patch("tools.sentry_office_vision.inspect_office_camera", return_value=({}, b"jpeg")):
+            with self.assertRaises(RuntimeError):
+                inspect_wake_speaker_context(Path("config.json"))
+
     def test_profile_install_reads_private_memory_vault_from_local_config(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

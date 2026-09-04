@@ -1,24 +1,83 @@
 # Current Project State
 
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 
 ## Current stage
-V0.3.3 trusted-operator execution is qualified and released. One restricted
-resident profile, persistent Codex thread, dual-Vosk/sample-indexed command
-capture, host authority broker, exceptional natural pending-action dialogue,
-and private execution audit are committed. Exact local regression and GitHub
-Actions are green. Schema remains 9.
+V0.4 personal resident continuity is active on
+`feature/v0.4-personal-continuity`. The preserved uncommitted identity, native
+GTK UI, turn-taking, Fahrenheit, and persistent-artifact changes have been
+reconstructed and protected by a private source-only recovery snapshot.
+Checkpoint A must become independently releasable before Obsidian memory work.
+Schema remains 9.
 
 ## Current objective
-Return to Architect for the next bounded project decision. Do not infer that
-V0.3.2 turn-taking or durable Obsidian memory is qualified from V0.3.3.
+Deliver one qualified release in which SENTRY identifies the current speaker
+conservatively, sustains two wake-free follow-ups on the persistent Codex
+thread, and remembers only explicitly approved information through one private
+governed Obsidian vault.
 
 ## Active directive
-`SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001` is **QUALIFIED / COMPLETE**.
-Direct current-turn actions execute after host
-validation/audit without redundant confirmation. Explicit wait/ask/show/
-prepare-first wording or a genuinely unresolved material detail enters the
-separate deferred dialogue. No memory or V0.3.2 work is authorized here.
+`SENTRY-V0.4-PERSONAL-RESIDENT-CONTINUITY-001` is **IN PROGRESS**.
+Checkpoint A covers wake identity, multi-profile enrollment, the canonical
+native SENTRY UI, and persistent-thread turn-taking. Checkpoint B covers the
+sole authorized durable semantic-memory path: explicit governed Obsidian notes
+through host-owned MCP operations. Automatic memory extraction, embeddings,
+another personal-memory database, continuous perception, and proactivity are
+prohibited.
+
+## Native voice preferences — 2026-09-03
+- The in-window settings drawer now owns SENTRY's Kokoro voice preferences. It
+  exposes 28 validated English voices across British/American and male/female
+  profiles, a bounded 0.75x-1.30x speech-speed control, a transient local
+  preview, and explicit Save and apply behavior.
+- Saving atomically updates only `voice.kokoro_voice` and
+  `voice.kokoro_speed` in the private mode-0600 production config. If the
+  resident listener is active it is restarted to consume the new values;
+  alarms and proactive speech read the same canonical fields.
+- The native UI is lifecycle-independent from the listener. Voice startup still
+  requests the UI, but a listener reload preserves the UI PID, window ID,
+  settings drawer, and operator interaction state.
+- `bm_george` at 0.9x remains the repository default, not a mandatory runtime
+  lock. Unsupported voice identifiers and out-of-range speeds fail closed.
+- Wake acknowledgement audio is now owned by the resident listener at the
+  accepted Vosk event, not by the UI's later status-file observation. The
+  original freedesktop `message.oga` bubble-pop is decoded into the PipeWire
+  Pulse-compatible sample cache before the listener advertises `LISTENING`;
+  accepted wake handling requests that cached sample as its first side effect.
+  The interim `audio-volume-change.oga` cue was rejected by the operator as a
+  dunk-like sound and is no longer selected. The UI retains the matching visual
+  contraction/ring only, so it cannot produce a duplicate delayed chime.
+  Metadata records request success and wake-to-request latency without audio or
+  transcript content. Focused voice/identity/UI/service validation passes
+  110/110; the restored bubble-pop still requires one operator wake observation.
+- The settings drawer now begins with a persistent Sleep switch. Sleep defaults
+  to off. Enabling it atomically stores `voice.sleep_enabled=true` in the
+  private mode-0600 config and stops the resident voice service, so neither a
+  microphone stream nor Vosk wake process remains. A service/login restart
+  while that flag is true publishes `SLEEPING` and exits before loading the
+  wake stack. Disabling Sleep persists `false` and starts the listener. A live
+  on/off/restart cycle reproduced `inactive / SLEEPING / no voice or pw-record`
+  while enabled and restored `active / LISTENING` after disabling it. Voice and
+  speed saves share the same atomic writer and preserve Sleep. Disabling Sleep
+  originally left the old `SLEEPING` status visible for the approximately
+  20-second model initialization even though the setting had saved and the
+  service was starting. The launcher now publishes an explicit `STARTING`
+  record before loading the voice stack, and the UI locally latches `Waking
+  SENTRY…` until a coherent `LISTENING / sleep=false / wake=true` record
+  arrives. Installed-runtime proof observed `STARTING → LISTENING`; current
+  state is Sleep off with both UI and voice active.
+- A successful wake-triggered face recognition is retained as the current
+  speaker for an absolute two hours from its camera observation. Recognized
+  metadata is atomically cached at
+  `$XDG_RUNTIME_DIR/sentry/speaker-context.json` with mode 0600 so listener,
+  settings, and Codex-thread restarts do not force another camera check inside
+  that window. The cache contains only person/display identifiers, confidence,
+  timestamps, frame count, and profile revision: no frame, face crop,
+  embedding, transcript, or audio. It is not extended by conversation, is
+  invalidated by expiry or profile-catalog change, and disappears with the
+  user's runtime directory at logout/reboot. Unresolved, unknown, unavailable,
+  or no-person checks are never cached and are retried on the next explicit
+  wake.
 
 ## Trusted-operator execution checkpoint — 2026-09-02
 - A complete long Vosk-authorized request reached Whisper, the restricted
@@ -433,6 +492,64 @@ separate deferred dialogue. No memory or V0.3.2 work is authorized here.
 The asymmetric-evidence calibration found no qualifying operating band. Architect decision is required before any Phase 3 production change or further live marker; do not increase the 15-second grace, change the tracker, model-shop, or begin M2.
 
 This file is a mutable snapshot. Do not use it to erase historical outcomes or decisions.
+
+## Notion SOT reconciliation — 2026-09-04
+
+- Canonical Notion project page `SENTRY` and active directive
+  `SENTRY-V0.4-PERSONAL-RESIDENT-CONTINUITY-001` were updated and re-fetched.
+- The mutable Notion snapshot now records the exact live checkpoint: branch
+  `feature/v0.4-personal-continuity`, committed baseline `970d1cf5`, schema 9,
+  30 tracked changes, 13 untracked source files, approximately 1,361 additions
+  and 161 deletions, and no V0.4 implementation/records SHA or release.
+- Current focused evidence is 111/111 with compilation and `git diff --check`
+  passing. Full V0.4 regression, privacy/artifact scan, final live matrix, V0.4
+  CI, commit, push, and release remain outstanding.
+- Notion now reflects the complete recent identity, absolute two-hour speaker
+  context, retry-on-next-wake, native GTK UI, chevron settings overlay, orb and
+  spirit-vapor work, Kokoro voice/speed controls, wake cue, persistent Sleep,
+  STARTING-state correction, turn-taking, Fahrenheit weather, and artifact
+  context work without promoting the checkpoint to a qualified release.
+- The active directive's stale identity invalidation clause was corrected:
+  listener/settings restart and Codex thread rotation preserve a successful
+  recognition only for the remainder of its original two-hour TTL; profile
+  catalog changes, expiry, logout, and reboot invalidate it. Unresolved results
+  remain uncached and retry on the next eligible wake.
+- Current inspected runtime state at reconciliation: Sleep on; native UI
+  active; voice enabled but inactive; state API and weather/alarm/routine timers
+  active; perception/proactivity inactive; no microphone/Vosk/Whisper worker;
+  prior speaker cache expired; authorization record expired and non-actionable.
+- Obsidian remains the sole planned durable memory authority and is not
+  implemented. V0.3.3 at `970d1cf5` remains the latest qualified release.
+
+## Native desktop launcher — 2026-09-04
+
+- The V0.4 working tree now includes one idempotent native launch path at
+  `tools/sentry_launch.py`, reached by the SENTRY application-menu entry and a
+  trusted executable `SENTRY.desktop` shortcut installed on the operator's
+  desktop.
+- Both entries now use a purpose-built 512x512 RGBA SENTRY icon: a dark
+  translucent glass containment orb with a high-contrast living cyan/violet
+  vapor core. The generic microphone icon is no longer used. The source asset
+  lives under `deploy/icons/hicolor/512x512/apps/` and is installed into the
+  user's standard local hicolor application-icon path.
+- A launch starts any missing configured state API, routine/alarm/weather
+  timer, native UI, voice, continuous-perception, and continuous-proactivity
+  units, then activates the existing single-instance GTK application so a
+  second click brings the window forward rather than creating a second UI.
+- The launcher preserves explicit policy. Sleep leaves microphone/wake
+  listening off; disabled weather, alarm, voice, continuous perception, or
+  continuous proactivity units are not started. Clicking the icon never
+  rewrites the private config or weakens those opt-ins.
+- Focused V0.4 voice/UI/service/launcher validation passes `116/116`.
+  `desktop-file-validate`, Python compilation, and `git diff --check` pass.
+  Installed live proof covered both paths: an already-active UI retained its
+  PID, while a stopped UI relaunched under `sentry-ui.service` as exactly one
+  GTK process. Current Sleep-on state was preserved with voice inactive.
+- Every application activation now explicitly restores the settings drawer to
+  its collapsed state before presenting the window. A post-restart native
+  window capture showed only the centered orb, status, and inward chevron;
+  settings remained hidden until requested. Focused validation is now
+  `117/117`.
 
 ## Superseding current snapshot — V0.3 Vosk wake integration, unqualified
 

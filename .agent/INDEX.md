@@ -7,9 +7,11 @@
 - GitHub: https://github.com/SketchOTP/SENTRY
 
 ## Current pointers
-- Current stage: V0.3.3 trusted-operator execution is qualified and released.
-- Active directive: `SENTRY-V0.3.3-NATURAL-ACTION-HANDOFF-001` — **QUALIFIED / COMPLETE**.
-- Active task packet: `.agent/tasks/active/SENTRY-V0.3.3-CODEX-EXECUTION-AUTHORITY-001/`.
+- Current stage: V0.4 personal resident continuity is active on a preserved
+  feature branch. Checkpoint A consolidates wake identity, native GTK UI, and
+  persistent-thread turn-taking before governed Obsidian memory begins.
+- Active directive: `SENTRY-V0.4-PERSONAL-RESIDENT-CONTINUITY-001` — **IN PROGRESS**.
+- Active task packet: `.agent/tasks/active/SENTRY-V0.4-PERSONAL-RESIDENT-CONTINUITY-001/`.
 - Last accepted outcome: V0.3.3 trusted-operator execution authority at
   implementation `67b7cd51083230e25da61a7eaaa295f8a6f98c68`, with CI
   reproducibility correction `70755b11e7066ac876c7ed5d027e09a2cb2cf0eb`.
@@ -21,7 +23,8 @@
   remains regression-covered. Affected suites pass 198/198, security/profile
   suites 45/45, complete exact-code regression 334/334, and GitHub Actions run
   33699907202 passed both declared jobs.
-- Last state sync: 2026-09-02. Notion was updated and re-fetched. The restricted
+- Last state sync: 2026-09-03. The V0.4 Architect directive was fetched from its
+  canonical Notion child page. The restricted
   voice/status, state API, weather, alarms, and routine services are active;
   perception and proactive services are disabled/inactive.
 

@@ -15,7 +15,7 @@
 ## Technical profile
 - Language: Python 3.12 runtime for the local M1 slice.
 - Frameworks: no application framework; OpenCV provides local V4L2 capture/frame handling and OpenVINO provides local 0202 inference.
-- Major dependencies: `opencv-python-headless==4.12.0.88`, `openvino==2026.3.1`, `psutil==7.0.0`, `mcp==2.1.1`; the committed V0.3 implementation additionally uses local `vosk==0.3.45` for the operator-selected wake token `Sentry` and local Kokoro `0.9.4` with British-male voice `bm_george`.
+- Major dependencies: `opencv-python-headless==4.12.0.88`, `openvino==2026.3.1`, `psutil==7.0.0`, `mcp==2.1.1`; the committed V0.3 implementation additionally uses local `vosk==0.3.45` for the operator-selected wake token `Sentry` and local Kokoro `0.9.4`. The repository default is British-male `bm_george`; the active V0.4 native UI candidate allows a validated English Kokoro voice and bounded speech-speed preference.
 - Test command: `python -m unittest discover -s tests -v`.
 - Runtime environment: Ubuntu Linux x86_64 host on the canonical Atlas share. The Linux NexiGo N60 V4L2 path and pinned local runtime are established; M1 practical presence, M2/M3, M4, M5, M6, and the V0.2 resident runtime are accepted within recorded boundaries.
 

@@ -40,7 +40,8 @@ def _label(payload: dict) -> str:
         "SPEAKING": "SENTRY is speaking — microphone commands are paused.",
         "DISABLED": "Listener is stopped.",
     }.get(str(state), "Voice status is unavailable.")
-    return f"SENTRY VOICE — {state}\n{guidance}" + (f"\n{error}" if error else "")
+    identity = "\nChecking who is speaking…" if payload.get("speaker_context_preflight_active") else ""
+    return f"SENTRY VOICE — {state}\n{guidance}{identity}" + (f"\n{error}" if error else "")
 
 
 def _active_window_geometry() -> tuple[int, int, int, int] | None:

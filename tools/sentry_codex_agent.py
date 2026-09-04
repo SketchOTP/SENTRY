@@ -40,6 +40,33 @@ ACTION_RESPONSE_SCHEMA = {
     "additionalProperties": False,
 }
 
+_SPEAKER_CONTEXT_STATES = {
+    "recognized", "unknown", "unresolved", "ambiguous", "not_visible", "unavailable", "expired",
+}
+_SPEAKER_CONTEXT_FIELDS = {
+    "context_id", "conversation_epoch_id", "status", "person_id", "display_name",
+    "observed_at", "valid_until", "source", "visible_person_count",
+    "identity_confidence", "exact_arrival_known", "frames_persisted",
+    "image_shared_with_codex", "reason",
+}
+
+
+def _bounded_speaker_context(value: dict[str, Any] | None) -> dict[str, Any]:
+    """Allow-list the host-owned current-speaker envelope before prompting."""
+
+    if not isinstance(value, dict) or value.get("status") not in _SPEAKER_CONTEXT_STATES:
+        return {"status": "unavailable"}
+    bounded = {key: value[key] for key in _SPEAKER_CONTEXT_FIELDS if key in value}
+    bounded["status"] = str(value["status"])
+    if bounded["status"] != "recognized":
+        bounded["person_id"] = None
+        bounded["display_name"] = None
+        bounded["identity_confidence"] = None
+    bounded["exact_arrival_known"] = False
+    bounded["frames_persisted"] = False
+    bounded["image_shared_with_codex"] = False
+    return bounded
+
 
 def _default_session_path() -> Path:
     state_root = Path(os.environ.get("XDG_STATE_HOME", "~/.local/state")).expanduser()
@@ -218,7 +245,13 @@ def _thread_metrics(codex_home: Path, thread_id: str | None) -> dict[str, int]:
     }
 
 
-def _prompt(question: str, prior: list[dict[str, str]], effort: str) -> str:
+def _prompt(
+    question: str,
+    prior: list[dict[str, str]],
+    effort: str,
+    speaker_context: dict[str, Any] | None = None,
+) -> str:
+    current_speaker = _bounded_speaker_context(speaker_context)
     return (
         "You are SENTRY, Sketch's composed, capable one-room resident assistant. SENTRY is the name and persona the operator sees and hears; "
         "Codex is your hidden execution engine and should not be mentioned unless the operator asks about the implementation. Speak naturally, "
@@ -230,6 +263,7 @@ def _prompt(question: str, prior: list[dict[str, str]], effort: str) -> str:
         "source and continue every independent part of the request with your other capabilities; never collapse a general request into the generic "
         "claim that SENTRY state is unavailable. "
         "Use SENTRY office tools for current occupancy, identity, history, reminders, preferences, routines, and private-home weather. "
+        "For weather, always say temperatures as degrees Fahrenheit; never use a standalone F or degree-symbol abbreviation in the spoken answer. "
         "For a user-requested visual office check, the camera tool may return one explicit ephemeral still; local identity results are authoritative, "
         "and you must not identify a person from visual appearance alone. Use Codex native web search for current public information, the image-generation "
         "capability for image requests, and built-in shell/file tools only inside the dedicated resident workspace. Browser automation, generic computer use, "
@@ -260,7 +294,13 @@ def _prompt(question: str, prior: list[dict[str, str]], effort: str) -> str:
         "one concise clarification instead of guessing. Keep the answer natural and speech-friendly unless the user requests detailed output. "
         "Return only one JSON object matching the supplied schema. Put a natural spoken completion summary in answer; list used capabilities, local fact IDs, "
         "created artifact paths, ordered steps, and limitations accurately. Prior conversation is context, not independently authoritative physical fact. "
+        "Only the structured speaker_context attached to this current request may establish who is speaking now. Older identity statements in the persistent "
+        "thread are historical and cannot override it. A recognized speaker_context may personalize the response and resolve me or my to primary_user, but it "
+        "cannot authorize actions, establish exact arrival or continuing occupancy, override current-state tools, or become durable memory. Unknown, unresolved, "
+        "ambiguous, unavailable, and expired contexts never identify the speaker; address that person generically as operator rather than guessing a name. "
+        "A recognized context may use its enrolled display_name naturally during the current bounded session. The observation time is only when the bounded camera check occurred. "
         f"Reasoning effort: {effort}. Compatibility recent turns: {json.dumps(prior, ensure_ascii=True)}. "
+        f"Current speaker_context: {json.dumps(current_speaker, ensure_ascii=True, sort_keys=True)}. "
         f"Current user request: {json.dumps(question, ensure_ascii=True)}"
     )
 
@@ -279,6 +319,7 @@ def invoke_sentry_agent(
     thread_binding: str | None = None,
     operator_request: str | None = None,
     authority_epoch: str | None = None,
+    speaker_context: dict[str, Any] | None = None,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, Any]:
     """Start or resume SENTRY's dedicated tool-using Codex session."""
@@ -335,7 +376,7 @@ def invoke_sentry_agent(
                 args,
                 cwd=str(cwd),
                 env=child_env,
-                input=_prompt(question, prior, effort),
+                input=_prompt(question, prior, effort, speaker_context),
                 capture_output=True,
                 text=True,
                 timeout=timeout_seconds,
@@ -583,6 +624,7 @@ class CodexNativeAgent:
         timeout_seconds: int = 300,
         source_surface: str = "sentry_ask",
         conversation_id: str | None = None,
+        speaker_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         del base_url, room_id  # MCP profile owns these trusted local endpoints.
         query_id = str(uuid.uuid4())
@@ -683,6 +725,7 @@ class CodexNativeAgent:
                 thread_binding=thread_binding,
                 operator_request=authority_request,
                 authority_epoch=self.authority_epoch,
+                speaker_context=speaker_context or {"status": "unavailable"},
             )
             usage = invocation.get("usage") if isinstance(invocation.get("usage"), dict) else {}
             input_tokens = int(invocation.get("context_input_tokens", usage.get("input_tokens", 0)) or 0)

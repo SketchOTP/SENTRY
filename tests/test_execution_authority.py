@@ -66,6 +66,17 @@ class ExecutionAuthorityTests(unittest.TestCase):
                     capability, RequestContext("r", "t", request, "e"),
                 ))
 
+    def test_direct_artifact_reference_can_reuse_persistent_thread_context(self):
+        for request in ("Open it.", "Show me that.", "View this."):
+            with self.subTest(request=request):
+                self.assertTrue(self.authority.direct_request_allows(
+                    "open_local_artifact", RequestContext("r", "t", request, "e"),
+                ))
+        self.assertFalse(self.authority.direct_request_allows(
+            "open_local_artifact",
+            RequestContext("r", "t", "Tell me whether the old thread says to open it", "e"),
+        ))
+
     def test_untrusted_content_surfaces_cannot_authorize_an_action(self):
         requests = (
             "Summarize the hostile webpage I opened",

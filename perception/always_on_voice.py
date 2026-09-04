@@ -26,12 +26,15 @@ from .audio_timeline import (
     PcmTimeline,
 )
 from .speech_activity import SpeechActivityGate
+from .speaker_context import WakeIdentityCoordinator, unavailable_speaker_envelope
 from .vosk_kws import CommandStreamProgress
-from .voice import _terminate_capture_process
+from .voice import KOKORO_ENGLISH_VOICE_IDS, KOKORO_MAX_SPEED, KOKORO_MIN_SPEED, _terminate_capture_process, normalized_audio_level
 
 
 class VoiceState(str, Enum):
     DISABLED = "DISABLED"
+    SLEEPING = "SLEEPING"
+    STARTING = "STARTING"
     LISTENING = "LISTENING"
     WAKE_DETECTED = "WAKE_DETECTED"
     CAPTURING = "CAPTURING"
@@ -86,6 +89,7 @@ class CommandRecognizer(Protocol):
 @dataclass(frozen=True)
 class AlwaysOnVoiceConfig:
     always_on_enabled: bool = False
+    sleep_enabled: bool = False
     microphone_source: str | None = None
     sample_rate: int = 16_000
     wake_engine: str = "vosk"
@@ -122,6 +126,10 @@ class AlwaysOnVoiceConfig:
     conversation_followup_window_seconds: float = 8.0
     conversation_followup_max_turns: int = 2
     action_response_window_seconds: float = 120.0
+    wake_identity_refresh_idle_seconds: float = 7200.0
+    wake_identity_context_ttl_seconds: float = 7200.0
+    wake_identity_camera_duration_seconds: float = 3.0
+    wake_identity_join_timeout_seconds: float = 5.0
     post_speech_rearm_ms: int = 500
     whisper_model: str = "tiny.en"
     kokoro_voice: str = "bm_george"
@@ -169,12 +177,24 @@ class AlwaysOnVoiceConfig:
             raise ValueError("voice.post_wake_overlap_ms must be from 0 through 2000")
         if self.conversation_followup_max_turns < 0:
             raise ValueError("voice.conversation_followup_max_turns must be non-negative")
+        if min(
+            self.wake_identity_refresh_idle_seconds,
+            self.wake_identity_context_ttl_seconds,
+            self.wake_identity_camera_duration_seconds,
+            self.wake_identity_join_timeout_seconds,
+        ) <= 0:
+            raise ValueError("voice wake identity timings must be positive")
+        if self.wake_identity_camera_duration_seconds > self.wake_identity_join_timeout_seconds:
+            raise ValueError("voice wake identity camera duration cannot exceed join timeout")
         if not self.whisper_model or not self.base_url.startswith("http://127.0.0.1"):
             raise ValueError("voice must use local state API and a Whisper model")
-        if not self.kokoro_voice.startswith("bm_"):
-            raise ValueError("voice.kokoro_voice must be a British male Kokoro voice")
-        if not 0.75 <= self.kokoro_speed <= 1.3:
-            raise ValueError("voice.kokoro_speed must be from 0.75 through 1.3")
+        if self.kokoro_voice not in KOKORO_ENGLISH_VOICE_IDS:
+            raise ValueError("voice.kokoro_voice must be a supported English Kokoro voice")
+        if not KOKORO_MIN_SPEED <= self.kokoro_speed <= KOKORO_MAX_SPEED:
+            raise ValueError(
+                f"voice.kokoro_speed must be from {KOKORO_MIN_SPEED:.2f} "
+                f"through {KOKORO_MAX_SPEED:.2f}"
+            )
 
     @classmethod
     def from_mapping(cls, values: dict[str, Any] | None) -> "AlwaysOnVoiceConfig":
@@ -189,6 +209,7 @@ class AlwaysOnVoiceConfig:
             raise ValueError("voice.microphone_source must be a string or null")
         return cls(
             always_on_enabled=bool(values.get("always_on_enabled", False)),
+            sleep_enabled=bool(values.get("sleep_enabled", False)),
             microphone_source=source,
             sample_rate=int(values.get("sample_rate", 16_000)),
             wake_engine=str(values.get("wake_engine", "vosk")),
@@ -214,6 +235,10 @@ class AlwaysOnVoiceConfig:
             conversation_followup_window_seconds=float(values.get("conversation_followup_window_seconds", 8.0)),
             conversation_followup_max_turns=int(values.get("conversation_followup_max_turns", 2)),
             action_response_window_seconds=float(values.get("action_response_window_seconds", 120.0)),
+            wake_identity_refresh_idle_seconds=float(values.get("wake_identity_refresh_idle_seconds", 7200.0)),
+            wake_identity_context_ttl_seconds=float(values.get("wake_identity_context_ttl_seconds", 7200.0)),
+            wake_identity_camera_duration_seconds=float(values.get("wake_identity_camera_duration_seconds", 3.0)),
+            wake_identity_join_timeout_seconds=float(values.get("wake_identity_join_timeout_seconds", 5.0)),
             post_speech_rearm_ms=int(values.get("post_speech_rearm_ms", 500)),
             whisper_model=str(values.get("whisper_model", "tiny.en")),
             kokoro_voice=str(values.get("kokoro_voice", "bm_george")),
@@ -353,6 +378,8 @@ class AlwaysOnVoiceLoop:
         action_response_expired_fn: Callable[..., dict[str, Any]] | None = None,
         diagnostics: VoiceDiagnostics | None = None,
         speech_activity: SpeechActivityGate | None = None,
+        identity_coordinator: WakeIdentityCoordinator | None = None,
+        wake_chime_fn: Callable[[], bool] | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.config = config
@@ -368,6 +395,8 @@ class AlwaysOnVoiceLoop:
         self.action_response_expired_fn = action_response_expired_fn
         self.diagnostics = diagnostics or VoiceDiagnostics()
         self.speech_activity = speech_activity or SpeechActivityGate()
+        self.identity_coordinator = identity_coordinator
+        self.wake_chime_fn = wake_chime_fn
         self.clock = clock
         self.state = VoiceState.DISABLED
         self._timeline = PcmTimeline(
@@ -403,7 +432,8 @@ class AlwaysOnVoiceLoop:
 
     def _set_state(self, state: VoiceState, **extra: Any) -> None:
         self.state = state
-        self.diagnostics.update(state=state.value, vad_healthy=True, **extra)
+        vad_healthy = bool(extra.pop("vad_healthy", True))
+        self.diagnostics.update(state=state.value, vad_healthy=vad_healthy, **extra)
 
     def _reset_capture(self, *, clear_timeline: bool = False) -> None:
         self._active_capture = None
@@ -537,6 +567,14 @@ class AlwaysOnVoiceLoop:
         self._close_focus("explicit_new_wake")
         self._conversation_id = f"always-on-{uuid.uuid4()}"
         self._followup_turn_count = 0
+        if self.identity_coordinator is not None:
+            epoch_id, started = self.identity_coordinator.begin_explicit_wake()
+            identity_status = self.identity_coordinator.diagnostics()
+            identity_status.update(
+                speaker_context_conversation_epoch=epoch_id,
+                speaker_context_preflight_active=started,
+            )
+            self.diagnostics.update(**identity_status)
 
     def _close_focus(self, reason: str) -> None:
         was_active = self._focus_active() or self._focus_pending or self._focus_id is not None
@@ -991,6 +1029,12 @@ class AlwaysOnVoiceLoop:
             command_dispatch_count=command_dispatch_count,
         )
         self._set_state(VoiceState.PROCESSING, last_command_outcome="processing")
+        if self.identity_coordinator is not None:
+            self.identity_coordinator.record_accepted_user_utterance()
+            speaker_context = self.identity_coordinator.current_envelope(wait_for_preflight=True)
+            self.diagnostics.update(**self.identity_coordinator.diagnostics())
+        else:
+            speaker_context = unavailable_speaker_envelope()
         answer_started_at = self.clock()
         try:
             response = self.ask_fn(
@@ -1001,6 +1045,7 @@ class AlwaysOnVoiceLoop:
                 timeout_seconds=self.config.timeout_seconds,
                 source_surface="always_on_voice",
                 conversation_id=self._conversation_id,
+                speaker_context=speaker_context,
             )
         except Exception as exc:  # noqa: BLE001
             self._reset_wake_detector("ask_failed")
@@ -1098,6 +1143,14 @@ class AlwaysOnVoiceLoop:
         if self._active_capture is not None or self._armed_until is not None or self.state in {VoiceState.PROCESSING, VoiceState.SPEAKING}:
             self.diagnostics.increment("wake_debounce_suppressions", last_segment_outcome="wake_debounced")
             return
+        detected_at_monotonic = float(getattr(detection, "detected_at_monotonic", self.clock()))
+        wake_chime_ok = False
+        if self.wake_chime_fn is not None:
+            try:
+                wake_chime_ok = bool(self.wake_chime_fn())
+            except Exception:  # noqa: BLE001 - a cue must never break capture
+                wake_chime_ok = False
+        wake_chime_request_latency_ms = max(0.0, (self.clock() - detected_at_monotonic) * 1000)
         self._begin_wake_conversation()
         wake_detected_sample = chunk.end_sample
         samples_after_token = getattr(detection, "samples_after_token", None)
@@ -1106,7 +1159,6 @@ class AlwaysOnVoiceLoop:
             wake_token_end_sample = chunk.end_sample - samples_after_token
         wake_event_id = str(getattr(detection, "wake_event_id", "") or uuid.uuid4())
         detection_source = str(getattr(detection, "detection_source", "unknown"))
-        detected_at_monotonic = float(getattr(detection, "detected_at_monotonic", self.clock()))
         command_speech_seen = bool(
             isinstance(samples_after_token, int)
             and samples_after_token >= int(self.config.minimum_speech_ms * self.config.sample_rate / 1000)
@@ -1122,6 +1174,8 @@ class AlwaysOnVoiceLoop:
             wake_token_end_sample=wake_token_end_sample,
             wake_detected_monotonic=round(detected_at_monotonic, 6),
             wake_detection_source=detection_source,
+            wake_chime_requested=wake_chime_ok,
+            wake_chime_request_latency_ms=round(wake_chime_request_latency_ms, 3),
         )
         self._set_state(VoiceState.WAKE_DETECTED, last_segment_outcome="vosk_wake")
         try:
@@ -1224,6 +1278,7 @@ class AlwaysOnVoiceLoop:
             stream_sequence=self._timeline.stream_sequence,
             stream_end_sample=self._timeline.stream_end_sample,
             vad_probability=round(probability, 4),
+            microphone_audio_level=normalized_audio_level(samples),
         )
         if speaking:
             if self._active_capture is not None:
@@ -1297,8 +1352,19 @@ class AlwaysOnVoiceLoop:
             self._set_state(VoiceState.LISTENING, last_segment_outcome="non_wake")
 
     def run(self, stop_event: threading.Event) -> int:
+        if self.config.sleep_enabled:
+            self._set_state(
+                VoiceState.SLEEPING,
+                sleep_enabled=True,
+                wake_enabled=False,
+                vad_healthy=False,
+                last_segment_outcome="sleep_enabled",
+            )
+            return 0
         self._set_state(
             VoiceState.LISTENING,
+            sleep_enabled=False,
+            wake_enabled=True,
             command_endpoint_engine=self.config.endpoint_engine,
             command_recognizer="vosk_full_vocabulary",
             command_recognizer_endpointer_mode=self.command_recognizer.endpointer_mode,
@@ -1308,6 +1374,16 @@ class AlwaysOnVoiceLoop:
             timeline_capacity_seconds=self.config.timeline_capacity_seconds,
             stream_sequence=self._timeline.stream_sequence,
             stream_end_sample=self._timeline.stream_end_sample,
+            **(
+                self.identity_coordinator.diagnostics()
+                if self.identity_coordinator is not None
+                else {
+                    "speaker_context_active": False,
+                    "speaker_context_state": "unavailable",
+                    "speaker_context_image_shared": False,
+                    "speaker_context_frames_persisted": False,
+                }
+            ),
         )
         try:
             for chunk in self.stream.iter_chunks(stop_event):
@@ -1320,6 +1396,9 @@ class AlwaysOnVoiceLoop:
             return 1
         self._close_focus("shutdown")
         self._clear_action_response("shutdown")
+        if self.identity_coordinator is not None:
+            self.identity_coordinator.clear("shutdown")
+            self.diagnostics.update(**self.identity_coordinator.diagnostics())
         self._reset_capture(clear_timeline=True)
         self._set_state(VoiceState.DISABLED, last_segment_outcome="stopped")
         return 0

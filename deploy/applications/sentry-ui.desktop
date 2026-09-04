@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=SENTRY
+Comment=Launch SENTRY resident intelligence
+Exec=/srv/ATLAS/100_ACTIVE/Projects/SENTRY/tools/sentry_open_identity_ui.sh
+Icon=sentry
+Terminal=false
+Categories=Utility;
+StartupNotify=true

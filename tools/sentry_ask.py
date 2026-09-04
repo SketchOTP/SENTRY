@@ -287,6 +287,7 @@ def ask(
     timeout_seconds: int = 120,
     source_surface: str = "sentry_ask",
     conversation_id: str | None = None,
+    speaker_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return _AGENT.ask(
         question,
@@ -296,6 +297,7 @@ def ask(
         timeout_seconds=timeout_seconds,
         source_surface=source_surface,
         conversation_id=conversation_id,
+        speaker_context=speaker_context,
     )
 
 

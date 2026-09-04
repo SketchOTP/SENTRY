@@ -625,3 +625,22 @@ Append new directives at the bottom. Never rewrite an accepted historical direct
   regression 334/334; GitHub Actions run 33699907202 green. Direct live action
   proof passed. Deferred-dialogue live drills were owner-waived and remain
   automated, fail-closed evidence only.
+
+## SENTRY-V0.4-PERSONAL-RESIDENT-CONTINUITY-001 — Personal resident continuity
+- Issued: 2026-09-03
+- Status: **IN PROGRESS**.
+- Starting SHA: `970d1cf5f4df749d5d0844a19d5d392012ced910`.
+- Objective: consolidate and release wake-scoped multi-profile identity, the
+  native GTK SENTRY application, two-turn persistent-thread conversation, and
+  explicit governed Obsidian-only durable personal memory as one coherent
+  capability.
+- Checkpoint policy: identity/UI/turn-taking must be qualified, committed,
+  pushed, CI-green, and recorded before memory implementation can hold the
+  milestone. A genuine memory blocker returns a releasable Checkpoint A.
+- Memory boundary: Obsidian Markdown is the sole semantic-memory authority;
+  host-owned MCP operations alone may mutate it. No automatic extraction,
+  transcript mining, embeddings, vector database, Notion memory, Codex-native
+  memory, second personal-memory database, continuous perception, or schema
+  migration is authorized.
+- Source: Architect realignment and canonical Notion child page supplied and
+  fetched 2026-09-03.

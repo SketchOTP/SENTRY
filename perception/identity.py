@@ -310,6 +310,123 @@ class IdentityResolver:
         return result
 
 
+class MultiProfileIdentityResolver(IdentityResolver):
+    """Conservatively resolve visible tracks against several enrolled profiles."""
+
+    def __init__(
+        self,
+        backend: OpenCVFaceBackend,
+        *,
+        confirmation_count: int = 3,
+        confirmation_window_seconds: float = 2.0,
+        profile_provider: Callable[[], list[dict[str, Any]]] | None = None,
+        minimum_separation: float = 0.05,
+    ) -> None:
+        super().__init__(
+            backend,
+            confirmation_count=confirmation_count,
+            confirmation_window_seconds=confirmation_window_seconds,
+        )
+        if not 0 <= minimum_separation <= 1:
+            raise ValueError("identity minimum profile separation must be between 0 and 1")
+        self.profiles_provider = profile_provider
+        self.minimum_separation = minimum_separation
+        self._profile_pending: dict[tuple[int, str], _PendingMatch] = {}
+
+    def _profiles(self) -> list[dict[str, Any]]:
+        values = self.profiles_provider() if self.profiles_provider else []
+        if not isinstance(values, list):
+            raise RuntimeError("identity profile provider must return a list")
+        return [value for value in values if isinstance(value, dict)]
+
+    def resolve(self, image: Any, people: list[dict[str, Any]], evaluated_at: datetime) -> list[dict[str, Any]]:
+        now = self._utc(evaluated_at)
+        result = self._unresolved(people)
+        profiles = self._profiles()
+        if not people or not profiles:
+            return result
+        faces = self.backend.detect_faces(image)
+        for index, person in enumerate(people):
+            if not person.get("visible", True):
+                continue
+            matches = [face for face in faces if self._inside(face, person)]
+            if len(matches) != 1:
+                continue
+            extracted = self.backend.accepted_embedding(image, matches[0])
+            if extracted is None:
+                continue
+            query, quality = extracted
+            scores: list[tuple[float, float, dict[str, Any]]] = []
+            try:
+                for profile in profiles:
+                    threshold = float(profile.get("calibrated_threshold", self.match_threshold))
+                    if not 0 <= threshold <= 1:
+                        raise RuntimeError("stored identity threshold is invalid")
+                    score = float(self.backend.recognizer.match(
+                        query, profile["prototype"], self.backend._cv2.FaceRecognizerSF_FR_COSINE,
+                    ))
+                    scores.append((score, threshold, profile))
+            except Exception as exc:
+                raise RuntimeError(f"SFace similarity comparison failed: {exc}") from exc
+            scores.sort(key=lambda item: item[0], reverse=True)
+            top_score, threshold, top_profile = scores[0]
+            second_score, second_threshold, _second_profile = (
+                scores[1] if len(scores) > 1 else (-1.0, 1.0, {})
+            )
+            track_id = int(person.get("track_id", -1))
+            if top_score < threshold:
+                self._profile_pending = {
+                    key: pending for key, pending in self._profile_pending.items() if key[0] != track_id
+                }
+                result[index].update({
+                    "identity_state": "unknown",
+                    "identity_confidence": round(max(0.0, min(1.0, top_score)), 4),
+                    "face_quality": quality,
+                })
+                continue
+            if second_score >= second_threshold and top_score - second_score < self.minimum_separation:
+                self._profile_pending = {
+                    key: pending for key, pending in self._profile_pending.items() if key[0] != track_id
+                }
+                result[index].update({
+                    "identity_state": "unresolved",
+                    "identity_confidence": round(max(0.0, min(1.0, top_score)), 4),
+                    "face_quality": quality,
+                })
+                continue
+            person_id = str(top_profile.get("person_id") or "")
+            if not person_id:
+                raise RuntimeError("stored identity profile is missing person_id")
+            key = (track_id, person_id)
+            pending = self._profile_pending.get(key)
+            if pending is None or (now - pending.last_at).total_seconds() > self.confirmation_window_seconds:
+                pending = _PendingMatch(now, now, 1)
+            else:
+                pending.last_at = now
+                pending.count += 1
+            self._profile_pending = {
+                other_key: other_pending
+                for other_key, other_pending in self._profile_pending.items()
+                if other_key[0] != track_id or other_key == key
+            }
+            self._profile_pending[key] = pending
+            if pending.count >= self.confirmation_count:
+                result[index].update({
+                    "person_id": person_id,
+                    "display_name": str(top_profile.get("display_name") or person_id),
+                    "identity_state": "recognized",
+                    "identity_confidence": round(max(0.0, min(1.0, top_score)), 4),
+                    "face_quality": quality,
+                })
+            else:
+                result[index].update({
+                    "identity_state": "unresolved",
+                    "identity_confidence": round(max(0.0, min(1.0, top_score)), 4),
+                    "face_quality": quality,
+                })
+        return result
+
+
 def identity_config_from_mapping(values: dict[str, Any] | None) -> dict[str, Any]:
     values = values or {}
     if not isinstance(values, dict):
@@ -318,12 +435,15 @@ def identity_config_from_mapping(values: dict[str, Any] | None) -> dict[str, Any
     result["enabled"] = bool(values.get("enabled", False))
     result["cadence_seconds"] = float(values.get("cadence_seconds", 0.5))
     result["match_threshold"] = float(values.get("match_threshold", 0.45))
+    result["minimum_profile_separation"] = float(values.get("minimum_profile_separation", 0.05))
     result["confirmation_count"] = int(values.get("confirmation_count", 3))
     result["confirmation_window_seconds"] = float(values.get("confirmation_window_seconds", 2.0))
     if result["cadence_seconds"] <= 0 or result["confirmation_count"] <= 0 or result["confirmation_window_seconds"] <= 0:
         raise ValueError("identity cadence and confirmation settings must be positive")
     if not 0 <= result["match_threshold"] <= 1:
         raise ValueError("identity.match_threshold must be between 0 and 1")
+    if not 0 <= result["minimum_profile_separation"] <= 1:
+        raise ValueError("identity.minimum_profile_separation must be between 0 and 1")
     FaceQualityConfig.from_mapping(values.get("quality"))
     if result["enabled"] and (not values.get("yunet_model") or not values.get("sface_model")):
         raise ValueError("enabled identity requires identity.yunet_model and identity.sface_model")

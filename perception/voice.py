@@ -29,6 +29,41 @@ import numpy as np
 from .speech_activity import SpeechActivityGate
 
 
+KOKORO_ENGLISH_VOICES: tuple[tuple[str, str], ...] = (
+    ("bm_george", "British male — George"),
+    ("bm_daniel", "British male — Daniel"),
+    ("bm_fable", "British male — Fable"),
+    ("bm_lewis", "British male — Lewis"),
+    ("bf_alice", "British female — Alice"),
+    ("bf_emma", "British female — Emma"),
+    ("bf_isabella", "British female — Isabella"),
+    ("bf_lily", "British female — Lily"),
+    ("am_adam", "American male — Adam"),
+    ("am_echo", "American male — Echo"),
+    ("am_eric", "American male — Eric"),
+    ("am_fenrir", "American male — Fenrir"),
+    ("am_liam", "American male — Liam"),
+    ("am_michael", "American male — Michael"),
+    ("am_onyx", "American male — Onyx"),
+    ("am_puck", "American male — Puck"),
+    ("am_santa", "American male — Santa"),
+    ("af_heart", "American female — Heart"),
+    ("af_alloy", "American female — Alloy"),
+    ("af_aoede", "American female — Aoede"),
+    ("af_bella", "American female — Bella"),
+    ("af_jessica", "American female — Jessica"),
+    ("af_kore", "American female — Kore"),
+    ("af_nicole", "American female — Nicole"),
+    ("af_nova", "American female — Nova"),
+    ("af_river", "American female — River"),
+    ("af_sarah", "American female — Sarah"),
+    ("af_sky", "American female — Sky"),
+)
+KOKORO_ENGLISH_VOICE_IDS = frozenset(identifier for identifier, _label in KOKORO_ENGLISH_VOICES)
+KOKORO_MIN_SPEED = 0.75
+KOKORO_MAX_SPEED = 1.30
+
+
 class AudioRecorder(Protocol):
     def record(self, duration_seconds: float) -> np.ndarray: ...
 
@@ -39,6 +74,90 @@ class Transcriber(Protocol):
 
 class Speaker(Protocol):
     def speak(self, text: str) -> bool: ...
+
+
+class PulseCachedWakeChime:
+    """Preload one short local wake pop and trigger it without decoding."""
+
+    DEFAULT_SOUND_PATHS = (
+        Path("/usr/share/sounds/freedesktop/stereo/message.oga"),
+        Path("/usr/share/sounds/freedesktop/stereo/dialog-information.oga"),
+    )
+
+    def __init__(
+        self,
+        *,
+        pactl: str | None = None,
+        sound_path: str | Path | None = None,
+        sample_name: str | None = None,
+        timeout_seconds: float = 3.0,
+    ) -> None:
+        self.pactl = pactl or shutil.which("pactl")
+        candidates = (Path(sound_path),) if sound_path is not None else self.DEFAULT_SOUND_PATHS
+        self.sound_path = next((path for path in candidates if path.is_file()), None)
+        self.sample_name = sample_name or f"sentry-wake-{os.getpid()}"
+        self.timeout_seconds = timeout_seconds
+        self._prepared = False
+
+    @property
+    def available(self) -> bool:
+        return bool(self.pactl and self.sound_path)
+
+    def prepare(self) -> bool:
+        """Decode/cache the cue before the listener advertises readiness."""
+
+        if self._prepared:
+            return True
+        if not self.available:
+            return False
+        try:
+            result = subprocess.run(
+                [self.pactl, "upload-sample", str(self.sound_path), self.sample_name],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=self.timeout_seconds,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        self._prepared = result.returncode == 0
+        return self._prepared
+
+    def play(self) -> bool:
+        """Request immediate playback of the already-decoded server sample."""
+
+        if not self._prepared and not self.prepare():
+            return False
+        try:
+            subprocess.Popen(
+                [self.pactl, "play-sample", self.sample_name],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                close_fds=True,
+            )
+        except OSError:
+            return False
+        return True
+
+    def close(self) -> None:
+        """Remove only this process's cached sample from the audio server."""
+
+        if not self._prepared or not self.pactl:
+            return
+        try:
+            subprocess.run(
+                [self.pactl, "remove-sample", self.sample_name],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=self.timeout_seconds,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        self._prepared = False
 
 
 class PipeWireRecorder:
@@ -286,14 +405,18 @@ class KokoroSpeaker:
         player: str | None = None,
         timeout_seconds: int = 300,
         speech_activity: SpeechActivityGate | None = None,
+        level_callback: Callable[[float], None] | None = None,
     ) -> None:
         self.python_executable = python_executable or _discover_kokoro_python()
         self.worker_script = Path(worker_script) if worker_script else Path(__file__).resolve().parents[1] / "tools" / "sentry_kokoro_worker.py"
+        if voice not in KOKORO_ENGLISH_VOICE_IDS:
+            raise ValueError(f"unsupported English Kokoro voice: {voice}")
         self.voice = voice
-        self.speed = min(1.3, max(0.75, float(speed)))
+        self.speed = min(KOKORO_MAX_SPEED, max(KOKORO_MIN_SPEED, float(speed)))
         self.player = player or shutil.which("pw-play")
         self.timeout_seconds = timeout_seconds
         self.speech_activity = speech_activity or SpeechActivityGate()
+        self.level_callback = level_callback
         self._lock = threading.RLock()
         self._process: subprocess.Popen[bytes] | None = None
 
@@ -347,12 +470,27 @@ class KokoroSpeaker:
                 )
                 with self._lock:
                     self._process = process
+                meter: threading.Thread | None = None
+                if self.level_callback is not None:
+                    meter = threading.Thread(
+                        target=_report_pcm_levels,
+                        args=(pcm, sample_rate, channels, self.level_callback, process),
+                        name="sentry-tts-level",
+                        daemon=True,
+                    )
+                    meter.start()
                 process.communicate(pcm, timeout=self.timeout_seconds)
+                if meter is not None:
+                    meter.join(timeout=2)
+                if self.level_callback is not None:
+                    self.level_callback(0.0)
                 with self._lock:
                     if self._process is process:
                         self._process = None
                 return process.returncode == 0
         except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
+            if self.level_callback is not None:
+                self.level_callback(0.0)
             self.cancel()
             return False
 
@@ -382,6 +520,44 @@ def _decode_wav(audio: bytes) -> tuple[bytes, int, int]:
         if wav.getcomptype() != "NONE" or wav.getsampwidth() != 2:
             raise ValueError("Kokoro output must be uncompressed 16-bit PCM WAV")
         return wav.readframes(wav.getnframes()), wav.getframerate(), wav.getnchannels()
+
+
+def normalized_audio_level(samples: np.ndarray) -> float:
+    """Return a bounded perceptual level from normalized float PCM."""
+
+    values = np.asarray(samples, dtype=np.float32)
+    if values.size == 0:
+        return 0.0
+    rms = float(np.sqrt(np.mean(np.square(values, dtype=np.float32))))
+    if rms <= 1e-6:
+        return 0.0
+    decibels = 20.0 * float(np.log10(rms))
+    return round(max(0.0, min(1.0, (decibels + 55.0) / 45.0)), 4)
+
+
+def _report_pcm_levels(
+    pcm: bytes,
+    sample_rate: int,
+    channels: int,
+    callback: Callable[[float], None],
+    process: subprocess.Popen[bytes],
+) -> None:
+    """Report actual TTS PCM energy at a paced 20 ms visual cadence."""
+
+    samples = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+    if channels > 1:
+        samples = samples.reshape(-1, channels).mean(axis=1)
+    frame_samples = max(1, int(sample_rate * 0.02))
+    started = time.monotonic()
+    for index, offset in enumerate(range(0, samples.size, frame_samples)):
+        if process.poll() is not None:
+            break
+        deadline = started + index * 0.02
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(remaining)
+        callback(normalized_audio_level(samples[offset:offset + frame_samples]))
+    callback(0.0)
 
 
 def _discover_kokoro_python() -> str | None:

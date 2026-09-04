@@ -23,7 +23,12 @@ Last verified against: `main` plus the 2026-09-01 operator-Jarvis working tree.
 - `deploy/systemd/user/` — native user-systemd units and resident-runtime
   operations guide for perception, localhost API, proactivity, visible Vosk
   voice/status, weather/routines, and one-shot alarm delivery.
-- `tools/sentry_install_user_services.py` — reproducible installer for the local mode-600 production config and enabled user units.
+- `tools/sentry_install_user_services.py`, `tools/sentry_launch.py`, and
+  `deploy/applications/sentry-ui.desktop` — reproducible user-service and
+  desktop-entry installation plus idempotent configured-stack startup and
+  single-instance native UI activation.
+- `deploy/icons/hicolor/512x512/apps/sentry.png` — project-specific transparent
+  SENTRY glass-orb application icon installed for desktop and menu launchers.
 - `tools/sentry_resident_live_probe.py` — bounded metadata-only live probe for service health, API health, Atlas mirror status, and perception heartbeat.
 - `perception/routines.py` — standard-library routine feature extraction, circular clock-time/robust duration statistics, evidence exclusions, and maturity gates.
 - `tools/sentry_routines.py` — bounded routine snapshot refresh/show CLI over the local SQLite source.

@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from perception.always_on_voice import AlwaysOnVoiceConfig, AlwaysOnVoiceLoop, VoiceDiagnostics, VoiceState
+from perception.speaker_context import WakeIdentityCoordinator
 from perception.vosk_kws import CommandStreamProgress
 
 
@@ -132,6 +133,7 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         self, probabilities, transcripts=(), *, detections=(), command_updates=(),
         clock=None, gate=None, ask=None, config=None, fast_streaming_timing=True,
         presentation_completed=None, presentation_failed=None, response_expired=None,
+        identity_coordinator=None, wake_chime=None,
     ):
         clock = clock or Clock()
         config = config or AlwaysOnVoiceConfig(minimum_speech_ms=32, end_silence_ms=64, followup_window_seconds=1.0)
@@ -167,6 +169,8 @@ class AlwaysOnVoiceTests(unittest.TestCase):
             action_response_expired_fn=response_expired,
             diagnostics=VoiceDiagnostics(Path(tempfile.mkdtemp()) / "voice.json"),
             speech_activity=gate or Gate(),
+            identity_coordinator=identity_coordinator,
+            wake_chime_fn=wake_chime,
             clock=clock,
         ), clock
 
@@ -194,6 +198,15 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         self.assertEqual(self.ask_calls, [])
         self.assertEqual(self.speaker.messages, [])
 
+    def test_non_wake_speech_never_starts_identity_camera(self):
+        inspections = []
+        coordinator = WakeIdentityCoordinator(lambda duration: inspections.append(duration) or {"people": []})
+        loop, _ = self.make_loop(
+            [0.9, 0.0, 0.0], identity_coordinator=coordinator,
+        )
+        self.assertEqual(self.run_loop(loop), 0)
+        self.assertEqual(inspections, [])
+
     def test_vosk_wake_then_inline_command_uses_only_text_after_sentry(self):
         loop, _ = self.make_loop(
             [0.9, 0.0, 0.0],
@@ -205,6 +218,98 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         self.assertEqual(self.speaker.messages, ["Grounded answer."])
         self.assertGreater(loop.diagnostics.payload["last_command_dispatch_latency_ms"], 0)
         self.assertNotIn("transcript", loop.diagnostics.payload)
+
+    def test_accepted_vosk_wake_requests_preloaded_chime_exactly_once(self):
+        chime_calls = []
+        loop, _ = self.make_loop(
+            [0.9, 0.0, 0.0],
+            ["Sentry, status"],
+            detections=[True, True, False],
+            wake_chime=lambda: chime_calls.append("play") or True,
+        )
+        self.assertEqual(self.run_loop(loop), 0)
+        self.assertEqual(chime_calls, ["play"])
+        self.assertTrue(loop.diagnostics.payload["wake_chime_requested"])
+        self.assertEqual(loop.diagnostics.payload["wake_chime_request_latency_ms"], 0.0)
+
+    def test_first_wake_starts_identity_preflight_and_attaches_current_envelope(self):
+        clock = Clock()
+        inspections = []
+        coordinator = WakeIdentityCoordinator(
+            lambda duration: inspections.append(duration) or {
+                "observed_at": "2026-09-02T22:14:00+00:00",
+                "people": [{
+                    "visible": True, "identity_state": "recognized",
+                    "person_id": "primary_user", "display_name": "Sketch",
+                    "identity_confidence": 0.91,
+                }],
+            },
+            clock=clock,
+        )
+        loop, _ = self.make_loop(
+            [0.9, 0.0, 0.0], ["Sentry, who are you talking to?"],
+            detections=[True, False, False], clock=clock,
+            identity_coordinator=coordinator,
+        )
+        self.assertEqual(self.run_loop(loop), 0)
+        self.assertEqual(inspections, [3.0])
+        envelope = self.ask_calls[0][1]["speaker_context"]
+        self.assertEqual(envelope["status"], "recognized")
+        self.assertEqual(envelope["display_name"], "Sketch")
+        self.assertFalse(envelope["exact_arrival_known"])
+        self.assertFalse(envelope["frames_persisted"])
+        self.assertFalse(envelope["image_shared_with_codex"])
+
+    def test_followup_and_pending_response_reuse_identity_without_camera(self):
+        clock = Clock()
+        inspections = []
+        coordinator = WakeIdentityCoordinator(
+            lambda duration: inspections.append(duration) or {
+                "observed_at": "2026-09-02T22:14:00+00:00", "people": [],
+            },
+            clock=clock,
+        )
+        loop, _ = self.make_loop([0.0], clock=clock, identity_coordinator=coordinator)
+        loop._begin_wake_conversation()
+        first = coordinator.current_envelope(wait_for_preflight=True)
+        loop._focus_id = "focus"
+        loop._focus_deadline = 8.0
+        loop._dispatch_command("followup", is_followup=True)
+        loop._action_response_authorization_id = "auth-1"
+        loop._action_response_deadline = 120.0
+        loop._dispatch_command("cancel", is_followup=False, is_action_response=True)
+        self.assertEqual(inspections, [3.0])
+        self.assertEqual(self.ask_calls[0][1]["speaker_context"]["context_id"], first["context_id"])
+        self.assertEqual(self.ask_calls[1][1]["speaker_context"]["context_id"], first["context_id"])
+
+    def test_thread_rotation_response_keeps_still_valid_speaker_context(self):
+        clock = Clock()
+        coordinator = WakeIdentityCoordinator(
+            lambda _duration: {
+                "observed_at": "2026-09-02T22:14:00+00:00",
+                "people": [{
+                    "visible": True,
+                    "identity_state": "recognized",
+                    "person_id": "primary_user",
+                    "display_name": "Sketch",
+                }],
+            },
+            clock=clock,
+        )
+        loop, _ = self.make_loop(
+            [0.0], clock=clock, identity_coordinator=coordinator,
+            ask=lambda _command, **_kwargs: {
+                "answer": "Conversation rotated.", "luna_invocations": 0,
+                "security_handler": "conversation_rotated",
+            },
+        )
+        loop._begin_wake_conversation()
+        first = coordinator.current_envelope(wait_for_preflight=True)
+        loop._dispatch_command("rotate conversation", is_followup=False)
+        current = coordinator.current_envelope()
+        self.assertEqual(current["status"], "recognized")
+        self.assertEqual(current["display_name"], "Sketch")
+        self.assertEqual(current["context_id"], first["context_id"])
 
     def test_vosk_authority_allows_one_full_whisper_pass_when_wake_is_omitted(self):
         class Detection:
@@ -519,15 +624,46 @@ class AlwaysOnVoiceTests(unittest.TestCase):
 
     def test_config_is_opt_in_and_requires_vosk_model_when_enabled(self):
         self.assertFalse(AlwaysOnVoiceConfig.from_mapping({}).always_on_enabled)
+        self.assertFalse(AlwaysOnVoiceConfig.from_mapping({}).sleep_enabled)
         self.assertEqual(AlwaysOnVoiceConfig.from_mapping({}).wake_token, "sentry")
         with self.assertRaises(ValueError):
             AlwaysOnVoiceConfig.from_mapping({"always_on_enabled": True})
 
-    def test_config_requires_a_british_male_kokoro_voice(self):
+    def test_sleep_enabled_opens_no_microphone_and_accepts_no_wake(self):
+        chime_calls = []
+        loop, _ = self.make_loop(
+            [0.9],
+            detections=[True],
+            config=AlwaysOnVoiceConfig(
+                sleep_enabled=True,
+                minimum_speech_ms=32,
+                end_silence_ms=64,
+            ),
+            wake_chime=lambda: chime_calls.append("play") or True,
+        )
+
+        class ForbiddenStream:
+            def iter_chunks(self, _stop_event):
+                raise AssertionError("sleep mode must not open the microphone")
+
+        loop.stream = ForbiddenStream()
+        self.assertEqual(self.run_loop(loop), 0)
+        self.assertEqual(loop.state, VoiceState.SLEEPING)
+        self.assertEqual(loop.wake_detector.calls, 0)
+        self.assertEqual(self.transcriber.calls, 0)
+        self.assertEqual(self.ask_calls, [])
+        self.assertEqual(chime_calls, [])
+        self.assertFalse(loop.diagnostics.payload["wake_enabled"])
+
+    def test_config_accepts_supported_english_kokoro_voices(self):
         config = AlwaysOnVoiceConfig.from_mapping({"kokoro_voice": "bm_george", "kokoro_speed": 0.9})
         self.assertEqual(config.kokoro_voice, "bm_george")
+        self.assertEqual(
+            AlwaysOnVoiceConfig.from_mapping({"kokoro_voice": "am_michael"}).kokoro_voice,
+            "am_michael",
+        )
         with self.assertRaises(ValueError):
-            AlwaysOnVoiceConfig.from_mapping({"kokoro_voice": "am_michael"})
+            AlwaysOnVoiceConfig.from_mapping({"kokoro_voice": "unknown_voice"})
         with self.assertRaises(ValueError):
             AlwaysOnVoiceConfig.from_mapping({"base_url": "https://example.com"})
 
@@ -748,6 +884,13 @@ class AlwaysOnVoiceTests(unittest.TestCase):
             AlwaysOnVoiceConfig.from_mapping({"conversation_followup_max_turns": -1})
         with self.assertRaises(ValueError):
             AlwaysOnVoiceConfig.from_mapping({"vad_threshold": 0.35, "vad_continuation_threshold": 0.4})
+        with self.assertRaises(ValueError):
+            AlwaysOnVoiceConfig.from_mapping({"wake_identity_refresh_idle_seconds": 0})
+        with self.assertRaises(ValueError):
+            AlwaysOnVoiceConfig.from_mapping({
+                "wake_identity_camera_duration_seconds": 6,
+                "wake_identity_join_timeout_seconds": 5,
+            })
 
     def test_twelve_second_fragmented_command_freezes_exact_pcm_once(self):
         command_chunks = 375

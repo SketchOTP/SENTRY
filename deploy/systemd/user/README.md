@@ -12,11 +12,14 @@ services:
   minutes, with an initial five-minute delay after the user manager starts.
 - `sentry-voice.service` — optional always-available local microphone listener.
   It is installed but remains disabled unless the local mode-0600 config sets
-  `voice.always_on_enabled` to `true`. Starting it also starts the coupled
-  `sentry-voice-status.service`, which keeps the visible SENTRY listening,
-  working, speaking, and follow-up state on the operator desktop.
+  `voice.always_on_enabled` to `true`. Starting it also starts the independent
+  `sentry-ui.service`, which keeps the native SENTRY voice, identity, and
+  personal-continuity surface working, speaking, and follow-up state on the
+  operator desktop. Restarting the listener does not close or recreate the UI.
+  Its GPU orb renderer requires Ubuntu's `gir1.2-gtk-4.0` and
+  `python3-opengl` packages plus an OpenGL 3.3-capable graphics driver.
 - `sentry-alarms.timer` — lightweight 15-second delivery check for durable
-  one-shot alarms. Alarms are claimed before British-male Kokoro speech and a
+  one-shot alarms. Alarms are claimed before configured local Kokoro speech and a
   claimed alarm is never replayed after an uncertain restart.
 
 Perception publishes a small metadata-only heartbeat at
@@ -51,6 +54,15 @@ their explicit `resident.continuous_*_enabled` fields are true; the current
 operator policy leaves both false and uses bounded on-demand camera inspection.
 An existing production config is never overwritten.
 
+The installer also installs SENTRY's custom glass-orb icon, creates a trusted
+executable `SENTRY.desktop` shortcut in the user's desktop directory, and adds
+a matching application-menu entry. Clicking either starts any missing
+configured API, timer, UI, voice, perception, and proactivity units
+idempotently, then brings the single native GTK window to the front. The
+launcher never overrides the persistent Sleep switch or opt-in continuous-
+perception/proactivity policy; while Sleep is enabled it opens the control
+surface and support services but leaves microphone/wake listening off.
+
 The user-manager startup condition is the authenticated `sketch` desktop/user
 session. The units are enabled for `default.target`; they are not a system
 service and do not require root. `loginctl show-user "$USER" -p Linger` should
@@ -66,7 +78,7 @@ systemctl --user --no-pager --full status sentry-routines.timer sentry-routines.
 systemctl --user is-enabled sentry-weather.timer
 systemctl --user --no-pager --full status sentry-weather.timer sentry-weather.service
 systemctl --user is-enabled sentry-voice.service
-systemctl --user --no-pager --full status sentry-voice.service sentry-voice-status.service
+systemctl --user --no-pager --full status sentry-voice.service sentry-ui.service
 systemctl --user is-enabled sentry-alarms.timer
 systemctl --user --no-pager --full status sentry-alarms.timer sentry-alarms.service
 python tools/sentry_voice_status.py

@@ -11,6 +11,7 @@ from tools.sentry_codex_agent import (
     CodexNativeAgent,
     CodexSessionStore,
     _prompt,
+    _bounded_speaker_context,
     _thread_metrics,
     invoke_action_response_classifier,
     invoke_sentry_agent,
@@ -23,6 +24,36 @@ from tools.sentry_execution_authority import (
 
 
 class CodexNativeAgentTests(unittest.TestCase):
+    def test_current_speaker_envelope_is_bounded_and_overrides_stale_thread_identity(self):
+        bounded = _bounded_speaker_context({
+            "status": "unknown",
+            "person_id": "primary_user",
+            "display_name": "Sketch",
+            "identity_confidence": 0.99,
+            "exact_arrival_known": True,
+            "frames_persisted": True,
+            "image_shared_with_codex": True,
+            "raw_frame": "must-not-pass",
+        })
+        self.assertEqual(bounded["status"], "unknown")
+        self.assertIsNone(bounded["person_id"])
+        self.assertIsNone(bounded["display_name"])
+        self.assertFalse(bounded["exact_arrival_known"])
+        self.assertFalse(bounded["frames_persisted"])
+        self.assertFalse(bounded["image_shared_with_codex"])
+        self.assertNotIn("raw_frame", bounded)
+        prompt = _prompt(
+            "Do you know who I am?",
+            [{"user": "Earlier you recognized Sketch", "assistant": "Hello, Sketch."}],
+            "medium",
+            bounded,
+        )
+        self.assertIn("Only the structured speaker_context", prompt)
+        self.assertIn('"status": "unknown"', prompt)
+        self.assertIn("Older identity statements", prompt)
+        self.assertIn("address that person generically as operator", prompt)
+        self.assertNotIn("must-not-pass", prompt)
+
     def test_thread_metrics_reads_only_latest_token_metadata(self):
         thread_id = "f8b4e0b6-ae62-4d75-99fb-a69a935b9baf"
         with tempfile.TemporaryDirectory() as tmp:

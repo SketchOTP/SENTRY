@@ -54,6 +54,7 @@
     "backend": "opencv_yunet_sface",
     "cadence_seconds": 0.5,
     "match_threshold": 0.45,
+    "minimum_profile_separation": 0.05,
     "confirmation_count": 3,
     "confirmation_window_seconds": 2.0,
     "quality": {
@@ -98,6 +99,7 @@
   },
   "voice": {
     "always_on_enabled": false,
+    "sleep_enabled": false,
     "microphone_source": null,
     "sample_rate": 16000,
     "wake_engine": "vosk",
@@ -123,6 +125,10 @@
     "conversation_followup_window_seconds": 8,
     "conversation_followup_max_turns": 2,
     "action_response_window_seconds": 120,
+    "wake_identity_refresh_idle_seconds": 7200,
+    "wake_identity_context_ttl_seconds": 7200,
+    "wake_identity_camera_duration_seconds": 3,
+    "wake_identity_join_timeout_seconds": 5,
     "post_speech_rearm_ms": 500,
     "whisper_model": "tiny.en",
     "kokoro_voice": "bm_george",

@@ -13,6 +13,7 @@ from perception.identity import (
     FaceDetection,
     FaceQualityConfig,
     IdentityResolver,
+    MultiProfileIdentityResolver,
     OpenCVFaceBackend,
     build_prototype,
     identity_config_from_mapping,
@@ -266,12 +267,48 @@ class IdentityTests(unittest.TestCase):
             with PresenceStore(local, atlas_mirror_path=atlas) as restored:
                 self.assertEqual(restored.identity_profile()["person_id"], "primary_user")
 
-    def test_one_active_enrolled_identity_is_enforced(self):
+    def test_multiple_active_enrolled_identities_are_supported_privately(self):
         with tempfile.TemporaryDirectory() as directory, PresenceStore(Path(directory) / "sentry.db") as store:
             kwargs = dict(backend="opencv_yunet_sface", model_version="v", model_checksum="s", prototype=np.ones(3), calibrated_threshold=0.45, sample_count=16)
             store.enroll_identity(person_id="primary_user", display_name="Operator", **kwargs)
-            with self.assertRaisesRegex(ValueError, "exactly one"):
-                store.enroll_identity(person_id="other", display_name="Other", **kwargs)
+            store.enroll_identity(person_id="guest", display_name="Guest", **kwargs)
+            self.assertEqual([value["person_id"] for value in store.persons()], ["guest", "primary_user"])
+            profiles = store.identity_profiles()
+            self.assertEqual([value["person_id"] for value in profiles], ["guest", "primary_user"])
+            self.assertTrue(all("prototype" in value for value in profiles))
+
+    def test_multi_profile_resolver_selects_one_separated_match(self):
+        class VectorRecognizer:
+            @staticmethod
+            def match(query, prototype, _method):
+                return float(np.dot(query, prototype))
+
+        backend = FakeBackend(faces=[self.face])
+        backend.recognizer = VectorRecognizer()
+        profiles = [
+            {"person_id": "sketch", "display_name": "Sketch", "prototype": np.array([1.0, 0.0, 0.0]), "calibrated_threshold": 0.45},
+            {"person_id": "guest", "display_name": "Guest", "prototype": np.array([0.0, 1.0, 0.0]), "calibrated_threshold": 0.45},
+        ]
+        resolver = MultiProfileIdentityResolver(
+            backend, profile_provider=lambda: profiles, confirmation_count=1,
+        )
+        result = resolver.resolve(object(), [person()], self.when)[0]
+        self.assertEqual(result["identity_state"], "recognized")
+        self.assertEqual(result["person_id"], "sketch")
+        self.assertEqual(result["display_name"], "Sketch")
+
+    def test_multi_profile_resolver_rejects_indistinguishable_matches(self):
+        backend = FakeBackend(faces=[self.face], score=0.9)
+        profiles = [
+            {"person_id": "one", "display_name": "One", "prototype": np.array([1.0, 0.0, 0.0]), "calibrated_threshold": 0.45},
+            {"person_id": "two", "display_name": "Two", "prototype": np.array([0.0, 1.0, 0.0]), "calibrated_threshold": 0.45},
+        ]
+        resolver = MultiProfileIdentityResolver(
+            backend, profile_provider=lambda: profiles, confirmation_count=1,
+        )
+        result = resolver.resolve(object(), [person()], self.when)[0]
+        self.assertEqual(result["identity_state"], "unresolved")
+        self.assertIsNone(result["person_id"])
 
 
 if __name__ == "__main__":

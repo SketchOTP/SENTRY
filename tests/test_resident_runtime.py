@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from tools.sentry_install_user_services import (
     ALARM_UNIT_NAMES,
+    LEGACY_UI_UNIT_NAMES,
     ROUTINE_UNIT_NAMES,
     UNIT_NAMES,
     VOICE_UNIT_NAMES,
@@ -74,6 +75,33 @@ class ResidentRuntimeTests(unittest.TestCase):
                 install(config, start=False, systemd_user_dir=units)
             self.assertEqual(json.loads(config.read_text(encoding="utf-8")), custom)
             self.assertEqual(sorted(path.name for path in units.iterdir()), sorted((*UNIT_NAMES, *ROUTINE_UNIT_NAMES, *WEATHER_UNIT_NAMES, *VOICE_UNIT_NAMES, *ALARM_UNIT_NAMES)))
+            self.assertTrue((root / "applications" / "sentry-ui.desktop").is_file())
+            self.assertFalse((root / "applications" / "sentry-identity-ui.desktop").exists())
+            installed_icon = root / "icons" / "hicolor" / "512x512" / "apps" / "sentry.png"
+            self.assertTrue(installed_icon.is_file())
+            self.assertEqual(installed_icon.read_bytes(), Path("deploy/icons/hicolor/512x512/apps/sentry.png").read_bytes())
+            desktop_launcher = root / "Desktop" / "SENTRY.desktop"
+            self.assertTrue(desktop_launcher.is_file())
+            self.assertEqual(desktop_launcher.stat().st_mode & 0o777, 0o755)
+
+    def test_install_removes_legacy_ui_units_and_launcher(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = root / "config.json"
+            config.write_text(json.dumps(production_config(Path("perception/config.example.json"))), encoding="utf-8")
+            units = root / "units"
+            units.mkdir()
+            applications = root / "applications"
+            applications.mkdir()
+            for name in LEGACY_UI_UNIT_NAMES:
+                (units / name).write_text("legacy", encoding="utf-8")
+            (applications / "sentry-identity-ui.desktop").write_text("legacy", encoding="utf-8")
+            with patch("tools.sentry_install_user_services._run_systemctl") as systemctl:
+                install(config, start=False, systemd_user_dir=units)
+            for name in LEGACY_UI_UNIT_NAMES:
+                self.assertFalse((units / name).exists())
+                systemctl.assert_any_call("disable", "--now", name)
+            self.assertFalse((applications / "sentry-identity-ui.desktop").exists())
 
     def test_units_use_accepted_paths_and_isolated_services(self):
         unit_root = Path("deploy/systemd/user")
@@ -83,7 +111,9 @@ class ResidentRuntimeTests(unittest.TestCase):
         routines = (unit_root / "sentry-routines.timer").read_text(encoding="utf-8")
         weather = (unit_root / "sentry-weather.timer").read_text(encoding="utf-8")
         voice = (unit_root / "sentry-voice.service").read_text(encoding="utf-8")
-        voice_status = (unit_root / "sentry-voice-status.service").read_text(encoding="utf-8")
+        sentry_ui = (unit_root / "sentry-ui.service").read_text(encoding="utf-8")
+        self.assertIn("Environment=GSK_RENDERER=gl", sentry_ui)
+        self.assertIn("Environment=GDK_DEBUG=gl-prefer-gl:gl-glx", sentry_ui)
         alarms = (unit_root / "sentry-alarms.timer").read_text(encoding="utf-8")
         self.assertIn("WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY", perception)
         self.assertIn("--config %h/.config/sentry/config.json", perception)
@@ -106,12 +136,29 @@ class ResidentRuntimeTests(unittest.TestCase):
         launcher = Path("tools/sentry_codex_launcher.sh").read_text(encoding="utf-8")
         self.assertIn("/usr/bin/aa-exec -p chatgpt", launcher)
         self.assertIn("/usr/lib/chatgpt/resources/codex", launcher)
-        self.assertIn("Wants=sentry-voice-status.service", voice)
-        self.assertIn("tools/sentry_voice_status.py --watch --window", voice_status)
-        self.assertIn("PartOf=sentry-voice.service", voice_status)
+        self.assertIn("Wants=sentry-ui.service", voice)
+        self.assertIn("tools/sentry_ui.py", sentry_ui)
+        self.assertNotIn("zenity", sentry_ui.lower())
+        self.assertNotIn("PartOf=sentry-voice.service", sentry_ui)
+        self.assertIn("After=graphical-session.target", sentry_ui)
+        desktop = Path("deploy/applications/sentry-ui.desktop").read_text(encoding="utf-8")
+        self.assertIn("Name=SENTRY", desktop)
+        self.assertIn("Icon=sentry", desktop)
+        self.assertNotIn("Icon=audio-input-microphone", desktop)
+        self.assertIn("tools/sentry_open_identity_ui.sh", desktop)
+        launcher = Path("tools/sentry_open_identity_ui.sh").read_text(encoding="utf-8")
+        self.assertIn("tools/sentry_launch.py", launcher)
         self.assertIn("Restart=on-failure", voice)
+        voice_launcher = Path("tools/sentry_always_on_voice.py").read_text(encoding="utf-8")
+        self.assertIn('"sentry" / "speaker-context.json"', voice_launcher)
+        self.assertIn("cache_path=", voice_launcher)
         self.assertIn("OnUnitActiveSec=15s", alarms)
         self.assertIn("Persistent=true", alarms)
+        native_ui = Path("tools/sentry_ui.py").read_text(encoding="utf-8")
+        self.assertIn("Gtk.Application", native_ui)
+        self.assertIn("Voice status", native_ui)
+        self.assertIn("Add or update a person", native_ui)
+        self.assertNotIn("ThreadingHTTPServer", native_ui)
 
     def test_live_probe_uses_user_systemd_and_localhost_api(self):
         self.assertEqual(_unit_states.__module__, "tools.sentry_resident_live_probe")

@@ -1,13 +1,14 @@
 [Unit]
-Description=SENTRY visible voice status
-PartOf=sentry-voice.service
+Description=SENTRY native resident control surface
 After=graphical-session.target
 
 [Service]
 Type=simple
 WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
+Environment=GSK_RENDERER=gl
+Environment=GDK_DEBUG=gl-prefer-gl:gl-glx
 ExecCondition=/usr/bin/sh -c 'test -n "$DISPLAY$WAYLAND_DISPLAY"'
-ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_voice_status.py --watch --window
+ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_ui.py --config %h/.config/sentry/config.json
 Restart=on-failure
 RestartSec=3s
 KillMode=control-group
