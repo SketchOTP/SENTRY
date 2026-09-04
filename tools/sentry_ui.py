@@ -1274,6 +1274,7 @@ def build_application(config_path: Path):
     class SentryWindow(Gtk.ApplicationWindow):
         def __init__(self, app):
             super().__init__(application=app, title="SENTRY")
+            self.set_icon_name("sentry")
             self.set_default_size(1120, 760)
             self.set_size_request(880, 620)
             self.manager = IdentityEnrollmentManager(config_path)

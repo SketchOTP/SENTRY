@@ -550,6 +550,12 @@ This file is a mutable snapshot. Do not use it to erase historical outcomes or d
   window capture showed only the centered orb, status, and inward chevron;
   settings remained hidden until requested. Focused validation is now
   `117/117`.
+- GNOME tray/dock identity now matches the custom SENTRY icon as well as the
+  desktop shortcut. The installed application entry uses the exact
+  `local.sentry.Control.desktop` ID advertised by GTK, declares the live X11
+  `sentry_ui.py` startup class, and the native window publishes `Icon=sentry`.
+  Live X11 inspection confirms `_NET_WM_ICON` is populated and GTK resolves the
+  installed SENTRY orb asset. Focused validation is now `118/118`.
 
 ## Superseding current snapshot — V0.3 Vosk wake integration, unqualified
 

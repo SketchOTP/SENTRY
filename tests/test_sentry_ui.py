@@ -293,6 +293,13 @@ class SentryNativeUiTests(unittest.TestCase):
         self.assertIn("window.close_settings()", source)
         self.assertIn('self.settings_toggle.set_icon_name("go-previous-symbolic")', source)
 
+    def test_native_window_uses_the_sentry_icon_theme_name(self):
+        from tools.sentry_ui import build_application
+
+        source = inspect.getsource(build_application)
+        self.assertIn('self.set_icon_name("sentry")', source)
+        self.assertIn('application_id="local.sentry.Control"', source)
+
     def test_settings_include_voice_selection_speed_preview_and_apply(self):
         from tools.sentry_ui import build_application
 

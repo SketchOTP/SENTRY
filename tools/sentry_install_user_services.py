@@ -18,6 +18,8 @@ WEATHER_UNIT_NAMES = ("sentry-weather.service", "sentry-weather.timer")
 VOICE_UNIT_NAMES = ("sentry-voice.service", "sentry-ui.service")
 ALARM_UNIT_NAMES = ("sentry-alarms.service", "sentry-alarms.timer")
 LEGACY_UI_UNIT_NAMES = ("sentry-voice-status.service", "sentry-identity-ui.service")
+APPLICATION_DESKTOP_NAME = "local.sentry.Control.desktop"
+LEGACY_APPLICATION_DESKTOP_NAMES = ("sentry-ui.desktop", "sentry-identity-ui.desktop")
 
 
 def production_config(example_path: Path) -> dict:
@@ -127,7 +129,7 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
     )
     application_dir.mkdir(parents=True, exist_ok=True)
     launcher_source = REPO_ROOT / "deploy" / "applications" / "sentry-ui.desktop"
-    shutil.copyfile(launcher_source, application_dir / "sentry-ui.desktop")
+    shutil.copyfile(launcher_source, application_dir / APPLICATION_DESKTOP_NAME)
     icon_root = (
         Path.home() / ".local" / "share" / "icons"
         if systemd_user_dir is None
@@ -142,9 +144,10 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
         desktop_dir / "SENTRY.desktop",
         trust=systemd_user_dir is None,
     )
-    legacy_desktop = application_dir / "sentry-identity-ui.desktop"
-    if legacy_desktop.exists():
-        legacy_desktop.unlink()
+    for name in LEGACY_APPLICATION_DESKTOP_NAMES:
+        legacy_desktop = application_dir / name
+        if legacy_desktop.exists():
+            legacy_desktop.unlink()
     _run_systemctl("daemon-reload")
     _run_systemctl("enable", "sentry-state-api.service")
     if _continuous_perception_enabled(existing):

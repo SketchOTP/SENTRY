@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.sentry_install_user_services import (
+    APPLICATION_DESKTOP_NAME,
     ALARM_UNIT_NAMES,
     LEGACY_UI_UNIT_NAMES,
     ROUTINE_UNIT_NAMES,
@@ -75,7 +76,8 @@ class ResidentRuntimeTests(unittest.TestCase):
                 install(config, start=False, systemd_user_dir=units)
             self.assertEqual(json.loads(config.read_text(encoding="utf-8")), custom)
             self.assertEqual(sorted(path.name for path in units.iterdir()), sorted((*UNIT_NAMES, *ROUTINE_UNIT_NAMES, *WEATHER_UNIT_NAMES, *VOICE_UNIT_NAMES, *ALARM_UNIT_NAMES)))
-            self.assertTrue((root / "applications" / "sentry-ui.desktop").is_file())
+            self.assertTrue((root / "applications" / APPLICATION_DESKTOP_NAME).is_file())
+            self.assertFalse((root / "applications" / "sentry-ui.desktop").exists())
             self.assertFalse((root / "applications" / "sentry-identity-ui.desktop").exists())
             installed_icon = root / "icons" / "hicolor" / "512x512" / "apps" / "sentry.png"
             self.assertTrue(installed_icon.is_file())
@@ -96,12 +98,15 @@ class ResidentRuntimeTests(unittest.TestCase):
             for name in LEGACY_UI_UNIT_NAMES:
                 (units / name).write_text("legacy", encoding="utf-8")
             (applications / "sentry-identity-ui.desktop").write_text("legacy", encoding="utf-8")
+            (applications / "sentry-ui.desktop").write_text("legacy", encoding="utf-8")
             with patch("tools.sentry_install_user_services._run_systemctl") as systemctl:
                 install(config, start=False, systemd_user_dir=units)
             for name in LEGACY_UI_UNIT_NAMES:
                 self.assertFalse((units / name).exists())
                 systemctl.assert_any_call("disable", "--now", name)
             self.assertFalse((applications / "sentry-identity-ui.desktop").exists())
+            self.assertFalse((applications / "sentry-ui.desktop").exists())
+            self.assertTrue((applications / APPLICATION_DESKTOP_NAME).is_file())
 
     def test_units_use_accepted_paths_and_isolated_services(self):
         unit_root = Path("deploy/systemd/user")
@@ -145,6 +150,7 @@ class ResidentRuntimeTests(unittest.TestCase):
         self.assertIn("Name=SENTRY", desktop)
         self.assertIn("Icon=sentry", desktop)
         self.assertNotIn("Icon=audio-input-microphone", desktop)
+        self.assertIn("StartupWMClass=sentry_ui.py", desktop)
         self.assertIn("tools/sentry_open_identity_ui.sh", desktop)
         launcher = Path("tools/sentry_open_identity_ui.sh").read_text(encoding="utf-8")
         self.assertIn("tools/sentry_launch.py", launcher)

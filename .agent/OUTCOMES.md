@@ -1631,3 +1631,25 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Focused voice/UI/service/launcher validation passes `117/117`; Python
   compilation and `git diff --check` pass. Full V0.4 regression and release
   gates remain pending.
+
+## OUTCOME-SENTRY-V0.4-TRAY-ICON-IDENTITY-001 — Corrected and live-observed
+- Completed: 2026-09-04
+- Verdict: **PASSED — CUSTOM ORB RESOLVES FOR THE NATIVE WINDOW**
+- Branch: `feature/v0.4-personal-continuity`
+- Implementation SHA: none; preserved V0.4 work remains uncommitted.
+
+### Result
+- The custom SENTRY orb already resolved for the desktop shortcut, but GNOME's
+  running-app tray/dock fell back to a gear because its installed desktop-file
+  ID did not match GTK's application ID and the window published no native icon.
+- The canonical installed entry is now `local.sentry.Control.desktop`, matching
+  `_GTK_APPLICATION_ID=local.sentry.Control`. `StartupWMClass=sentry_ui.py`
+  covers the observed X11 class, and `SentryWindow` explicitly uses the
+  `sentry` icon-theme name.
+- After reinstall and UI restart, GTK resolved the expected local 512x512 orb
+  asset and X11 exposed a populated `_NET_WM_ICON` rather than `not found`.
+  The obsolete installed `sentry-ui.desktop` alias was removed to avoid a
+  duplicate application-menu identity.
+- Focused voice/UI/service/launcher validation passes `118/118`; desktop-entry
+  validation, compilation, and `git diff --check` pass. Sleep remained on and
+  voice inactive.

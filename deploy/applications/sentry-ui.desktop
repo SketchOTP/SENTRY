@@ -7,3 +7,4 @@ Icon=sentry
 Terminal=false
 Categories=Utility;
 StartupNotify=true
+StartupWMClass=sentry_ui.py

@@ -199,3 +199,11 @@
   orb/status surface. A window-specific installed capture after service restart
   confirmed the drawer was absent. Exact focused validation now passes
   `117/117`.
+- GNOME's running-app icon fallback was traced to identity mismatch: GTK
+  advertised `local.sentry.Control`, the installed desktop file was named
+  `sentry-ui.desktop`, and `_NET_WM_ICON` was absent. The installer now writes
+  `local.sentry.Control.desktop`, removes the obsolete alias, and declares the
+  observed `sentry_ui.py` startup class; the GTK window explicitly publishes
+  the `sentry` icon. Installed inspection now resolves the local orb asset and
+  reports a populated `_NET_WM_ICON`. Exact focused validation passes
+  `118/118`.
