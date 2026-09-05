@@ -2,7 +2,7 @@
 set -euo pipefail
 
 plugin_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-repo_root="$(cd "${plugin_root}/../../.." && pwd)"
+repo_root="$(cd "${plugin_root}/../../../.." && pwd)"
 runtime="${SENTRY_PYTHON:-${HOME}/.venvs/sentry-ubuntu/bin/python}"
 if [[ ! -x "${runtime}" ]]; then
   runtime="$(command -v python3)"

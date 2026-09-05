@@ -1,4 +1,6 @@
 import json
+import os
+import stat
 import subprocess
 import tempfile
 import unittest
@@ -13,6 +15,59 @@ def _result(returncode: int = 0, stderr: str = "") -> subprocess.CompletedProces
 
 
 class SentryLauncherTests(unittest.TestCase):
+    def test_office_mcp_launcher_resolves_repository_root(self):
+        repo_root = Path(__file__).resolve().parents[1]
+        launcher = (
+            repo_root
+            / "integrations/codex/plugins/sentry-office/scripts/launch_sentry_office_mcp"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            captured = root / "argv.txt"
+            runtime = root / "configured-python"
+            runtime.write_text(
+                f"#!/bin/sh\nprintf '%s' \"$1\" > \"{captured}\"\n",
+                encoding="utf-8",
+            )
+            runtime.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+            environment = dict(os.environ)
+            environment["SENTRY_PYTHON"] = str(runtime)
+            completed = subprocess.run(
+                [str(launcher)], env=environment, check=False, capture_output=True, text=True
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(
+                Path(captured.read_text(encoding="utf-8")).resolve(),
+                repo_root / "tools/sentry_mcp_server.py",
+            )
+
+    def test_office_mcp_launcher_falls_back_to_path_python(self):
+        repo_root = Path(__file__).resolve().parents[1]
+        launcher = (
+            repo_root
+            / "integrations/codex/plugins/sentry-office/scripts/launch_sentry_office_mcp"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            captured = root / "fallback-argv.txt"
+            runtime = root / "python3"
+            runtime.write_text(
+                f"#!/bin/sh\nprintf '%s' \"$1\" > \"{captured}\"\n",
+                encoding="utf-8",
+            )
+            runtime.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+            environment = dict(os.environ)
+            environment["SENTRY_PYTHON"] = str(root / "missing-python")
+            environment["PATH"] = f"{root}{os.pathsep}{environment['PATH']}"
+            completed = subprocess.run(
+                [str(launcher)], env=environment, check=False, capture_output=True, text=True
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(
+                Path(captured.read_text(encoding="utf-8")).resolve(),
+                repo_root / "tools/sentry_mcp_server.py",
+            )
+
     def _config(self, root: Path, **updates) -> Path:
         payload = {
             "voice": {"always_on_enabled": True, "sleep_enabled": False},
