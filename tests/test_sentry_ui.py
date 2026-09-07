@@ -8,6 +8,7 @@ from unittest.mock import patch
 from tools.sentry_ui import (
     KOKORO_ENGLISH_VOICES,
     ORB_STYLES,
+    PROJECTION_STAGE_SIZE,
     OrbStateController,
     apply_sleep_preference,
     load_sleep_preference,
@@ -27,6 +28,7 @@ class SentryNativeUiTests(unittest.TestCase):
     def test_projection_orb_is_twice_desktop_canvas(self):
         self.assertEqual(orb_canvas_size(projection_mode=False), 600)
         self.assertEqual(orb_canvas_size(projection_mode=True), 1200)
+        self.assertEqual(PROJECTION_STAGE_SIZE, 3600)
 
     def test_voice_catalog_has_broad_english_accent_and_gender_coverage(self):
         identifiers = {identifier for identifier, _label in KOKORO_ENGLISH_VOICES}

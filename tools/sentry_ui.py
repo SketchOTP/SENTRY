@@ -23,6 +23,7 @@ if str(REPO_ROOT) not in sys.path:
 
 DESKTOP_ORB_SIZE = 600
 PROJECTION_ORB_SIZE = DESKTOP_ORB_SIZE * 2
+PROJECTION_STAGE_SIZE = PROJECTION_ORB_SIZE * 3
 
 from perception.remote_voice import authorization_header, read_private_token
 from perception.voice import (
@@ -1397,6 +1398,8 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             css.load_from_data(b"""
                 window { background: #030305; color: #ffffff; }
                 .main-canvas { background: #030305; }
+                .projection-canvas { background: #000000; }
+                .projection-backdrop { background: #000000; }
                 .settings-drawer { background: #09080d; border-left: 1px solid #302040; }
                 .settings-panel { background: #09080d; padding: 24px; }
                 .card { background: #0d0b12; border: 1px solid #2f2240; border-radius: 16px; padding: 18px; }
@@ -1424,6 +1427,8 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             root = Gtk.Overlay()
             main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
             main.add_css_class("main-canvas")
+            if self.projection_mode:
+                main.add_css_class("projection-canvas")
             main.set_hexpand(True)
             main.set_vexpand(True)
 
@@ -1435,6 +1440,8 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             orb_size = orb_canvas_size(projection_mode=self.projection_mode)
             self.projection_fallback_orb.set_content_width(orb_size)
             self.projection_fallback_orb.set_content_height(orb_size)
+            self.projection_fallback_orb.set_halign(Gtk.Align.CENTER)
+            self.projection_fallback_orb.set_valign(Gtk.Align.CENTER)
             self.projection_fallback_orb.set_draw_func(self._draw_projection_fallback)
             self.projection_fallback_orb.set_visible(False)
             self.status_orb = StatusOrb(
@@ -1445,7 +1452,17 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             orb_stack = Gtk.Overlay()
             orb_stack.set_halign(Gtk.Align.CENTER)
             orb_stack.set_valign(Gtk.Align.CENTER)
-            orb_stack.set_child(self.projection_fallback_orb)
+            if self.projection_mode:
+                projection_backdrop = Gtk.DrawingArea()
+                projection_backdrop.set_content_width(PROJECTION_STAGE_SIZE)
+                projection_backdrop.set_content_height(PROJECTION_STAGE_SIZE)
+                projection_backdrop.set_halign(Gtk.Align.CENTER)
+                projection_backdrop.set_valign(Gtk.Align.CENTER)
+                projection_backdrop.add_css_class("projection-backdrop")
+                orb_stack.set_child(projection_backdrop)
+                orb_stack.add_overlay(self.projection_fallback_orb)
+            else:
+                orb_stack.set_child(self.projection_fallback_orb)
             orb_stack.add_overlay(self.status_orb)
             status.append(orb_stack)
             self.state_label = Gtk.Label(label="Standby", xalign=0.5)
@@ -1675,7 +1692,7 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             wake = max(0.0, min(1.0, float(frame.get("wake_progress") or 0.0)))
             radius = min(width, height) * (0.31 + audio * 0.018)
             context.set_operator(cairo.OPERATOR_SOURCE)
-            context.set_source_rgb(0.001, 0.0015, 0.006)
+            context.set_source_rgb(0.0, 0.0, 0.0)
             context.paint()
             stage = cairo.RadialGradient(cx, cy * 0.92, radius * 0.05, cx, cy * 0.92, radius * 2.0)
             stage.add_color_stop_rgba(0.0, red * 0.20, green * 0.20, blue * 0.20, 0.34)

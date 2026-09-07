@@ -2,6 +2,14 @@
 
 Last updated: 2026-09-07
 
+## Pi projection backdrop sizing — 2026-09-07
+
+The fullscreen RPi5 projection now keeps the 1,200 px orb centered over a
+3,600 px black stage/backdrop, three times the orb canvas. Projection mode and
+the Cairo fallback both use solid black outside the animated orb scene so no
+finite blue/gray box edge is visible against the 4K display. The deployed Pi
+projection service is active with the updated source hash.
+
 ## Voice-only Pi audio routing and projection cursor — 2026-09-07
 
 The RPi5 projection is now a voice-only display surface. Its visible USB/HDMI

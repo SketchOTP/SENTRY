@@ -1789,3 +1789,23 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Targeted UI/MCP tests passed `41/41`; targeted Ruff, `git diff --check`, and
   the projection deployment checks passed. Full repository Ruff remains a
   pre-existing broader-worktree issue and was not claimed as clean.
+
+## OUTCOME-SENTRY-RPI5-PROJECTION-BLACK-STAGE-2026-09-07
+
+- Completed: 2026-09-07
+- Verdict: **PASSED — PROJECTION BACKDROP CORRECTION**
+- Implementation SHA: recorded in the final local commit and handoff below.
+
+### Result
+
+- Added a 3,600 px projection stage around the 1,200 px orb canvas and applied
+  a solid-black projection background.
+- Changed the Cairo fallback's outer paint to pure black, removing the visible
+  blue/gray rectangle boundary around the scene while preserving the animated
+  orb artwork.
+- Deployed the updated projection source to `sketch@rpi5`, restarted the
+  fullscreen kiosk service, confirmed matching local/remote hashes, and
+  observed the service active.
+- Focused native UI validation passed `29/29`; Ruff and `git diff --check`
+  passed. Direct visual screenshot capture was unavailable because the Pi
+  image does not include a Wayland screenshot utility.
