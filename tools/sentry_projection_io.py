@@ -27,6 +27,8 @@ from perception.remote_voice import (
 
 OUTPUT_VALUES = {"usb", "hdmi"}
 HDMI_ALSA_DEVICE = "hdmi:CARD=vc4hdmi1,DEV=0"
+HDMI_SAMPLE_RATE = 48_000
+HDMI_CHANNELS = 2
 SINK_LINE = re.compile(r"^\s*[│ ]*[* ]*([0-9]+)\.\s+(.+?)\s+\[vol:")
 
 
@@ -181,10 +183,52 @@ class ProjectionState:
         if self.selected_output() != "hdmi":
             play_wav_with_pipewire(wav_bytes)
             return
-        validate_wav_payload(wav_bytes)
+        pcm, sample_rate, channels = validate_wav_payload(wav_bytes)
+        converted = subprocess.run(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "s16le",
+                "-ar",
+                str(sample_rate),
+                "-ac",
+                str(channels),
+                "-i",
+                "pipe:0",
+                "-f",
+                "s16le",
+                "-ar",
+                str(HDMI_SAMPLE_RATE),
+                "-ac",
+                str(HDMI_CHANNELS),
+                "pipe:1",
+            ],
+            input=pcm,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=125,
+            check=True,
+        )
         subprocess.run(
-            ["aplay", "-q", "-D", HDMI_ALSA_DEVICE, "-"],
-            input=wav_bytes,
+            [
+                "aplay",
+                "-q",
+                "-D",
+                HDMI_ALSA_DEVICE,
+                "-t",
+                "raw",
+                "-f",
+                "S16_LE",
+                "-c",
+                str(HDMI_CHANNELS),
+                "-r",
+                str(HDMI_SAMPLE_RATE),
+                "-",
+            ],
+            input=converted.stdout,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             timeout=125,

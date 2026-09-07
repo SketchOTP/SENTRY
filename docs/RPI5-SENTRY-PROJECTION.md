@@ -36,8 +36,10 @@ tool routes speech to `usb` or `hdmi` through the authenticated Pi control
 endpoint. USB playback uses the Pi's PipeWire default sink. The connected TV's
 HDMI ALSA plugin is used directly because this Pi image does not publish that
 device as a PipeWire sink; HDMI selection performs a silent fixed-device probe
-before persisting the choice, and HDMI WAV playback remains bounded and
-ephemeral.
+before persisting the choice. Because the voice synthesizer emits 24 kHz mono
+speech while the HDMI ALSA endpoint accepts 48 kHz stereo PCM, the projection
+bridge converts each bounded WAV in memory with the Pi's existing `ffmpeg`
+binary before playback. HDMI audio remains bounded and ephemeral.
 
 ## Evidence and limits
 

@@ -32,18 +32,62 @@ class ProjectionAudioTests(unittest.TestCase):
                 state.set_output("hdmi")
             self.assertEqual(state.selected_output(), "usb")
 
-    def test_hdmi_playback_uses_aplay_and_validates_wav(self):
+    def test_hdmi_playback_converts_voice_format_before_aplay(self):
         with tempfile.TemporaryDirectory() as tmp:
             state = self.make_state(Path(tmp))
             state._write_settings("hdmi")
             with patch("tools.sentry_projection_io.validate_wav_payload") as validate, patch(
                 "tools.sentry_projection_io.subprocess.run"
             ) as run:
+                validate.return_value = (b"pcm", 24_000, 1)
                 state.play_wav(b"wav")
             validate.assert_called_once_with(b"wav")
-            run.assert_called_once_with(
-                ["aplay", "-q", "-D", HDMI_ALSA_DEVICE, "-"],
-                input=b"wav",
+            self.assertEqual(run.call_count, 2)
+            run.assert_any_call(
+                [
+                    "ffmpeg",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-f",
+                    "s16le",
+                    "-ar",
+                    "24000",
+                    "-ac",
+                    "1",
+                    "-i",
+                    "pipe:0",
+                    "-f",
+                    "s16le",
+                    "-ar",
+                    "48000",
+                    "-ac",
+                    "2",
+                    "pipe:1",
+                ],
+                input=b"pcm",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=125,
+                check=True,
+            )
+            run.assert_any_call(
+                [
+                    "aplay",
+                    "-q",
+                    "-D",
+                    HDMI_ALSA_DEVICE,
+                    "-t",
+                    "raw",
+                    "-f",
+                    "S16_LE",
+                    "-c",
+                    "2",
+                    "-r",
+                    "48000",
+                    "-",
+                ],
+                input=run.return_value.stdout,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 timeout=125,
