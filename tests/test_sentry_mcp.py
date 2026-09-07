@@ -59,7 +59,7 @@ class SentryMCPTests(unittest.IsolatedAsyncioTestCase):
         async with Client(mcp) as client:
             result = await client.list_tools()
         names = {tool.name for tool in result.tools}
-        self.assertEqual(len(names), 33)
+        self.assertEqual(len(names), 37)
         self.assertTrue({
             "get_current_office_state",
             "inspect_office_camera",
@@ -76,7 +76,16 @@ class SentryMCPTests(unittest.IsolatedAsyncioTestCase):
             "get_recent_execution_audit",
             "get_pending_authorization",
         }.issubset(names))
-        self.assertEqual(names, set(RISK_TIERS))
+        self.assertEqual(
+            names,
+            set(RISK_TIERS)
+            | {
+                "start_identity_onboarding",
+                "capture_identity_pose",
+                "finish_identity_onboarding",
+                "cancel_identity_onboarding",
+            },
+        )
         by_name = {tool.name: tool for tool in result.tools}
         # These cancellations are host-governed Tier-1 mutations. Marking them
         # destructive would make Codex's approval layer reject them before the

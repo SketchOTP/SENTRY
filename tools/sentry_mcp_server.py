@@ -7,7 +7,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
 
@@ -42,12 +42,14 @@ from tools.sentry_desktop import (
     type_text as _type_text,
 )
 from tools.sentry_office_vision import inspect_office_camera as _inspect_office_camera
+from tools.sentry_identity_enrollment import IdentityEnrollmentManager
 
 
 BASE_URL = os.environ.get("SENTRY_BASE_URL", "http://127.0.0.1:48174")
 CONFIG_PATH = Path(os.environ.get("SENTRY_CONFIG_PATH", "~/.config/sentry/config.json")).expanduser()
 DISPLAY_TIMEZONE = os.environ.get("SENTRY_DISPLAY_TIMEZONE", "America/New_York")
 AUTHORITY = ExecutionAuthority()
+_ENROLLMENT: IdentityEnrollmentManager | None = None
 
 mcp = MCPServer(
     "SENTRY Office",
@@ -62,6 +64,33 @@ mcp = MCPServer(
 
 def _host() -> ConversationToolHost:
     return ConversationToolHost(base_url=BASE_URL, room_id="office", source_surface="codex_mcp")
+
+
+def _enrollment_manager() -> IdentityEnrollmentManager:
+    global _ENROLLMENT
+    if _ENROLLMENT is None:
+        _ENROLLMENT = IdentityEnrollmentManager(CONFIG_PATH)
+    return _ENROLLMENT
+
+
+def _recognized_operator() -> dict[str, Any]:
+    metadata, image = _inspect_office_camera(
+        CONFIG_PATH, duration_seconds=1.0, include_image=False, completion_timeout_seconds=5.0
+    )
+    if image is not None:
+        raise RuntimeError("identity check unexpectedly returned image bytes")
+    recognized = [
+        person for person in metadata.get("people", [])
+        if isinstance(person, dict) and person.get("identity_state") == "recognized"
+    ]
+    if len(recognized) != 1:
+        raise RuntimeError("an enrolled, uniquely recognized operator is required")
+    return {
+        "operator_verified": True,
+        "operator_profile_id": recognized[0].get("person_id"),
+        "observed_at": metadata.get("observed_at"),
+        "frames_persisted": False,
+    }
 
 
 def _read(name: str, arguments: dict | None = None) -> dict:
@@ -172,6 +201,43 @@ def inspect_office_camera(duration_seconds: float = 3.0) -> list[TextContent | I
         import base64
         content.append(ImageContent(type="image", data=base64.b64encode(jpeg).decode("ascii"), mime_type="image/jpeg"))
     return content
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
+def start_identity_onboarding(
+    display_name: str, anima_person_id: str, target_samples: int = 8
+) -> dict[str, Any]:
+    """Start voice-guided camera enrollment after recognizing the current operator.
+
+    The canonical person must first be created by ANIMA's household-users
+    tool.  This host operation stores only ephemeral embeddings and requires
+    the returned ANIMA person id so the two profiles cannot drift silently.
+    """
+    verified = _recognized_operator()
+    result = _enrollment_manager().start(
+        display_name, target_samples, profile_id=anima_person_id, guided=True
+    )
+    return {**result, **verified, "raw_images_persisted": False}
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))
+def capture_identity_pose(session_id: str, pose: Literal["straight", "left", "right", "up", "down"]) -> dict[str, Any]:
+    """Capture one accepted ephemeral face sample for a requested head pose."""
+    result = _enrollment_manager().capture(session_id, pose)
+    result.pop("preview_jpeg_base64", None)
+    return result
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def finish_identity_onboarding(session_id: str) -> dict[str, Any]:
+    """Commit a completed five-pose profile; raw camera frames are discarded."""
+    return _enrollment_manager().commit(session_id)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def cancel_identity_onboarding(session_id: str) -> dict[str, Any]:
+    """Discard an in-progress voice enrollment without persisting camera frames."""
+    return _enrollment_manager().cancel(session_id)
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))

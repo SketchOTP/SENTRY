@@ -1,12 +1,87 @@
 # Current Project State
 
-Last updated: 2026-09-04
+Last updated: 2026-09-07
+
+## Owner RPi5 projection increment — 2026-09-07
+
+The owner-authorized RPi5 projection is deployed on `pi` (`aarch64`,
+`192.168.254.4`) without moving processing off the Linux PC. The Pi has a
+state-only GTK/labwc SENTRY projection, authenticated ephemeral microphone PCM
+stream, authenticated generated-WAV playback, and a bounded USB/HDMI output
+selector. The PC has a credentialed status endpoint plus a reconnecting SSH
+reverse tunnel for Pi-originated status polling. PC SENTRY remains the sole
+STT/TTS/model and household integration host.
+
+Live local observations: HDMI-A-2 is enabled at 3840×2160; the NexiGo webcam
+and PipeWire microphone are present; the USB speaker sink is active; Pi I/O,
+status sync, and projection UI services are active; the Pi microphone produced
+live 16 kHz mono PCM; and a real PC Kokoro phrase was accepted and played by
+the Pi endpoint. HDMI is currently a selectable UI target but has no active
+PipeWire sink, so the endpoint truthfully reports it unavailable. No ANIMA,
+HA, OPA, provider, model, or SENTRY authority credentials were placed on the
+Pi. See `docs/RPI5-SENTRY-PROJECTION.md`.
+
+This is an owner-facing deployment increment with local E1 observations, not a
+new hosted release or a claim that the full SENTRY/ANIMA household scenarios
+are complete. The RPi5 native runtime remains an external qualification item.
+
+## Owner-authorized PC-local consolidation — 2026-09-07 UTC
+
+Active source is now `/home/sketch/Projects/SENTRY` on atlas-desktop native ext4.
+The entire dirty source tree was copied; the laptop original remains a recovery
+copy, not the active runtime checkout. Installed voice/UI/state services,
+desktop launchers and resident Codex profile use the local path. Their old
+shared-storage dependency is removed. Existing local session/auth/state and
+unrelated V0.4 changes are preserved. No reset, clean, merge or force push occurred.
+
+ANIMA Core is PC-local, accessed via its authenticated Unix socket; SENTRY still
+receives no Core DB/HA/OPA credentials. MEMORY is local at
+`/home/sketch/Documents/MEMORY`, denied to direct model filesystem access and
+exposed through ANIMA's governed note tools. One real persistent model read
+passed after migration: query `df62da5f-7029-4b93-ae8b-ebb2eecaca97`; ANIMA request
+`67ceaa11-aa70-5b66-8930-47198e3a3fce`, COMPLETED/RESPONSE. Physical-current state
+was not fabricated. This is not a microphone/TTS or unrestricted-write test.
+
+Runtime is updated; source remains uncommitted. No new release/CI/whole-goal
+acceptance is claimed. See the local ANIMA consolidation runbook for private
+backup location, cutover and rollback requirements.
+
+## Owner integration amendment — 2026-09-06
+
+The owner now authorizes focused source/configuration changes in this existing
+desktop application to complete the ANIMA back-office connection. Preserve the
+unrelated dirty V0.4 display/audio/launcher work. Prior ANIMA read-only-only
+restrictions are superseded for this integration; no reset, clean, rebase, bulk
+replacement or unrelated release is authorized.
+
+SENTRY remains voice-only: existing wake/microphone → persistent Codex → TTS.
+Do not add typed chat. Its existing tools remain; ANIMA adds household context,
+tool discovery, governed administration and event wake/result delivery. ANIMA
+owns household state/settings/providers; SENTRY reasons and interacts. No helper
+process may be presented as the actual desktop integration.
+
+The owner also authorizes an ANIMA-managed, Dewey-numbered knowledge library in
+existing Obsidian MEMORY vault `541cc65b16b387fb`, registered at
+`/srv/ATLAS/500_MEMORY/MEMORY`. Preserve existing notes/settings. Evidence-backed
+autonomous notes, household profiles and lessons are requested, with provenance,
+uncertainty, correction/forgetting and restricted-content/secret exclusions.
+This supersedes the previous explicit-only memory product scope but does not
+claim automatic memory or full household integration is implemented.
+
+Starting source HEAD is `5441cf35f9a08aaa8f1d2926c17672b4f105d0f7`; the
+pre-integration tracked diff digest was
+`bd7f299626683e81e7171f9fdeaf20640a7b4bd2dfef943e0bc3c38ac04868da`.
+The live UI, voice and state API were active; the resident profile exposed only
+`sentry_office`, not `anima_household`. Full integration is IN PROGRESS. Historical
+checkpoint evidence below remains unchanged and is not current acceptance.
 
 ## Current stage
 V0.4 personal resident continuity is active on
-`feature/v0.4-personal-continuity`. The preserved uncommitted identity, native
-GTK UI, turn-taking, Fahrenheit, and persistent-artifact changes have been
-reconstructed and protected by a private source-only recovery snapshot.
+`feature/v0.4-personal-continuity`. Identity, native GTK UI, turn-taking,
+Fahrenheit, persistent-artifact, launcher, and tray-icon changes are preserved
+in local checkpoint commits `ae17aab` and `5441cf3`, with subsequent display
+targeting work retained in the working tree. A private source-only recovery
+snapshot also protects the earlier checkpoint.
 Checkpoint A must become independently releasable before Obsidian memory work.
 Schema remains 9.
 
@@ -24,6 +99,35 @@ sole authorized durable semantic-memory path: explicit governed Obsidian notes
 through host-owned MCP operations. Automatic memory extraction, embeddings,
 another personal-memory database, continuous perception, and proactivity are
 prohibited.
+
+## Display and audio launch targets — 2026-09-04
+- The Ubuntu dock now contains a pinned SENTRY application icon. Its right-click
+  menu exposes the exact standard actions `Launch on Main Displays` and
+  `Launch on RTX Display`. The ordinary left-click action preserves the
+  currently selected target.
+- Ubuntu Desktop Icons NG does not surface standard freedesktop application
+  actions for desktop-file icons; installed source inspection proved its menu
+  hardcodes only `Open` and `Launch using Dedicated Graphics Card`. SENTRY now
+  recognizes that generic discrete-GPU launch environment and deliberately
+  maps it to the RTX screen and HDMI output, so the desktop shortcut's visible
+  fallback works even though DING controls its wording.
+- A named launch validates the independent X screen, atomically writes the
+  mode-0600 `~/.config/sentry/ui-display.env`, and restarts only
+  `sentry-ui.service`. The persistent voice, state, timer, and Codex processes
+  are not relocated or restarted by the display change.
+- Main resolves to X screen `:1.0` and the sole non-HDMI playback sink. RTX
+  resolves to X screen `:1.1` and the sole HDMI playback sink. Sink selection
+  fails closed if either class is absent or ambiguous.
+- Audio routing changes only the default playback sink. No source-selection
+  command exists in this path, so the USB microphone remains unchanged.
+- Installed live proof, including the exact generic DING launch environment,
+  moved the GTK process to `:1.1` with RTX HDMI output and
+  back to `:1.0` with main analog output. The default source remained
+  `alsa_input.usb-Generalplus_USB_MIC-00.mono-fallback` throughout. The
+  controlled proof restored main, after which the operator invoked the desktop
+  GPU option and live state moved back to RTX `:1.1` plus HDMI with Sleep on;
+  that latest operator-selected state is preserved. Exact affected suites pass
+  125/125; desktop-file validation passes.
 
 ## Native voice preferences — 2026-09-03
 - The in-window settings drawer now owns SENTRY's Kokoro voice preferences. It
@@ -565,3 +669,38 @@ This file is a mutable snapshot. Do not use it to erase historical outcomes or d
 - Positive evidence: the live office microphone woke four times on the configured single token `Sentry`; the visual state indicator showed `LISTENING` and the explicit `ARMED` follow-up prompt; Vosk wake-to-dispatch latency samples were 1.676 s, 1.696 s, 1.737 s, and 1.734 s. A bare recovered wake-token defect was fixed so it now arms instead of sending `Sentry` as a question. Focused Vosk/voice tests pass **16/16**.
 - Blocking evidence: three ordinary deterministic command attempts (reminder query and two supported preference queries) were dispatched but did not reach their intended deterministic route; responses fell through to unrelated bounded M4/unsupported-memory behavior. No raw audio or transcript was retained, so the exact Whisper substitutions are intentionally unknown. This is a command-STT reliability failure, not a Vosk wake-decision failure.
 - Boundary: the directive forbids replacing the existing Whisper `tiny.en` command STT or changing broader conversation semantics. Do not claim V0.3 qualification, commit, or push. Preserve the dirty implementation for Architect review. The local production configuration remains `always_on_enabled=false`; Vosk model remains local and ignored; all SENTRY services, listener, `pw-record`, and visual indicator are inactive.
+
+## Owner-authorized unattended ANIMA event wake/TTS loop — 2026-09-07
+
+- The existing dirty SENTRY implementation now has the bounded same-process
+  Attention consumer connected to the existing resident voice loop. It polls
+  only the Core-filtered `AUTONOMOUS_ATTENTION` route while the listener is
+  idle, claims one exact request under the existing persistent-thread lock,
+  invokes the same resident Codex thread with the autonomous profile, and uses
+  the existing Kokoro speaker only after Core records a valid RESPONSE and
+  current request-bound notification disposition.
+- Missing/disabled/malformed private production ANIMA configuration leaves the
+  callback disconnected; no production configuration was added or enabled.
+  No embedded/deterministic cognition fallback, second model, second speaker,
+  email route, or ANIMA checkout change was introduced.
+- Focused ANIMA event/runtime/TTS tests pass 117/117, including explicit wake
+  ordering, model no-action, required-notification silence, and provider-start
+  outage with no model or TTS fallback. Full unittest regression passes
+  494/494. This remains local uncommitted implementation evidence; live Core,
+  real-model, and production TTS delivery qualification remain unrun.
+
+## Owner convergence update — 2026-09-07
+
+- The resident ANIMA event hook is independently gated from microphone
+  listening. With the owner private `auto_wake` configuration enabled and
+  SENTRY sleep mode off, it can claim eligible Core Attention work while the
+  voice loop is idle, then use the same resident Codex/Kokoro path. No event is
+  currently pending in the live queue, so no fabricated alert/TTS delivery is
+  claimed.
+- The Pi projection source now has a layered Cairo state scene for GPU-safe
+  fallback rendering instead of a flat blue circle. The actual GL shader stays
+  preferred; fallback status remains explicit and uses no household data.
+- Added a fixed-contract Hailo Apps face-pipeline runtime seam. The Pi has
+  `/dev/hailo0` and the Hailo Python platform, but detector/recognizer HEFs and
+  the official Apps package are not present, so live Hailo matching remains
+  `EXTERNAL_RESOURCE_GATE_HAILO_FACE_MODELS` and CPU matching is not relabeled.

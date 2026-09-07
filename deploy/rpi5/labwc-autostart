@@ -1,0 +1,8 @@
+# SENTRY is a state-only projection on the RPi5.  Processing, STT, TTS, and
+# household authority remain on the Linux PC.
+systemctl --user start sentry-projection-io.service
+systemctl --user start sentry-projection-ui.service
+
+# The projection is a living-room kiosk: hide the pointer after a short idle
+# period without changing the processing host or the GTK application.
+unclutter -idle 0.5 -root >/dev/null 2>&1 &

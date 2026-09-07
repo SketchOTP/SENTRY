@@ -16,6 +16,7 @@ import cv2
 from perception.identity import OpenCVFaceBackend, build_prototype, identity_config_from_mapping
 from perception.presence_store import PresenceStore
 from perception.sentry_perception import load_config
+from perception.remote_camera import RemoteJpegCamera
 from tools.sentry_office_vision import camera_activity_lock
 
 
@@ -37,7 +38,9 @@ class EnrollmentSession:
     display_name: str
     target_samples: int
     created_at: float
+    guided: bool = False
     embeddings: list[Any] = field(default_factory=list)
+    accepted_poses: dict[str, int] = field(default_factory=dict)
 
 
 class IdentityEnrollmentManager:
@@ -52,6 +55,12 @@ class IdentityEnrollmentManager:
         self.backend = OpenCVFaceBackend(self.identity)
         self._sessions: dict[str, EnrollmentSession] = {}
         self._lock = threading.Lock()
+        voice = self.config.get("voice", {})
+        self.remote_camera = (
+            RemoteJpegCamera(str(voice["projection_camera_url"]), Path(str(voice["projection_token_file"])))
+            if isinstance(voice, dict) and voice.get("projection_camera_url") and voice.get("projection_token_file")
+            else None
+        )
 
     @property
     def storage(self) -> dict[str, Any]:
@@ -74,7 +83,13 @@ class IdentityEnrollmentManager:
             key: value for key, value in self._sessions.items() if value.created_at >= cutoff
         }
 
-    def start(self, display_name: object, target_samples: object = TARGET_SAMPLES) -> dict[str, Any]:
+    def start(
+        self,
+        display_name: object,
+        target_samples: object = TARGET_SAMPLES,
+        profile_id: object | None = None,
+        guided: bool = False,
+    ) -> dict[str, Any]:
         name = " ".join(str(display_name or "").split())
         if not 1 <= len(name) <= 64:
             raise ValueError("username must contain from 1 through 64 characters")
@@ -89,7 +104,10 @@ class IdentityEnrollmentManager:
             (profile for profile in existing if str(profile["display_name"]).casefold() == name.casefold()),
             None,
         )
-        base = str(matching["person_id"]) if matching else _person_slug(name)
+        supplied_profile_id = str(profile_id or "").strip()
+        if supplied_profile_id and not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,127}", supplied_profile_id.casefold()):
+            raise ValueError("profile_id contains unsupported characters")
+        base = supplied_profile_id or (str(matching["person_id"]) if matching else _person_slug(name))
         used = {str(profile["person_id"]) for profile in existing}
         person_id = base
         suffix = 2
@@ -98,7 +116,7 @@ class IdentityEnrollmentManager:
             suffix += 1
         session = EnrollmentSession(
             session_id=str(uuid.uuid4()), person_id=person_id, display_name=name,
-            target_samples=target, created_at=time.monotonic(),
+            target_samples=target, created_at=time.monotonic(), guided=bool(guided),
         )
         with self._lock:
             self._purge_expired()
@@ -114,6 +132,8 @@ class IdentityEnrollmentManager:
             "accepted_samples": len(session.embeddings),
             "target_samples": session.target_samples,
             "ready_to_save": len(session.embeddings) >= MINIMUM_SAMPLES,
+            "guided": session.guided,
+            "accepted_poses": dict(session.accepted_poses),
         }
 
     def _session(self, session_id: str) -> EnrollmentSession:
@@ -124,26 +144,39 @@ class IdentityEnrollmentManager:
             raise ValueError("enrollment session is missing or expired")
         return session
 
-    def capture(self, session_id: str) -> dict[str, Any]:
+    def capture(self, session_id: str, pose: str | None = None) -> dict[str, Any]:
         session = self._session(session_id)
         if len(session.embeddings) >= session.target_samples:
             raise ValueError("the enrollment session already has its target samples")
+        if pose is not None and pose not in {"straight", "left", "right", "up", "down"}:
+            raise ValueError("pose must be straight, left, right, up, or down")
         camera = self.config["camera"]
         source = camera.get("device_path") or int(camera.get("index", 0))
         backend_name = cv2.CAP_V4L2 if camera.get("backend") == "v4l2" else cv2.CAP_ANY
         with camera_activity_lock(timeout_seconds=5.0):
-            capture = cv2.VideoCapture(source, backend_name)
-            if not capture.isOpened():
-                capture.release()
-                raise RuntimeError("the office camera is unavailable or busy")
-            capture.set(cv2.CAP_PROP_FRAME_WIDTH, int(camera["width"]))
-            capture.set(cv2.CAP_PROP_FRAME_HEIGHT, int(camera["height"]))
-            capture.set(cv2.CAP_PROP_FPS, float(camera["fps"]))
+            capture = None
+            if self.remote_camera is None:
+                capture = cv2.VideoCapture(source, backend_name)
+                if not capture.isOpened():
+                    capture.release()
+                    raise RuntimeError("the office camera is unavailable or busy")
+                capture.set(cv2.CAP_PROP_FRAME_WIDTH, int(camera["width"]))
+                capture.set(cv2.CAP_PROP_FRAME_HEIGHT, int(camera["height"]))
+                capture.set(cv2.CAP_PROP_FPS, float(camera["fps"]))
             deadline = time.monotonic() + 2.5
             image = None
+            last_pose: dict[str, Any] | None = None
             try:
                 while time.monotonic() < deadline:
-                    ok, candidate = capture.read()
+                    if self.remote_camera is not None:
+                        try:
+                            candidate = self.remote_camera.read()
+                        except RuntimeError:
+                            continue
+                        ok = candidate is not None
+                    else:
+                        assert capture is not None
+                        ok, candidate = capture.read()
                     if not ok or candidate is None:
                         continue
                     image = candidate
@@ -154,8 +187,14 @@ class IdentityEnrollmentManager:
                     if extracted is None:
                         continue
                     embedding, quality = extracted
+                    if pose is not None:
+                        last_pose = self.backend.pose_metrics(faces[0], pose)
+                        if not last_pose["accepted"]:
+                            continue
                     with self._lock:
                         session.embeddings.append(embedding)
+                        if pose is not None:
+                            session.accepted_poses[pose] = session.accepted_poses.get(pose, 0) + 1
                     encoded, jpeg = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), 82])
                     preview = base64.b64encode(jpeg.tobytes()).decode("ascii") if encoded else None
                     return {
@@ -165,6 +204,7 @@ class IdentityEnrollmentManager:
                             key: round(value, 2) if isinstance(value, float) else value
                             for key, value in quality.items()
                         },
+                        "pose": last_pose,
                         "preview_jpeg_base64": preview,
                         "frame_persisted": False,
                     }
@@ -172,17 +212,28 @@ class IdentityEnrollmentManager:
                 return {
                     **self._session_payload(session),
                     "accepted": False,
-                    "reason": "expected exactly one clear, well-lit face",
+                    "reason": (
+                        last_pose.get("reason")
+                        if last_pose is not None and not last_pose.get("accepted")
+                        else "expected exactly one clear, well-lit face"
+                    ),
                     "visible_faces": face_count,
+                    "pose": last_pose,
                     "frame_persisted": False,
                 }
             finally:
-                capture.release()
+                if capture is not None:
+                    capture.release()
 
     def commit(self, session_id: str) -> dict[str, Any]:
         session = self._session(session_id)
         if len(session.embeddings) < MINIMUM_SAMPLES:
             raise ValueError(f"at least {MINIMUM_SAMPLES} accepted samples are required")
+        if session.guided:
+            required = {"straight", "left", "right", "up", "down"}
+            missing = sorted(required - set(session.accepted_poses))
+            if missing:
+                raise ValueError("guided enrollment is missing poses: " + ", ".join(missing))
         prototype = build_prototype(session.embeddings)
         with self._store() as store:
             store.enroll_identity(
@@ -202,6 +253,7 @@ class IdentityEnrollmentManager:
             "person_id": session.person_id,
             "display_name": session.display_name,
             "accepted_samples": len(session.embeddings),
+            "accepted_poses": dict(session.accepted_poses),
             "raw_images_persisted": False,
         }
 

@@ -25,6 +25,10 @@ class FakeFaceBackend:
             "sharpness": 100.0,
         }
 
+    @staticmethod
+    def pose_metrics(_face, pose):
+        return {"pose": pose, "accepted": True}
+
 
 class FakeCapture:
     def __init__(self, *_args):
@@ -116,6 +120,24 @@ class IdentityUiTests(unittest.TestCase):
             self.assertTrue(manager.cancel(started["session_id"])["cancelled"])
             with self.assertRaises(ValueError):
                 manager._session(started["session_id"])
+
+    def test_guided_enrollment_requires_and_records_all_head_poses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manager = self.manager(directory)
+            started = manager.start(
+                "Guided User", MINIMUM_SAMPLES, profile_id="person-123", guided=True
+            )
+            with (
+                patch("tools.sentry_identity_enrollment.cv2.VideoCapture", FakeCapture),
+                patch("tools.sentry_identity_enrollment.camera_activity_lock", unlocked),
+                patch("tools.sentry_identity_enrollment.cv2.imencode", return_value=(False, None)),
+            ):
+                for pose in ("straight", "left", "right", "up", "down"):
+                    result = manager.capture(started["session_id"], pose)
+                    self.assertTrue(result["accepted"])
+            result = manager.commit(started["session_id"])
+            self.assertEqual(result["person_id"], "person-123")
+            self.assertEqual(set(result["accepted_poses"]), {"straight", "left", "right", "up", "down"})
 
 if __name__ == "__main__":
     unittest.main()

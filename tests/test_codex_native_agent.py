@@ -24,6 +24,20 @@ from tools.sentry_execution_authority import (
 
 
 class CodexNativeAgentTests(unittest.TestCase):
+    def setUp(self):
+        # Tests with a mocked model still exercise the real execution audit.
+        # Never let those writes reach the resident user's authority directory.
+        temporary = tempfile.TemporaryDirectory(prefix="sentry-agent-test-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        environment = patch.dict(os.environ, {
+            "SENTRY_AUTHORITY_ROOT": str(root / "authority"),
+            "SENTRY_AGENT_WORKSPACE": str(root / "workspace"),
+            "SENTRY_ANIMA_CONFIG": str(root / "disabled-anima.json"),
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
+
     def test_current_speaker_envelope_is_bounded_and_overrides_stale_thread_identity(self):
         bounded = _bounded_speaker_context({
             "status": "unknown",
@@ -258,6 +272,14 @@ class CodexNativeAgentTests(unittest.TestCase):
         self.assertIn("Browser automation", prompt)
         self.assertIn("never collapse a general request", prompt)
         self.assertIn("prior turn's tool failure", prompt)
+
+    def test_voice_device_onboarding_is_guided_without_home_assistant_or_typed_chat(self):
+        prompt = _prompt("Set up my new Zigbee presence sensor.", [], "medium")
+        self.assertIn("voice-only", prompt)
+        self.assertIn("never require typed chat", prompt)
+        self.assertIn("wait for the operator's follow-up", prompt)
+        self.assertIn("matching discovered device handle", prompt)
+        self.assertIn("typed alert policy", prompt)
 
     def test_host_security_status_and_rotation_do_not_call_model(self):
         def fail_invoker(*_args, **_kwargs):

@@ -21,6 +21,7 @@ from perception.identity import MultiProfileIdentityResolver, OpenCVFaceBackend,
 from perception.presence_state import PresenceStateConfig, PresenceStateMachine
 from perception.presence_store import PresenceStore
 from perception.sentry_perception import IoUTracker, OpenVINOYOLOXSPersonDetector, PerceptionEngine, load_config
+from perception.remote_camera import RemoteJpegCamera
 
 
 def _camera_lock_path() -> Path:
@@ -86,6 +87,12 @@ class OfficeVisionInspector:
         self.database_path = Path(storage["database_path"]).expanduser()
         self.backend = OpenCVFaceBackend(self.identity)
         self.detector = OpenVINOYOLOXSPersonDetector(self.config["detector"])
+        voice = self.config.get("voice", {})
+        self.remote_camera = (
+            RemoteJpegCamera(str(voice["projection_camera_url"]), Path(str(voice["projection_token_file"])))
+            if isinstance(voice, dict) and voice.get("projection_camera_url") and voice.get("projection_token_file")
+            else None
+        )
 
     def _load_profiles(self) -> list[dict[str, Any]]:
         with PresenceStore(self.database_path, atlas_mirror_path=None) as store:
@@ -136,20 +143,30 @@ class OfficeVisionInspector:
         )
         camera = self.config["camera"]
         source = camera.get("device_path") or int(camera.get("index", 0))
-        capture = cv2.VideoCapture(source, cv2.CAP_V4L2 if camera.get("backend") == "v4l2" else cv2.CAP_ANY)
-        if not capture.isOpened():
-            capture.release()
-            raise RuntimeError("configured office camera is unavailable or owned by another process")
-        capture.set(cv2.CAP_PROP_FRAME_WIDTH, int(camera["width"]))
-        capture.set(cv2.CAP_PROP_FRAME_HEIGHT, int(camera["height"]))
-        capture.set(cv2.CAP_PROP_FPS, float(camera["fps"]))
+        capture = None
+        if self.remote_camera is None:
+            capture = cv2.VideoCapture(source, cv2.CAP_V4L2 if camera.get("backend") == "v4l2" else cv2.CAP_ANY)
+            if not capture.isOpened():
+                capture.release()
+                raise RuntimeError("configured office camera is unavailable or owned by another process")
+            capture.set(cv2.CAP_PROP_FRAME_WIDTH, int(camera["width"]))
+            capture.set(cv2.CAP_PROP_FRAME_HEIGHT, int(camera["height"]))
+            capture.set(cv2.CAP_PROP_FPS, float(camera["fps"]))
         started = time.monotonic()
         frame_count = 0
         latest_image: Any | None = None
         latest_observation: Any | None = None
         try:
             while time.monotonic() - started < duration_seconds:
-                ok, image = capture.read()
+                if self.remote_camera is not None:
+                    try:
+                        image = self.remote_camera.read()
+                    except RuntimeError:
+                        continue
+                    ok = image is not None
+                else:
+                    assert capture is not None
+                    ok, image = capture.read()
                 if not ok or image is None:
                     continue
                 frame_count += 1
@@ -160,7 +177,8 @@ class OfficeVisionInspector:
                 if recognized and time.monotonic() - started >= 1.0:
                     break
         finally:
-            capture.release()
+            if capture is not None:
+                capture.release()
         if latest_observation is None or latest_image is None:
             raise RuntimeError("office camera produced no usable frame")
         people = []

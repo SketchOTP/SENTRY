@@ -10,6 +10,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+LEGACY_REPO_ROOT = "/srv/ATLAS/100_ACTIVE/Projects/SENTRY"
 UNIT_ROOT = REPO_ROOT / "deploy" / "systemd" / "user"
 ICON_SOURCE = REPO_ROOT / "deploy" / "icons" / "hicolor" / "512x512" / "apps" / "sentry.png"
 UNIT_NAMES = ("sentry-perception.service", "sentry-state-api.service", "sentry-proactive.service")
@@ -52,9 +53,14 @@ def _desktop_directory() -> Path:
     return Path.home() / "Desktop"
 
 
+def _install_repo_template(source: Path, destination: Path) -> None:
+    text = source.read_text(encoding="utf-8")
+    destination.write_text(text.replace(LEGACY_REPO_ROOT, str(REPO_ROOT)), encoding="utf-8")
+
+
 def _install_desktop_launcher(source: Path, destination: Path, *, trust: bool) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source, destination)
+    _install_repo_template(source, destination)
     destination.chmod(0o755)
     if trust and shutil.which("gio") is not None:
         subprocess.run(
@@ -116,7 +122,7 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
         source = UNIT_ROOT / name
         if not source.is_file():
             raise FileNotFoundError(source)
-        shutil.copyfile(source, unit_dir / name)
+        _install_repo_template(source, unit_dir / name)
     for name in LEGACY_UI_UNIT_NAMES:
         legacy = unit_dir / name
         if legacy.exists():
@@ -129,7 +135,7 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
     )
     application_dir.mkdir(parents=True, exist_ok=True)
     launcher_source = REPO_ROOT / "deploy" / "applications" / "sentry-ui.desktop"
-    shutil.copyfile(launcher_source, application_dir / APPLICATION_DESKTOP_NAME)
+    _install_repo_template(launcher_source, application_dir / APPLICATION_DESKTOP_NAME)
     icon_root = (
         Path.home() / ".local" / "share" / "icons"
         if systemd_user_dir is None
@@ -148,6 +154,14 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
         legacy_desktop = application_dir / name
         if legacy_desktop.exists():
             legacy_desktop.unlink()
+    desktop_database = shutil.which("update-desktop-database")
+    if desktop_database is not None:
+        subprocess.run(
+            [desktop_database, str(application_dir)],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
     _run_systemctl("daemon-reload")
     _run_systemctl("enable", "sentry-state-api.service")
     if _continuous_perception_enabled(existing):

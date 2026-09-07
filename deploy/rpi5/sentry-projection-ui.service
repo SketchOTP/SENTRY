@@ -1,0 +1,17 @@
+[Unit]
+Description=SENTRY RPi5 state-only projection
+After=graphical-session.target
+
+[Service]
+Type=simple
+Environment=PYTHONPATH=%h/.local/lib/sentry-projection
+Environment=GSK_RENDERER=gl
+Environment=SENTRY_PROJECTION_IO_BASE_URL=http://192.168.254.4:48221
+Environment=SENTRY_PROJECTION_TOKEN_FILE=%h/.config/sentry/projection.token
+ExecStart=/usr/bin/python3 %h/.local/lib/sentry-projection/tools/sentry_ui.py --projection
+Restart=on-failure
+RestartSec=3s
+NoNewPrivileges=true
+
+[Install]
+WantedBy=graphical-session.target

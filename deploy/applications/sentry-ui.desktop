@@ -8,3 +8,14 @@ Terminal=false
 Categories=Utility;
 StartupNotify=true
 StartupWMClass=sentry_ui.py
+Actions=LaunchMain;LaunchRTX;
+
+[Desktop Action LaunchMain]
+Name=Launch on Main Displays
+Exec=/srv/ATLAS/100_ACTIVE/Projects/SENTRY/tools/sentry_open_identity_ui.sh --display main
+Icon=sentry
+
+[Desktop Action LaunchRTX]
+Name=Launch on RTX Display
+Exec=/srv/ATLAS/100_ACTIVE/Projects/SENTRY/tools/sentry_open_identity_ui.sh --display rtx
+Icon=sentry

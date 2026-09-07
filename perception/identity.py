@@ -197,6 +197,51 @@ class OpenCVFaceBackend:
         except Exception as exc:
             raise RuntimeError(f"SFace feature extraction failed: {exc}") from exc
 
+    @staticmethod
+    def pose_metrics(face: FaceDetection, requested_pose: str) -> dict[str, Any]:
+        """Classify the five bounded enrollment poses from YuNet landmarks.
+
+        This is deliberately a quality gate, not a liveness or identity claim.
+        The image is still held only by the caller and the returned metrics are
+        safe to report as enrollment guidance.
+        """
+        poses = {"straight", "left", "right", "up", "down"}
+        if requested_pose not in poses:
+            raise ValueError("unsupported enrollment pose")
+        if len(face.landmarks) != 10 or face.bbox[2] <= 0:
+            return {"pose": requested_pose, "accepted": False, "reason": "face landmarks unavailable"}
+        right_eye = (face.landmarks[0], face.landmarks[1])
+        left_eye = (face.landmarks[2], face.landmarks[3])
+        nose = (face.landmarks[4], face.landmarks[5])
+        right_mouth = (face.landmarks[6], face.landmarks[7])
+        left_mouth = (face.landmarks[8], face.landmarks[9])
+        eye_mid_x = (right_eye[0] + left_eye[0]) / 2.0
+        eye_mid_y = (right_eye[1] + left_eye[1]) / 2.0
+        mouth_mid_y = (right_mouth[1] + left_mouth[1]) / 2.0
+        face_width = float(face.bbox[2])
+        yaw = (nose[0] - eye_mid_x) / face_width
+        vertical_span = mouth_mid_y - eye_mid_y
+        vertical = (nose[1] - eye_mid_y) / vertical_span if abs(vertical_span) > 1.0 else None
+        accepted = False
+        if vertical is not None:
+            if requested_pose == "straight":
+                accepted = abs(yaw) < 0.10 and 0.25 <= vertical <= 0.78
+            elif requested_pose == "left":
+                accepted = yaw <= -0.08 and 0.20 <= vertical <= 0.90
+            elif requested_pose == "right":
+                accepted = yaw >= 0.08 and 0.20 <= vertical <= 0.90
+            elif requested_pose == "up":
+                accepted = vertical <= 0.38 and abs(yaw) < 0.20
+            elif requested_pose == "down":
+                accepted = vertical >= 0.75 and abs(yaw) < 0.20
+        return {
+            "pose": requested_pose,
+            "accepted": accepted,
+            "yaw_offset": round(yaw, 3),
+            "vertical_ratio": round(vertical, 3) if vertical is not None else None,
+            "reason": None if accepted else "please adjust to the requested head position",
+        }
+
 
 @dataclass
 class _PendingMatch:

@@ -5,6 +5,7 @@ After=graphical-session.target
 [Service]
 Type=simple
 WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
+EnvironmentFile=-%h/.config/sentry/ui-display.env
 Environment=GSK_RENDERER=gl
 Environment=GDK_DEBUG=gl-prefer-gl:gl-glx
 ExecCondition=/usr/bin/sh -c 'test -n "$DISPLAY$WAYLAND_DISPLAY"'

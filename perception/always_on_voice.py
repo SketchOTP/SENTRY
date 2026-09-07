@@ -26,6 +26,7 @@ from .audio_timeline import (
     PcmTimeline,
 )
 from .speech_activity import SpeechActivityGate
+from .remote_voice import RemotePcmStream, RemoteWavPlayback
 from .speaker_context import WakeIdentityCoordinator, unavailable_speaker_envelope
 from .vosk_kws import CommandStreamProgress
 from .voice import KOKORO_ENGLISH_VOICE_IDS, KOKORO_MAX_SPEED, KOKORO_MIN_SPEED, _terminate_capture_process, normalized_audio_level
@@ -138,6 +139,9 @@ class AlwaysOnVoiceConfig:
     room_id: str = "office"
     effort: str = "medium"
     timeout_seconds: int = 900
+    projection_microphone_url: str | None = None
+    projection_token_file: str | None = None
+    projection_playback_url: str | None = None
 
     def __post_init__(self) -> None:
         if self.sample_rate != 16_000:
@@ -247,6 +251,9 @@ class AlwaysOnVoiceConfig:
             room_id=str(values.get("room_id", "office")),
             effort=str(values.get("effort", "medium")),
             timeout_seconds=int(values.get("timeout_seconds", 900)),
+            projection_microphone_url=(str(values["projection_microphone_url"]) if values.get("projection_microphone_url") is not None else None),
+            projection_token_file=(str(values["projection_token_file"]) if values.get("projection_token_file") is not None else None),
+            projection_playback_url=(str(values["projection_playback_url"]) if values.get("projection_playback_url") is not None else None),
         )
 
 
@@ -332,7 +339,10 @@ class VoiceDiagnostics:
         self.payload.update(values)
         self.payload["updated_at"] = datetime.now(timezone.utc).isoformat()
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        temporary = self.path.with_suffix(".tmp")
+        # Voice state is updated by the listener and the unattended-event
+        # worker concurrently.  A shared fixed temporary name lets one
+        # writer replace or unlink the other writer's file.
+        temporary = self.path.with_name(f".{self.path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
         temporary.write_text(json.dumps(self.payload, sort_keys=True) + "\n", encoding="utf-8")
         temporary.chmod(0o600)
         temporary.replace(self.path)
@@ -380,6 +390,7 @@ class AlwaysOnVoiceLoop:
         speech_activity: SpeechActivityGate | None = None,
         identity_coordinator: WakeIdentityCoordinator | None = None,
         wake_chime_fn: Callable[[], bool] | None = None,
+        anima_event_fn: Callable[..., dict[str, Any]] | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.config = config
@@ -397,6 +408,8 @@ class AlwaysOnVoiceLoop:
         self.speech_activity = speech_activity or SpeechActivityGate()
         self.identity_coordinator = identity_coordinator
         self.wake_chime_fn = wake_chime_fn
+        self.anima_event_fn = anima_event_fn
+        self._next_anima_event_poll = 0.0
         self.clock = clock
         self.state = VoiceState.DISABLED
         self._timeline = PcmTimeline(
@@ -1351,6 +1364,88 @@ class AlwaysOnVoiceLoop:
             self._reset_capture(clear_timeline=True)
             self._set_state(VoiceState.LISTENING, last_segment_outcome="non_wake")
 
+    def _process_idle_anima_event(self) -> None:
+        """Process one optional ANIMA event while SENTRY is awake.
+
+        This is deliberately independent of microphone/wake-word listening. The
+        resident event worker calls it even when no audio is arriving. Never
+        interrupt capture, follow-up, approval dialogue, or active speech. The
+        callback owns exact eligible selection and returns metadata only.
+        """
+        if (
+            self.anima_event_fn is None or self.config.sleep_enabled
+            or self.state in {
+                VoiceState.CAPTURING,
+                VoiceState.FINISHING_REQUEST,
+                VoiceState.TRANSCRIBING,
+                VoiceState.PROCESSING,
+                VoiceState.SPEAKING,
+                VoiceState.AWAITING_OPERATOR_RESPONSE,
+                VoiceState.FOLLOWUP_LISTENING,
+            }
+            or self._active_capture is not None
+            or self._focus_deadline is not None or self._focus_pending
+            or self._action_response_authorization_id is not None
+            or self._speech_samples or self.speech_activity.is_active()
+            or getattr(self.speaker, "is_speaking", False)
+            or self.clock() < self._next_anima_event_poll
+        ):
+            return
+        self._next_anima_event_poll = self.clock() + 15.0
+        previous_state = self.state
+        self._set_state(VoiceState.PROCESSING)
+        try:
+            result = self.anima_event_fn(speaker=self.speaker)
+            # Never persist event content or generated speech in diagnostics.
+            # Keep the service's metadata-only lifecycle visible.  In
+            # particular, a recorded terminal result such as RESPONSE or
+            # TOOL_ACTIVITY_COMPLETED must not be mislabeled UNKNOWN_RESULT;
+            # that makes a healthy unattended delivery look like a failed
+            # boundary even though the callback has already submitted the
+            # authoritative Core result and (where permitted) attempted TTS.
+            allowed_statuses = {
+                "NOT_READY", "EMPTY", "RECORDED", "UNKNOWN_RESULT",
+                "PARTIAL", "RESPONSE", "NO_ACTION", "TOOL_ACTIVITY_COMPLETED",
+            }
+            status = result.get("status") if isinstance(result, dict) else None
+            result_status = result.get("result_status") if isinstance(result, dict) else None
+            delivery_status = result.get("delivery_status") if isinstance(result, dict) else None
+            safe_status = status if status in allowed_statuses else "UNKNOWN_RESULT"
+            safe_result_status = result_status if result_status in allowed_statuses else None
+            safe_delivery_status = delivery_status if delivery_status in {
+                "NOT_ATTEMPTED", "DELIVERED", "FAILED", "BLOCKED_INITIATIVE",
+                "BUSY_NOT_DELIVERED",
+            } else None
+            values: dict[str, object] = {"anima_event_status": safe_status}
+            if safe_result_status is not None:
+                values["anima_event_result_status"] = safe_result_status
+            if safe_delivery_status is not None:
+                values["anima_event_delivery_status"] = safe_delivery_status
+            self.diagnostics.update(**values)
+            # Autonomous TTS is a second wake source. Once Core has recorded
+            # the response and the speaker has delivered it, open the same
+            # bounded follow-up window used after an operator-initiated turn.
+            # This is intentionally post-delivery: a failed or blocked alert
+            # must not make the microphone appear conversationally armed.
+            if (
+                status == "RECORDED"
+                and result_status == "RESPONSE"
+                and delivery_status == "DELIVERED"
+            ):
+                self._rearm_until = self.clock() + self.config.post_speech_rearm_ms / 1000
+                self._schedule_focus_after_speech()
+                self._set_state(VoiceState.SPEAKING, last_segment_outcome="anima_event_spoken")
+            else:
+                self._set_state(previous_state, last_segment_outcome="anima_event_idle")
+        except Exception as exc:  # noqa: BLE001 - optional ANIMA failure must not stop manual voice
+            self.diagnostics.update(anima_event_status="UNKNOWN_RESULT", anima_event_exception_type=type(exc).__name__)
+            self._set_state(previous_state, last_segment_outcome="anima_event_unavailable")
+
+    def _run_anima_event_worker(self, stop_event: threading.Event) -> None:
+        """Poll Core independently of microphone chunks while SENTRY is awake."""
+        while not stop_event.wait(0.25):
+            self._process_idle_anima_event()
+
     def run(self, stop_event: threading.Event) -> int:
         if self.config.sleep_enabled:
             self._set_state(
@@ -1385,6 +1480,15 @@ class AlwaysOnVoiceLoop:
                 }
             ),
         )
+        event_worker: threading.Thread | None = None
+        if self.anima_event_fn is not None and not self.config.sleep_enabled:
+            event_worker = threading.Thread(
+                target=self._run_anima_event_worker,
+                args=(stop_event,),
+                daemon=True,
+                name="sentry-anima-event-worker",
+            )
+            event_worker.start()
         try:
             for chunk in self.stream.iter_chunks(stop_event):
                 if stop_event.is_set():
@@ -1394,6 +1498,9 @@ class AlwaysOnVoiceLoop:
             self.diagnostics.update(state=VoiceState.DISABLED.value, vad_healthy=False, last_error=f"voice: {type(exc).__name__}")
             self._reset_capture(clear_timeline=True)
             return 1
+        finally:
+            if event_worker is not None:
+                event_worker.join(timeout=3)
         self._close_focus("shutdown")
         self._clear_action_response("shutdown")
         if self.identity_coordinator is not None:

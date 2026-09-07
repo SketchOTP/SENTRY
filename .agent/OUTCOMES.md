@@ -1653,3 +1653,115 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Focused voice/UI/service/launcher validation passes `118/118`; desktop-entry
   validation, compilation, and `git diff --check` pass. Sleep remained on and
   voice inactive.
+
+## OUTCOME-SENTRY-V0.4-DISPLAY-AUDIO-QUICK-ACTIONS-001 — Implemented and live-reproduced
+- Completed: 2026-09-04
+- Verdict: **PASSED — MAIN/RTX TARGETING WITH OUTPUT-ONLY AUDIO ROUTING**
+- Branch: `feature/v0.4-personal-continuity`
+- Release status: local Checkpoint A work; full V0.4 qualification and release
+  remain pending.
+
+### Result
+- Added freedesktop desktop quick actions named `Launch on Main Displays` and
+  `Launch on RTX Display` to both installed SENTRY launch surfaces.
+- Target selection persists through the private mode-0600
+  `~/.config/sentry/ui-display.env`. `sentry-ui.service` consumes that file and
+  only the GTK UI is restarted when changing displays; ordinary left-click
+  activation keeps the selected target.
+- The launcher validates the requested independent X screen and resolves
+  exactly one matching playback sink. Main uses `:1.0` plus the non-HDMI sink;
+  RTX uses `:1.1` plus the HDMI sink. Missing or ambiguous display/audio
+  targets fail closed.
+- The audio route calls only `pactl set-default-sink`; it never changes the
+  default source. Live proof observed `:1.1` plus RTX HDMI, then `:1.0` plus
+  main analog, while the USB microphone source remained byte-for-byte the same
+  before, during, and after. Final UI/output state was restored to main.
+- Exact affected launcher/resident/UI/voice/identity suites pass `124/124`.
+  All three desktop files pass `desktop-file-validate`; full V0.4 regression,
+  CI, push, and release remain pending.
+
+## OUTCOME-SENTRY-V0.4-DISPLAY-MENU-SURFACE-CORRECTION-001 — Corrected and live-reproduced
+- Completed: 2026-09-04
+- Verdict: **PASSED — ACTUAL GNOME SURFACES NOW HAVE WORKING TARGET PATHS**
+- Branch: `feature/v0.4-personal-continuity`
+
+### Result
+- Operator observation disproved the assumption that Desktop Icons NG renders
+  freedesktop `Actions=` entries. Its installed `fileItemMenu.js` hardcodes
+  `Open` and `Launch using Dedicated Graphics Card` and never calls
+  `Gio.DesktopAppInfo.list_actions()` for desktop icons. The earlier
+  both-surfaces wording is superseded by this record.
+- Pinned canonical `local.sentry.Control.desktop` to the Ubuntu dock, whose
+  installed implementation does enumerate and launch both standard actions.
+  Right-clicking that dock icon is the exact-label surface for `Launch on Main
+  Displays` and `Launch on RTX Display`.
+- Added a bounded compatibility mapping for the desktop shortcut: GNOME's
+  discrete-GPU environment is recognized as the RTX target. Live reproduction
+  with the exact switcheroo variables moved SENTRY to `:1.1`, selected RTX
+  HDMI, and preserved the USB microphone source. The explicit Main action then
+  restored `:1.0` and analog output with the same source.
+- Exact affected suites pass `125/125`; final SENTRY state is active on main.
+  Full V0.4 regression, CI, push, and release remain pending.
+
+## OUTCOME-SENTRY-ANIMA-UNATTENDED-WAKE-TTS-001 — Implemented and target-tested
+- Completed: 2026-09-07
+- Verdict: **PASSED — LOCAL OPT-IN LOOP / LIVE QUALIFICATION PENDING**
+- Branch: `feature/v0.4-personal-continuity`
+- Implementation SHA: none; all existing dirty work remains uncommitted.
+
+### Result
+- Connected the existing idle resident voice callback to the dirty ANIMA
+  Attention consumer, reusing the existing persistent Codex agent and Kokoro
+  speaker. Core remains authoritative for exact eligibility, recorded result
+  status, and request-bound notification disposition.
+- The path stays disconnected unless the private production ANIMA config is
+  enabled and contains the exact `auto_wake` commissioning object. It does not
+  alter the checked-in example config, live config, services, or ANIMA repo.
+- Added explicit resident integration coverage for recorded-result-before-TTS
+  ordering and provider-start outage. Existing focused coverage also proves
+  wake, no-action, required-notification, disabled/malformed config, and no
+  embedded fallback behavior.
+- Focused event/runtime/voice validation passes `117/117`; full unittest
+  regression passes `494/494`; compilation and tracked diff whitespace checks
+  pass. Ruff was unavailable and not run. Real Core/model/TTS delivery remains
+  unqualified and was not attempted.
+
+## OUTCOME-SENTRY-RPI5-PROJECTION-OWNER-INCREMENT-001 — Deployed and locally observed
+- Completed: 2026-09-07
+- Verdict: **PASSED — PC-PROCESSING / RPI5-PROJECTION MEDIA PATH**
+- Implementation SHA: none; existing dirty V0.4 work remains uncommitted.
+
+### Result
+- Added a dependency-light `--projection` mode to the native GTK SENTRY UI.
+  Projection mode omits local identity enrollment and settings ownership while
+  preserving the state orb; the PC remains the only processing host.
+- Added authenticated, bounded Pi microphone PCM and generated-WAV playback,
+  PC-owned status projection, reconnecting reverse status tunnel, and a local
+  USB/HDMI output selector. Token files are mode `0600` and are not printed.
+- Deployed to `sketch@192.168.254.4`: labwc/GTK projection, I/O bridge, and
+  status sync are active. HDMI-A-2 is enabled at 3840x2160, the NexiGo mic
+  stream produced live bytes, and a real PC Kokoro phrase reached Pi playback.
+- Direct LAN Pi→PC status TCP was unavailable despite ICMP, so only the
+  status leg uses the PC-initiated SSH reverse tunnel. PC→Pi media remains
+  direct and authenticated. HDMI has no active PipeWire sink yet; USB is the
+  current truthful default.
+- Targeted compilation, whitespace checks, endpoint authentication checks,
+  live media checks, and service health checks passed. Pytest was not run:
+  `pytest` is not installed in the configured SENTRY virtual environment.
+- This outcome is local E1 deployment evidence, not full ANIMA/SENTRY household
+  acceptance or native Pi5 performance qualification.
+
+## OUTCOME-SENTRY-PROJECTION-HAILO-VOICE-CONTINUATION-2026-09-07
+
+- Corrected the Pi projection's GPU-safe Cairo path from a flat blue circle to
+  a layered, animated state scene with glow, shells, contours, sparks, core,
+  wake ring, and floor reflection. The desktop GL shader remains preferred.
+- Added `perception/hailo_face.py`, a fixed official Hailo Apps-compatible
+  detector/recognizer contract with typed observation parsing and a hard asset
+  availability gate. No raw frame or embedding crosses the boundary.
+- The resident ANIMA event hook remains independent of microphone listening and
+  is enabled only by the private owner `auto_wake` configuration. Live queue
+  state was empty during this check; no event-to-TTS delivery is claimed.
+- Node.js `v24.20.0` is installed on the Linux PC for the owner account. The
+  SENTRY tree remains uncommitted until the coordinated commit after final
+  validation.

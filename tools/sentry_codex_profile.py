@@ -7,9 +7,9 @@ import json
 import os
 import shutil
 import stat
-import tomllib
 from pathlib import Path
 
+import tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILE_NAME = "sentry-resident"
@@ -31,15 +31,88 @@ def _default_resident_codex_home() -> Path:
 
 
 def _filesystem_rules(denied: list[str]) -> str:
+    # A child deny mount cannot be created inside an already denied/read-only
+    # parent. Preserve parent protection, removing only genuine descendants.
+    paths = list(dict.fromkeys(Path(value) for value in denied))
+    minimal = [path for path in paths if not any(
+        parent != path and path.is_relative_to(parent)
+        and path.resolve().is_relative_to(parent.resolve())
+        for parent in paths
+    )]
     lines = ['":minimal" = "read"', "glob_scan_max_depth = 4"]
-    lines.extend(f"{json.dumps(path)} = \"deny\"" for path in denied)
+    lines.extend(f"{json.dumps(str(path))} = \"deny\"" for path in minimal)
     return "\n".join(lines)
+
+
+def autonomous_turn_overrides(profile_data: dict) -> list[str]:
+    """Restrict one resident turn; never edit the installed owner profile.
+
+    This does not erase history or qualify private data for later broad turns.
+    The host must separately gate persistent-history eligibility.
+    """
+    servers = profile_data.get("mcp_servers", {})
+    server = servers.get("anima_household", {})
+    expected = {
+        "anima_health", "anima_get_context", "anima_list_tools", "anima_invoke", "anima_status",
+    }
+    if (
+        set(server.get("enabled_tools", [])) != expected
+        or server.get("env_vars") != ["ANIMA_PREBOUND_FILE"]
+        or profile_data.get("approval_policy") != "never"
+        or profile_data.get("default_permissions") != "sentry-resident"
+        or profile_data.get("permissions", {}).get("sentry-resident", {}).get("network", {}).get("enabled") is not False
+    ):
+        raise ValueError("AUTONOMOUS_PROFILE_NOT_READY")
+    def inline(value):
+        # CLI -c splits dotted keys literally (quoted path segments are not
+        # TOML-aware). Pass whole tables so filesystem paths/server names survive.
+        if isinstance(value, dict):
+            return "{" + ", ".join(f"{json.dumps(k)} = {inline(v)}" for k, v in value.items()) + "}"
+        if isinstance(value, list):
+            return "[" + ", ".join(inline(v) for v in value) + "]"
+        if type(value) not in (str, bool, int, float):
+            raise ValueError("AUTONOMOUS_PROFILE_VALUE_INVALID")
+        return json.dumps(value)
+
+    overrides = {
+        "web_search": "disabled",
+        "allow_login_shell": False,
+        "skills.config": [],
+    }
+    features = set(profile_data.get("features", {})) | {
+        "apps", "browser_use", "browser_use_external", "browser_use_full_cdp_access",
+        "computer_use", "image_generation", "memories", "plugins", "shell_tool",
+        "view_image", "workspace_dependencies", "multi_agent", "js_repl",
+        "apply_patch_freeform", "unified_exec",
+        "code_mode", "code_mode_host", "code_mode_only", "code_mode_prewarm",
+        "hooks", "in_app_browser", "in_app_local_automation", "in_app_chat",
+        "skill_search", "skill_mcp_dependency_install", "remote_plugin", "shell_snapshot",
+        "multi_agent_v2", "enable_mcp_apps", "tool_suggest", "request_permissions_tool",
+        "auth_elicitation", "goals", "sleep_tool",
+    }
+    overrides.update({f"features.{name}": False for name in features})
+    def read_only(value):
+        if isinstance(value, dict):
+            return {key: read_only(access) for key, access in value.items()}
+        return "read" if value == "write" else value
+
+    filesystem = read_only(profile_data["permissions"]["sentry-resident"].get("filesystem", {}))
+    overrides["permissions.sentry-resident.filesystem"] = filesystem
+    overrides["mcp_servers"] = {
+        name: {**settings, "enabled": name == "anima_household"}
+        for name, settings in servers.items()
+    }
+    result: list[str] = []
+    for key, value in sorted(overrides.items()):
+        result.extend(["-c", f"{key}={inline(value)}"])
+    return result
 
 
 def profile_text(
     *, python_executable: Path, config_path: Path, workspace_path: Path | None = None,
     authority_root: Path | None = None, memory_vault_path: Path | None = None,
     resident_codex_home: Path | None = None,
+    anima_config_path: Path | None = None,
 ) -> str:
     skill = REPO_ROOT / "integrations/codex/plugins/sentry-office/skills/sentry-office-agent"
     server = REPO_ROOT / "tools/sentry_mcp_server.py"
@@ -65,6 +138,44 @@ def profile_text(
     ]
     if memory_vault_path:
         denied.append(str(Path(memory_vault_path).expanduser().resolve()))
+    anima_stanza = ""
+    if anima_config_path is not None:
+        from tools.sentry_anima import AnimaConfig, binding_root
+        anima = AnimaConfig.load(anima_config_path)
+        if anima is not None:
+            anima.validate_workspace(workspace)
+            denied.extend([str(anima.path), str(anima.token_file), str(binding_root().resolve())])
+            server_path = anima.client_directory / "anima_household_mcp.py"
+            if not server_path.is_file():
+                raise ValueError("ANIMA prebound MCP server is not installed")
+            anima_stanza = f'''
+[mcp_servers.anima_household]
+command = {json.dumps(str(python_executable))}
+args = [{json.dumps(str(server_path))}]
+cwd = {json.dumps(str(anima.client_directory))}
+enabled = false
+startup_timeout_sec = 10
+tool_timeout_sec = 30
+env_vars = ["ANIMA_PREBOUND_FILE"]
+# Only the prebound surface is permitted here; Core still governs invocation.
+enabled_tools = ["anima_health", "anima_get_context", "anima_list_tools", "anima_invoke", "anima_status"]
+default_tools_approval_mode = "prompt"
+
+[mcp_servers.anima_household.tools.anima_health]
+approval_mode = "approve"
+
+[mcp_servers.anima_household.tools.anima_get_context]
+approval_mode = "approve"
+
+[mcp_servers.anima_household.tools.anima_list_tools]
+approval_mode = "approve"
+
+[mcp_servers.anima_household.tools.anima_invoke]
+approval_mode = "approve"
+
+[mcp_servers.anima_household.tools.anima_status]
+approval_mode = "approve"
+'''
     return f'''model = "gpt-5.6-luna"
 model_reasoning_effort = "medium"
 model_auto_compact_token_limit = {AUTO_COMPACT_TOKEN_LIMIT}
@@ -140,6 +251,7 @@ XDG_RUNTIME_DIR = "{runtime_dir}"
 DBUS_SESSION_BUS_ADDRESS = "{dbus}"
 DISPLAY = "{display}"
 XAUTHORITY = "{xauthority}"
+{anima_stanza}
 '''
 
 
@@ -147,6 +259,7 @@ def install(
     *, codex_home: Path, python_executable: Path, config_path: Path,
     workspace_path: Path | None = None, authority_root: Path | None = None,
     memory_vault_path: Path | None = None,
+    anima_config_path: Path | None = None,
 ) -> dict:
     if not python_executable.is_file():
         raise ValueError(f"SENTRY Python runtime does not exist: {python_executable}")
@@ -172,6 +285,7 @@ def install(
         python_executable=python_executable.absolute(), config_path=config_path.resolve(),
         workspace_path=workspace, authority_root=authority, memory_vault_path=memory_vault_path,
         resident_codex_home=codex_home,
+        anima_config_path=anima_config_path,
     )
     tomllib.loads(text)
     destination.write_text(text, encoding="utf-8")
@@ -262,6 +376,7 @@ def main(argv: list[str] | None = None) -> int:
     install_parser.add_argument("--workspace", type=Path, default=_default_workspace())
     install_parser.add_argument("--authority-root", type=Path, default=_default_authority_root())
     install_parser.add_argument("--memory-vault", type=Path)
+    install_parser.add_argument("--anima-config", type=Path, help="Explicit private opt-in ANIMA host configuration")
     install_parser.add_argument("--resident-codex-home", type=Path, default=_default_resident_codex_home())
     sub.add_parser("status")
     args = parser.parse_args(argv)
@@ -272,6 +387,7 @@ def main(argv: list[str] | None = None) -> int:
             codex_home=codex_home, python_executable=args.python.expanduser(), config_path=args.config.expanduser(),
             workspace_path=args.workspace.expanduser(), authority_root=args.authority_root.expanduser(),
             memory_vault_path=args.memory_vault.expanduser() if args.memory_vault else None,
+            anima_config_path=args.anima_config.expanduser() if args.anima_config else None,
         ) if args.command == "install" else status(codex_home=codex_home)
         if args.command == "install":
             result.update(link_resident_runtime(resident_codex_home=codex_home, source_codex_home=source_codex_home))

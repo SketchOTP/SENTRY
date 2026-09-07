@@ -27,6 +27,7 @@ from typing import Any, Callable, Protocol
 import numpy as np
 
 from .speech_activity import SpeechActivityGate
+from .remote_voice import RemoteWavPlayback
 
 
 KOKORO_ENGLISH_VOICES: tuple[tuple[str, str], ...] = (
@@ -406,6 +407,7 @@ class KokoroSpeaker:
         timeout_seconds: int = 300,
         speech_activity: SpeechActivityGate | None = None,
         level_callback: Callable[[float], None] | None = None,
+        remote_playback: RemoteWavPlayback | None = None,
     ) -> None:
         self.python_executable = python_executable or _discover_kokoro_python()
         self.worker_script = Path(worker_script) if worker_script else Path(__file__).resolve().parents[1] / "tools" / "sentry_kokoro_worker.py"
@@ -417,12 +419,17 @@ class KokoroSpeaker:
         self.timeout_seconds = timeout_seconds
         self.speech_activity = speech_activity or SpeechActivityGate()
         self.level_callback = level_callback
+        self.remote_playback = remote_playback
         self._lock = threading.RLock()
         self._process: subprocess.Popen[bytes] | None = None
 
     @property
     def available(self) -> bool:
-        return bool(self.player and self.python_executable and Path(self.worker_script).is_file())
+        return bool(
+            self.python_executable
+            and Path(self.worker_script).is_file()
+            and (self.player or self.remote_playback is not None)
+        )
 
     @property
     def is_speaking(self) -> bool:
@@ -450,6 +457,8 @@ class KokoroSpeaker:
                 audio = base64.b64decode(response["audioBase64"], validate=True)
                 if not audio:
                     return False
+                if self.remote_playback is not None:
+                    return bool(self.remote_playback.send(audio))
                 pcm, sample_rate, channels = _decode_wav(audio)
                 process = subprocess.Popen(
                     [

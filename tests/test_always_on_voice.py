@@ -1,15 +1,21 @@
+import json
 import tempfile
 import threading
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import Mock
 
 import numpy as np
 
-from perception.always_on_voice import AlwaysOnVoiceConfig, AlwaysOnVoiceLoop, VoiceDiagnostics, VoiceState
+from perception.always_on_voice import (
+    AlwaysOnVoiceConfig,
+    AlwaysOnVoiceLoop,
+    VoiceDiagnostics,
+    VoiceState,
+)
 from perception.speaker_context import WakeIdentityCoordinator
 from perception.vosk_kws import CommandStreamProgress
-
 
 CHUNK = np.ones(512, dtype=np.float32)
 
@@ -129,6 +135,138 @@ class Gate:
 
 
 class AlwaysOnVoiceTests(unittest.TestCase):
+    def test_anima_idle_hook_is_optin_and_reuses_existing_speaker(self):
+        loop, _ = self.make_loop([])
+        loop.state = VoiceState.LISTENING
+        loop._process_idle_anima_event()
+        callback = Mock(return_value={"status": "RECORDED", "answer": "PRIVATE_NOT_DIAGNOSTICS"})
+        loop.anima_event_fn = callback
+        loop._process_idle_anima_event()
+        callback.assert_called_once_with(speaker=self.speaker)
+        self.assertEqual(loop.state, VoiceState.LISTENING)
+        self.assertNotIn("PRIVATE_NOT_DIAGNOSTICS", str(loop.diagnostics.payload))
+        loop._process_idle_anima_event()
+        callback.assert_called_once()
+
+    def test_anima_idle_hook_preserves_terminal_result_and_delivery_status(self):
+        loop, _ = self.make_loop([])
+        loop.state = VoiceState.LISTENING
+        loop.anima_event_fn = Mock(return_value={
+            "status": "RECORDED",
+            "result_status": "RESPONSE",
+            "delivery_status": "DELIVERED",
+            "response": "must not be recorded",
+        })
+        loop._process_idle_anima_event()
+        self.assertEqual(loop.diagnostics.payload["anima_event_status"], "RECORDED")
+        self.assertEqual(loop.diagnostics.payload["anima_event_result_status"], "RESPONSE")
+        self.assertEqual(loop.diagnostics.payload["anima_event_delivery_status"], "DELIVERED")
+        self.assertNotIn("must not be recorded", str(loop.diagnostics.payload))
+
+    def test_autonomous_tts_opens_followup_listening_without_operator_wake(self):
+        loop, clock = self.make_loop([])
+        loop.state = VoiceState.DISABLED
+        loop.anima_event_fn = Mock(return_value={
+            "status": "RECORDED",
+            "result_status": "RESPONSE",
+            "delivery_status": "DELIVERED",
+        })
+        loop._process_idle_anima_event()
+        self.assertEqual(loop.state, VoiceState.SPEAKING)
+        self.assertTrue(loop._focus_pending)
+        self.assertFalse(loop._focus_active())
+
+        # The regular audio loop opens the same focus window on its next
+        # harmless chunk; no wake detector event is required.
+        clock.value += 1.0
+        loop.process_chunk(CHUNK)
+        self.assertEqual(loop.state, VoiceState.FOLLOWUP_LISTENING)
+        self.assertTrue(loop._focus_active())
+
+    def test_autonomous_non_delivery_does_not_open_followup(self):
+        loop, _ = self.make_loop([])
+        loop.state = VoiceState.LISTENING
+        loop.anima_event_fn = Mock(return_value={
+            "status": "RECORDED",
+            "result_status": "RESPONSE",
+            "delivery_status": "FAILED",
+        })
+        loop._process_idle_anima_event()
+        self.assertEqual(loop.state, VoiceState.LISTENING)
+        self.assertFalse(loop._focus_pending)
+
+    def test_autonomous_event_worker_runs_without_microphone_chunks(self):
+        called = threading.Event()
+        stop_event = threading.Event()
+
+        class NoAudioStream:
+            def iter_chunks(self, stream_stop_event):
+                stream_stop_event.wait(2.0)
+                if False:
+                    yield CHUNK
+
+        loop, _ = self.make_loop([])
+        loop.stream = NoAudioStream()
+
+        def poll(**_kwargs):
+            called.set()
+            stop_event.set()
+            return {"status": "EMPTY"}
+
+        loop.anima_event_fn = poll
+        runner = threading.Thread(target=loop.run, args=(stop_event,))
+        runner.start()
+        try:
+            self.assertTrue(called.wait(2.0))
+        finally:
+            stop_event.set()
+            runner.join(3.0)
+        self.assertFalse(runner.is_alive())
+        self.assertEqual(self.wake_detector.calls, 0)
+
+    def test_anima_idle_hook_does_not_require_microphone_listening_state(self):
+        loop, _ = self.make_loop([])
+        loop.state = VoiceState.DISABLED
+        loop.anima_event_fn = Mock(return_value={"status": "EMPTY"})
+        loop._process_idle_anima_event()
+        loop.anima_event_fn.assert_called_once_with(speaker=loop.speaker)
+
+    def test_anima_idle_hook_remains_off_in_sleep_mode(self):
+        loop, _ = self.make_loop([])
+        loop.state = VoiceState.DISABLED
+        loop.config = replace(loop.config, sleep_enabled=True)
+        loop.anima_event_fn = Mock(return_value={"status": "EMPTY"})
+        loop._process_idle_anima_event()
+        loop.anima_event_fn.assert_not_called()
+
+    def test_anima_hook_never_interrupts_capture_focus_approval_or_speech(self):
+        for field, value in (
+            ("state", VoiceState.PROCESSING), ("_active_capture", object()),
+            ("_focus_deadline", 100), ("_focus_pending", True),
+            ("_action_response_authorization_id", "pending"), ("_speech_samples", 1),
+        ):
+            with self.subTest(field=field):
+                loop, _ = self.make_loop([])
+                loop.state = VoiceState.LISTENING
+                loop.anima_event_fn = Mock()
+                setattr(loop, field, value)
+                loop._process_idle_anima_event()
+                loop.anima_event_fn.assert_not_called()
+        loop, _ = self.make_loop([], gate=Gate(active=True))
+        loop.state = VoiceState.LISTENING
+        loop.anima_event_fn = Mock()
+        loop._process_idle_anima_event()
+        loop.anima_event_fn.assert_not_called()
+
+    def test_anima_failure_leaves_manual_voice_listening_without_content(self):
+        loop, _ = self.make_loop([])
+        loop.state = VoiceState.LISTENING
+        loop.anima_event_fn = Mock(side_effect=OSError("PRIVATE"))
+        loop._process_idle_anima_event()
+        self.assertEqual(loop.state, VoiceState.LISTENING)
+        self.assertEqual(loop.diagnostics.payload["anima_event_exception_type"], "OSError")
+        self.assertNotIn("PRIVATE", str(loop.diagnostics.payload))
+
     def make_loop(
         self, probabilities, transcripts=(), *, detections=(), command_updates=(),
         clock=None, gate=None, ask=None, config=None, fast_streaming_timing=True,
@@ -621,6 +759,21 @@ class AlwaysOnVoiceTests(unittest.TestCase):
             contents = diagnostics.path.read_text(encoding="utf-8")
             self.assertNotIn("transcript", contents)
             self.assertNotIn("ordinary office conversation", contents)
+
+    def test_concurrent_diagnostics_updates_leave_one_valid_private_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            diagnostics = VoiceDiagnostics(Path(directory) / "voice.json")
+            threads = [
+                threading.Thread(target=diagnostics.update, kwargs={"state": "LISTENING", "worker": index})
+                for index in range(8)
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+            payload = json.loads(diagnostics.path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["state"], "LISTENING")
+            self.assertEqual(diagnostics.path.stat().st_mode & 0o777, 0o600)
 
     def test_config_is_opt_in_and_requires_vosk_model_when_enabled(self):
         self.assertFalse(AlwaysOnVoiceConfig.from_mapping({}).always_on_enabled)

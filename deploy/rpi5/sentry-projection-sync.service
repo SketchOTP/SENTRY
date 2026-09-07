@@ -1,0 +1,16 @@
+[Unit]
+Description=SENTRY RPi5 projection status sync
+After=network-online.target sentry-projection-io.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=PYTHONPATH=%h/.local/lib/sentry-projection
+ExecStart=/usr/bin/python3 %h/.local/lib/sentry-projection/tools/sentry_projection_sync.py --url http://127.0.0.1:48220/v1/status --token-file %h/.config/sentry/projection.token --status-path %t/sentry/voice.json --interval 1
+Restart=on-failure
+RestartSec=3s
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

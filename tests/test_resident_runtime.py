@@ -108,6 +108,54 @@ class ResidentRuntimeTests(unittest.TestCase):
             self.assertFalse((applications / "sentry-ui.desktop").exists())
             self.assertTrue((applications / APPLICATION_DESKTOP_NAME).is_file())
 
+    def test_install_renders_relocated_repo_in_units_and_both_launchers(self):
+        source_root = Path(__file__).resolve().parents[1]
+        names = (*UNIT_NAMES, *ROUTINE_UNIT_NAMES, *WEATHER_UNIT_NAMES, *VOICE_UNIT_NAMES, *ALARM_UNIT_NAMES)
+        templates = {
+            name: (source_root / "deploy/systemd/user" / name).read_text(encoding="utf-8")
+            for name in names
+        }
+        desktop = (source_root / "deploy/applications/sentry-ui.desktop").read_text(encoding="utf-8")
+        legacy = "/srv/ATLAS/100_ACTIVE/Projects/SENTRY"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relocated = root / "local-checkout"
+            launcher_source = relocated / "deploy/applications/sentry-ui.desktop"
+            launcher_source.parent.mkdir(parents=True)
+            launcher_source.write_text(desktop, encoding="utf-8")
+            config = root / "config.json"
+            config_bytes = b'{"voice": {"always_on_enabled": false}, "custom": "preserved"}\n'
+            config.write_bytes(config_bytes)
+            config.chmod(0o600)
+            units = root / "units"
+            with (
+                patch("tools.sentry_install_user_services.REPO_ROOT", relocated),
+                patch("tools.sentry_install_user_services._run_systemctl"),
+                patch("tools.sentry_install_user_services.shutil.which", return_value=None),
+            ):
+                install(config, start=False, systemd_user_dir=units)
+            for name, template in templates.items():
+                self.assertEqual(
+                    (units / name).read_text(encoding="utf-8"),
+                    template.replace(legacy, str(relocated)),
+                    name,
+                )
+                self.assertEqual(
+                    (source_root / "deploy/systemd/user" / name).read_text(encoding="utf-8"),
+                    template,
+                )
+            for launcher in (
+                root / "applications" / APPLICATION_DESKTOP_NAME,
+                root / "Desktop/SENTRY.desktop",
+            ):
+                self.assertEqual(
+                    launcher.read_text(encoding="utf-8"), desktop.replace(legacy, str(relocated))
+                )
+            self.assertEqual(launcher_source.read_text(encoding="utf-8"), desktop)
+            self.assertEqual((root / "Desktop/SENTRY.desktop").stat().st_mode & 0o777, 0o755)
+            self.assertEqual(config.read_bytes(), config_bytes)
+            self.assertEqual(config.stat().st_mode & 0o777, 0o600)
+
     def test_units_use_accepted_paths_and_isolated_services(self):
         unit_root = Path("deploy/systemd/user")
         perception = (unit_root / "sentry-perception.service").read_text(encoding="utf-8")
@@ -146,14 +194,21 @@ class ResidentRuntimeTests(unittest.TestCase):
         self.assertNotIn("zenity", sentry_ui.lower())
         self.assertNotIn("PartOf=sentry-voice.service", sentry_ui)
         self.assertIn("After=graphical-session.target", sentry_ui)
+        self.assertIn("EnvironmentFile=-%h/.config/sentry/ui-display.env", sentry_ui)
         desktop = Path("deploy/applications/sentry-ui.desktop").read_text(encoding="utf-8")
         self.assertIn("Name=SENTRY", desktop)
         self.assertIn("Icon=sentry", desktop)
         self.assertNotIn("Icon=audio-input-microphone", desktop)
         self.assertIn("StartupWMClass=sentry_ui.py", desktop)
+        self.assertIn("Actions=LaunchMain;LaunchRTX;", desktop)
+        self.assertIn("Name=Launch on Main Displays", desktop)
+        self.assertIn("Name=Launch on RTX Display", desktop)
+        self.assertIn("--display main", desktop)
+        self.assertIn("--display rtx", desktop)
         self.assertIn("tools/sentry_open_identity_ui.sh", desktop)
         launcher = Path("tools/sentry_open_identity_ui.sh").read_text(encoding="utf-8")
-        self.assertIn("tools/sentry_launch.py", launcher)
+        self.assertIn('"$SENTRY_LAUNCH_DIR/sentry_launch.py"', launcher)
+        self.assertIn('"$@"', launcher)
         self.assertIn("Restart=on-failure", voice)
         voice_launcher = Path("tools/sentry_always_on_voice.py").read_text(encoding="utf-8")
         self.assertIn('"sentry" / "speaker-context.json"', voice_launcher)

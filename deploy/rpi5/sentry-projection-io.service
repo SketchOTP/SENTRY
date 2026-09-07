@@ -1,0 +1,16 @@
+[Unit]
+Description=SENTRY RPi5 projection microphone and speaker bridge
+After=pipewire.service wireplumber.service
+Wants=pipewire.service wireplumber.service
+
+[Service]
+Type=simple
+Environment=PYTHONPATH=%h/.local/lib/sentry-projection
+ExecStart=/usr/bin/python3 %h/.local/lib/sentry-projection/tools/sentry_projection_io.py --host 192.168.254.4 --port 48221 --token-file %h/.config/sentry/projection.token --settings-file %h/.config/sentry/projection.json
+Restart=on-failure
+RestartSec=3s
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

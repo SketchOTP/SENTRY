@@ -12,6 +12,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any, Callable
 
@@ -19,13 +20,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from tools.sentry_identity_enrollment import IdentityEnrollmentManager  # noqa: E402
 from perception.voice import (  # noqa: E402
     KOKORO_ENGLISH_VOICE_IDS,
     KOKORO_ENGLISH_VOICES,
     KOKORO_MAX_SPEED,
     KOKORO_MIN_SPEED,
 )
+from perception.remote_voice import authorization_header, read_private_token  # noqa: E402
 
 
 def load_voice_preferences(config_path: Path) -> tuple[str, float]:
@@ -410,6 +411,24 @@ def voice_status_path() -> Path:
     return Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")) / "sentry" / "voice.json"
 
 
+def projection_io_request(method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Call only the Pi-local typed projection controls, never arbitrary HTTP."""
+
+    base_url = os.environ.get("SENTRY_PROJECTION_IO_BASE_URL", "http://127.0.0.1:48221").rstrip("/")
+    token_file = Path(os.environ.get("SENTRY_PROJECTION_TOKEN_FILE", "~/.config/sentry/projection.token")).expanduser()
+    token = read_private_token(token_file)
+    data = json.dumps(payload).encode("utf-8") if payload is not None else None
+    headers = {"Authorization": authorization_header(token)}
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    request = urllib.request.Request(f"{base_url}{path}", data=data, headers=headers, method=method)
+    with urllib.request.urlopen(request, timeout=3) as response:
+        value = json.loads(response.read(8192).decode("utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("projection response must be an object")
+    return value
+
+
 def read_voice_status(path: Path | None = None) -> dict[str, Any]:
     target = path or voice_status_path()
     if not target.is_file():
@@ -470,7 +489,7 @@ def voice_status_summary(payload: dict[str, Any]) -> tuple[str, str, str]:
     return state, guidance, identity
 
 
-def build_application(config_path: Path):
+def build_application(config_path: Path, *, projection_mode: bool = False):
     distro_packages = Path("/usr/lib/python3/dist-packages")
     if distro_packages.is_dir() and str(distro_packages) not in sys.path:
         # GTK is supplied by Ubuntu while OpenCV/Vosk remain in SENTRY's venv.
@@ -484,6 +503,7 @@ def build_application(config_path: Path):
         from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
         from OpenGL import GL
         from OpenGL.GL import shaders
+        import cairo
     except (ImportError, ValueError) as exc:  # pragma: no cover - host dependency
         raise RuntimeError(f"GTK 4 is required for the native SENTRY application: {exc}") from exc
 
@@ -1177,7 +1197,7 @@ def build_application(config_path: Path):
             }
         """
 
-        def __init__(self):
+        def __init__(self, *, on_context_failure: Callable[[], None] | None = None):
             super().__init__()
             self.set_size_request(600, 600)
             self.set_required_version(3, 3)
@@ -1188,6 +1208,8 @@ def build_application(config_path: Path):
             self._program: int | None = None
             self._vertex_array: int | None = None
             self._gl = None
+            self._on_context_failure = on_context_failure
+            self._context_failed = False
             settings = Gtk.Settings.get_default()
             self.reduced_motion = bool(settings and not settings.get_property("gtk-enable-animations"))
             self.connect("realize", self._realize)
@@ -1208,13 +1230,29 @@ def build_application(config_path: Path):
         def _realize(self, _area) -> None:
             self.make_current()
             if self.get_error() is not None:
+                self._context_failed = True
+                if self._on_context_failure is not None:
+                    GLib.idle_add(self._on_context_failure)
                 return
-            self._gl = GL
-            self._program = shaders.compileProgram(
-                shaders.compileShader(self.VERTEX_SHADER, GL.GL_VERTEX_SHADER),
-                shaders.compileShader(self.FRAGMENT_SHADER, GL.GL_FRAGMENT_SHADER),
-            )
-            self._vertex_array = int(GL.glGenVertexArrays(1))
+            try:
+                self._gl = GL
+                self._program = shaders.compileProgram(
+                    shaders.compileShader(self.VERTEX_SHADER, GL.GL_VERTEX_SHADER),
+                    shaders.compileShader(self.FRAGMENT_SHADER, GL.GL_FRAGMENT_SHADER),
+                )
+                self._vertex_array = int(GL.glGenVertexArrays(1))
+            except (RuntimeError, ValueError) as exc:
+                # A Pi compositor/driver can expose a GLArea and still fail to
+                # create the requested context. Keep the projection visible by
+                # switching to the bounded Cairo orb instead of crashing or
+                # leaving an empty white/black surface.
+                print(f"SENTRY GL orb unavailable: {type(exc).__name__}: {exc}", file=sys.stderr)
+                self._context_failed = True
+                self._gl = None
+                self._program = None
+                self._vertex_array = None
+                if self._on_context_failure is not None:
+                    GLib.idle_add(self._on_context_failure)
 
         def _unrealize(self, _area) -> None:
             self.make_current()
@@ -1272,12 +1310,21 @@ def build_application(config_path: Path):
             return True
 
     class SentryWindow(Gtk.ApplicationWindow):
-        def __init__(self, app):
+        def __init__(self, app, *, projection_mode: bool = False):
             super().__init__(application=app, title="SENTRY")
             self.set_icon_name("sentry")
             self.set_default_size(1120, 760)
             self.set_size_request(880, 620)
-            self.manager = IdentityEnrollmentManager(config_path)
+            self.projection_mode = projection_mode
+            if projection_mode:
+                self.set_decorated(False)
+            self.manager: Any = None
+            if not projection_mode:
+                # Keep the projection dependency-light: identity enrollment
+                # owns camera/database code and belongs only on the PC.
+                from tools.sentry_identity_enrollment import IdentityEnrollmentManager
+
+                self.manager = IdentityEnrollmentManager(config_path)
             self.session: dict[str, Any] | None = None
             self._busy = False
             self._delete_candidate: str | None = None
@@ -1285,11 +1332,12 @@ def build_application(config_path: Path):
             self._last_state: str | None = None
             self._last_wake_at: str | None = None
             self._status_initialized = False
-            self.sleep_enabled = load_sleep_preference(config_path)
+            self.sleep_enabled = False if projection_mode else load_sleep_preference(config_path)
             self._sleep_transition_state: str | None = None
             self._setting_sleep_programmatically = False
             self._build()
-            self._load_profiles()
+            if not projection_mode:
+                self._load_profiles()
             self._refresh_status()
             GLib.timeout_add(40, self._refresh_status)
 
@@ -1341,14 +1389,44 @@ def build_application(config_path: Path):
             status.set_halign(Gtk.Align.CENTER)
             status.set_valign(Gtk.Align.CENTER)
             status.set_vexpand(True)
-            self.status_orb = StatusOrb()
+            self.projection_fallback_orb = Gtk.DrawingArea()
+            self.projection_fallback_orb.set_content_width(600)
+            self.projection_fallback_orb.set_content_height(600)
+            self.projection_fallback_orb.set_draw_func(self._draw_projection_fallback)
+            self.projection_fallback_orb.set_visible(False)
+            self.status_orb = StatusOrb(on_context_failure=self._show_projection_fallback if self.projection_mode else None)
             self.status_orb.set_halign(Gtk.Align.CENTER)
-            status.append(self.status_orb)
+            orb_stack = Gtk.Overlay()
+            orb_stack.set_halign(Gtk.Align.CENTER)
+            orb_stack.set_valign(Gtk.Align.CENTER)
+            orb_stack.set_child(self.projection_fallback_orb)
+            orb_stack.add_overlay(self.status_orb)
+            status.append(orb_stack)
             self.state_label = Gtk.Label(label="Standby", xalign=0.5)
             self.state_label.add_css_class("state")
             status.append(self.state_label)
             main.append(status)
+
+            if self.projection_mode:
+                projection_audio = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+                projection_audio.set_halign(Gtk.Align.CENTER)
+                self.projection_audio_label = Gtk.Label(label="Audio output: checking…")
+                self.projection_audio_label.add_css_class("muted")
+                self.projection_audio_button = Gtk.Button(label="Audio output")
+                self.projection_audio_button.connect("clicked", self._toggle_projection_audio)
+                projection_audio.append(self.projection_audio_label)
+                projection_audio.append(self.projection_audio_button)
+                main.append(projection_audio)
             root.set_child(main)
+
+            # A projection renders the same state animation but owns no local
+            # voice, identity, or household state. Those remain on the PC.
+            if self.projection_mode:
+                self.set_child(root)
+                self._projection_audio_output = "usb"
+                self._refresh_projection_audio()
+                self.fullscreen()
+                return
 
             scroll = Gtk.ScrolledWindow()
             scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -1408,7 +1486,7 @@ def build_application(config_path: Path):
 
             voice_card = self._card("Voice")
             voice_help = Gtk.Label(
-                label="Choose SENTRY's English Kokoro voice and speaking pace.",
+                label="Voice and speaking pace are managed by ANIMA for every SENTRY instance. Sleep mode remains local to this projection.",
                 xalign=0,
                 wrap=True,
             )
@@ -1422,6 +1500,7 @@ def build_application(config_path: Path):
             for identifier, label in KOKORO_ENGLISH_VOICES:
                 self.voice_choice.append(identifier, label)
             self.voice_choice.set_active_id(current_voice)
+            self.voice_choice.set_sensitive(False)
             voice_card.append(self.voice_choice)
 
             speed_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -1446,6 +1525,7 @@ def build_application(config_path: Path):
             self.voice_speed.add_mark(1.0, Gtk.PositionType.BOTTOM, "Natural")
             self.voice_speed.add_mark(1.30, Gtk.PositionType.BOTTOM, "Faster")
             self.voice_speed.connect("value-changed", self._voice_speed_changed)
+            self.voice_speed.set_sensitive(False)
             self._voice_speed_changed(self.voice_speed)
             voice_card.append(self.voice_speed)
 
@@ -1457,9 +1537,11 @@ def build_application(config_path: Path):
             self.save_voice_button.connect("clicked", self._save_selected_voice)
             voice_actions.append(self.preview_voice_button)
             voice_actions.append(self.save_voice_button)
+            self.preview_voice_button.set_sensitive(False)
+            self.save_voice_button.set_sensitive(False)
             voice_card.append(voice_actions)
             self.voice_message = Gtk.Label(
-                label="Preview a voice before applying it. Saved changes also affect alarms and proactive speech.",
+                label="Open ANIMA → Settings → SENTRY voice to change the household voice. Changes are read by the processing host through the authenticated ANIMA bridge.",
                 xalign=0,
                 wrap=True,
             )
@@ -1538,6 +1620,130 @@ def build_application(config_path: Path):
             self.settings_toggle = toggle
             self.set_child(root)
 
+        def _show_projection_fallback(self) -> bool:
+            if not self.projection_mode:
+                return False
+            self.status_orb.set_visible(False)
+            self.projection_fallback_orb.set_visible(True)
+            return False
+
+        def _draw_projection_fallback(self, _area, context, width: int, height: int) -> None:
+            # GPU-safe rendering for compositors that cannot create the
+            # requested GL 3.3 context. This intentionally mirrors the desktop
+            # scene language: a dark stage, luminous field, layered shell,
+            # orbital structure, and state-driven material rather than a plain
+            # filled circle. It remains bounded and cheap enough for a Pi 5.
+            frame = self.status_orb.controller.frame(reduced_motion=self.status_orb.reduced_motion)
+            red, green, blue = frame["color"]
+            cx, cy = width / 2.0, height / 2.0
+            t = float(frame["time"])
+            audio = max(0.0, min(1.0, float(frame["audio_level"])))
+            wake = float(frame["wake_progress"])
+            radius = min(width, height) * (0.31 + audio * 0.018)
+            context.set_operator(cairo.OPERATOR_SOURCE)
+            context.set_source_rgb(0.001, 0.0015, 0.006)
+            context.paint()
+            stage = cairo.RadialGradient(cx, cy * 0.92, radius * 0.05, cx, cy * 0.92, radius * 2.0)
+            stage.add_color_stop_rgba(0.0, red * 0.20, green * 0.20, blue * 0.20, 0.34)
+            stage.add_color_stop_rgba(0.42, red * 0.07, green * 0.07, blue * 0.12, 0.14)
+            stage.add_color_stop_rgba(1.0, 0.0, 0.0, 0.0, 0.0)
+            context.set_source(stage)
+            context.arc(cx, cy, radius * 1.95, 0, math.tau)
+            context.fill()
+
+            # A soft floor reflection gives the projection a stable visual
+            # anchor and makes the orb read as a designed scene on a TV.
+            floor = cairo.RadialGradient(cx, cy + radius * 1.12, 0.0, cx, cy + radius * 1.12, radius * 0.95)
+            floor.add_color_stop_rgba(0.0, red * 0.18, green * 0.18, blue * 0.22, 0.24)
+            floor.add_color_stop_rgba(1.0, red * 0.02, green * 0.02, blue * 0.02, 0.0)
+            context.save()
+            context.scale(1.0, 0.16)
+            context.set_source(floor)
+            context.arc(cx, (cy + radius * 1.12) / 0.16, radius * 0.95, 0, math.tau)
+            context.fill()
+            context.restore()
+
+            glow = cairo.RadialGradient(cx, cy, radius * 0.10, cx, cy, radius * 1.55)
+            glow.add_color_stop_rgba(0.0, min(1.0, red * 1.35), min(1.0, green * 1.35), min(1.0, blue * 1.35), 0.68)
+            glow.add_color_stop_rgba(0.42, red * 0.34, green * 0.34, blue * 0.34, 0.22)
+            glow.add_color_stop_rgba(1.0, red * 0.03, green * 0.03, blue * 0.03, 0.0)
+            context.set_source(glow)
+            context.arc(cx, cy, radius * 1.55, 0, math.tau)
+            context.fill()
+
+            context.save()
+            context.translate(cx, cy)
+            # Three translucent orbital shells echo the full renderer's
+            # dimensional glass and remain crisp with Cairo antialiasing.
+            for index, tilt in enumerate((0.38, 0.57, 0.78)):
+                context.save()
+                context.rotate(t * (0.035 + index * 0.017) * (0.25 if self.status_orb.reduced_motion else 1.0) + index * 0.82)
+                context.scale(1.0, tilt)
+                context.set_line_width(max(1.4, radius * (0.010 - index * 0.001)))
+                context.set_source_rgba(red, green, blue, 0.25 - index * 0.045)
+                context.arc(0.0, 0.0, radius * (1.12 + index * 0.045), 0.0, math.tau)
+                context.stroke()
+                context.restore()
+
+            # Animated field contours provide recognizable structure when the
+            # GL shader is unavailable, while using deterministic trigonometry
+            # instead of random particles or external state.
+            for layer in range(3):
+                path_radius = radius * (0.77 + layer * 0.085)
+                for point in range(49):
+                    angle = math.tau * point / 48.0
+                    wave = math.sin(angle * (3.0 + layer) + t * (0.16 + layer * 0.05)) * (0.018 + audio * 0.020)
+                    wave += math.sin(angle * 7.0 - t * 0.11) * 0.010
+                    distance = path_radius * (1.0 + wave)
+                    x = math.cos(angle) * distance
+                    y = math.sin(angle) * distance
+                    if point == 0:
+                        context.move_to(x, y)
+                    else:
+                        context.line_to(x, y)
+                context.set_line_width(max(1.0, radius * 0.006))
+                context.set_source_rgba(
+                    red if layer % 2 == 0 else min(1.0, red + 0.18),
+                    green if layer % 2 == 0 else min(1.0, green + 0.18),
+                    blue if layer % 2 == 0 else min(1.0, blue + 0.18),
+                    0.42 - layer * 0.09,
+                )
+                context.stroke()
+
+            # A restrained set of orbiting sparks supplies the desktop scene's
+            # sense of motion without becoming visually noisy at TV scale.
+            for index in range(18):
+                angle = t * (0.10 + (index % 4) * 0.018) + index * 0.87
+                distance = radius * (0.86 + (index % 5) * 0.075)
+                spark = 1.0 + math.sin(t * 0.9 + index) * 0.20
+                context.arc(math.cos(angle) * distance, math.sin(angle) * distance * 0.86, max(1.0, radius * 0.009 * spark), 0, math.tau)
+                context.set_source_rgba(min(1.0, red + 0.30), min(1.0, green + 0.30), min(1.0, blue + 0.30), 0.34)
+                context.fill()
+
+            context.restore()
+
+            core_radius = radius * (0.58 + audio * 0.025)
+            core = cairo.RadialGradient(cx, cy, radius * 0.06, cx, cy, core_radius)
+            core.add_color_stop_rgba(0.0, min(1.0, red + 0.35), min(1.0, green + 0.35), min(1.0, blue + 0.35), 0.50)
+            core.add_color_stop_rgba(0.38, red * 0.60, green * 0.60, blue * 0.60, 0.28)
+            core.add_color_stop_rgba(0.90, red * 0.20, green * 0.20, blue * 0.20, 0.10)
+            core.add_color_stop_rgba(1.0, red * 0.06, green * 0.06, blue * 0.06, 0.0)
+            context.set_source(core)
+            context.arc(cx, cy, core_radius, 0, math.tau)
+            context.fill()
+
+            context.set_line_width(max(2.0, radius * 0.018))
+            context.set_source_rgba(min(1.0, red + 0.18), min(1.0, green + 0.18), min(1.0, blue + 0.18), 0.70)
+            context.arc(cx, cy, radius * (0.89 + 0.018 * math.sin(t * 0.7)), 0, math.tau)
+            context.stroke()
+
+            if 0.0 <= wake <= 1.0:
+                ring_radius = radius * (0.92 + wake * 0.72)
+                context.set_line_width(max(2.0, radius * (0.024 - wake * 0.012)))
+                context.set_source_rgba(0.74, 0.92, 1.0, (1.0 - wake) * 0.78)
+                context.arc(cx, cy, ring_radius, 0, math.tau)
+                context.stroke()
+
         def _toggle_settings(self, _button) -> None:
             opening = not self.settings_drawer.get_reveal_child()
             self.settings_drawer.set_reveal_child(opening)
@@ -1551,6 +1757,8 @@ def build_application(config_path: Path):
         def close_settings(self) -> None:
             """Restore the clean main surface whenever the application is launched."""
 
+            if self.projection_mode:
+                return
             self.settings_drawer.set_reveal_child(False)
             self.settings_toggle.set_icon_name("go-previous-symbolic")
             self.settings_toggle.set_tooltip_text("Open SENTRY settings and people")
@@ -1566,13 +1774,53 @@ def build_application(config_path: Path):
             wake_at = str(payload.get("last_wake_at") or "") or None
             acknowledge = should_acknowledge_wake(self._last_wake_at, wake_at) if self._status_initialized else False
             self.status_orb.present(payload, acknowledge_wake=acknowledge)
+            if self.projection_mode and self.projection_fallback_orb.get_visible():
+                self.projection_fallback_orb.queue_draw()
             self.state_label.set_text(guidance)
-            self.settings_runtime_label.set_text(f"Voice state: {state.replace('_', ' ').title()}")
-            self.settings_speaker_label.set_text(identity)
+            if not self.projection_mode:
+                self.settings_runtime_label.set_text(f"Voice state: {state.replace('_', ' ').title()}")
+                self.settings_speaker_label.set_text(identity)
             self._last_state = state
             self._last_wake_at = wake_at
             self._status_initialized = True
             return True
+
+        def _refresh_projection_audio(self) -> None:
+            def worker() -> None:
+                try:
+                    result = projection_io_request("GET", "/v1/output")
+                    output = str(result.get("audio_output", "usb"))
+                    GLib.idle_add(self._set_projection_audio_label, output, None)
+                except Exception as exc:  # noqa: BLE001 - projection UI shows bounded failure
+                    GLib.idle_add(self._set_projection_audio_label, None, type(exc).__name__)
+
+            threading.Thread(target=worker, name="sentry-projection-audio", daemon=True).start()
+
+        def _set_projection_audio_label(self, output: str | None, error: str | None) -> bool:
+            if error is not None:
+                self.projection_audio_label.set_text(f"Audio unavailable ({error})")
+                return False
+            if output not in {"usb", "hdmi"}:
+                output = "usb"
+            self._projection_audio_output = output
+            self.projection_audio_label.set_text(f"Audio output: {output.upper()}")
+            self.projection_audio_button.set_label("Switch output")
+            return False
+
+        def _toggle_projection_audio(self, _button) -> None:
+            target = "hdmi" if self._projection_audio_output == "usb" else "usb"
+            self.projection_audio_button.set_sensitive(False)
+
+            def worker() -> None:
+                try:
+                    projection_io_request("POST", "/v1/output", {"audio_output": target})
+                    GLib.idle_add(self._set_projection_audio_label, target, None)
+                except Exception as exc:  # noqa: BLE001 - projection UI shows bounded failure
+                    GLib.idle_add(self._set_projection_audio_label, None, type(exc).__name__)
+                finally:
+                    GLib.idle_add(self.projection_audio_button.set_sensitive, True)
+
+            threading.Thread(target=worker, name="sentry-projection-audio-change", daemon=True).start()
 
         def _run(self, operation: Callable[[], Any], complete: Callable[[Any], None]) -> None:
             if self._busy:
@@ -1876,25 +2124,31 @@ def build_application(config_path: Path):
             self._run(operation, complete)
 
     class SentryApplication(Gtk.Application):
-        def __init__(self):
+        def __init__(self, *, projection_mode: bool = False):
             super().__init__(application_id="local.sentry.Control", flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
+            self.projection_mode = projection_mode
 
         def do_activate(self):
             window = self.props.active_window
             if window is None:
-                window = SentryWindow(self)
+                window = SentryWindow(self, projection_mode=self.projection_mode)
             window.close_settings()
             window.present()
 
-    return SentryApplication()
+    return SentryApplication(projection_mode=projection_mode)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path("~/.config/sentry/config.json"))
+    parser.add_argument(
+        "--projection",
+        action="store_true",
+        help="render the state-only projection; voice and identity remain on the processing host",
+    )
     args = parser.parse_args(argv)
     try:
-        application = build_application(args.config.expanduser())
+        application = build_application(args.config.expanduser(), projection_mode=args.projection)
         return int(application.run([sys.argv[0]]))
     except (OSError, RuntimeError, ValueError) as exc:
         print(f"SENTRY UI failed: {type(exc).__name__}: {exc}", file=sys.stderr)

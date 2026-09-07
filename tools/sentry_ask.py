@@ -35,6 +35,25 @@ from tools.sentry_codex_agent import CodexNativeAgent
 _AGENT = CodexNativeAgent()
 
 
+def configured_anima_events():
+    """Optional queue source using this exact voice agent, never a new one."""
+    from tools.sentry_anima_events import configured_attention_source
+    return configured_attention_source(_AGENT)
+
+
+def process_anima_event(
+    *, request_id: str, household_id: str, claim_exact, speaker=None,
+    enabled: bool = False, context_ready: bool = False,
+    persistent_history_allowed: bool = False,
+) -> dict[str, Any]:
+    """Trusted host hook, not a typed conversational or model-callable endpoint."""
+    return _AGENT.process_anima_event(
+        request_id=request_id, household_id=household_id, claim_exact=claim_exact,
+        speaker=speaker, enabled=enabled, context_ready=context_ready,
+        persistent_history_allowed=persistent_history_allowed,
+    )
+
+
 def complete_action_presentation(
     authorization_id: str, *, surface: str = "kokoro_voice",
     response_window_seconds: int = 120,

@@ -1,0 +1,16 @@
+[Unit]
+Description=SENTRY authenticated projection status bridge
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/sketch/Projects/SENTRY
+Environment=PYTHONPATH=/home/sketch/Projects/SENTRY
+ExecStart=/home/sketch/.venvs/sentry-ubuntu/bin/python tools/sentry_projection_status.py --host 192.168.254.5 --port 48220 --token-file %h/.config/sentry/projection.token --status-path %t/sentry/voice.json
+Restart=on-failure
+RestartSec=3s
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

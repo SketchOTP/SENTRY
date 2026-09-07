@@ -1,5 +1,27 @@
 # Evidence
 
+## Linux-PC ANIMA household event consumer — 2026-09-07
+
+The owner-authorized resident event path is enabled in the private Linux-PC
+configuration for the commissioned ANIMA `Home` household. `sentry-voice.service`
+was restarted after the listener/diagnostics correction and returned to
+`LISTENING` with `wake_enabled=true` and `vad_healthy=true`. The event consumer
+polls only the bounded fresh autonomous queue through the ANIMA client; its
+verification window observed `EMPTY`, meaning no eligible fresh event was
+available at that time. This is a live readiness observation, not physical
+SenseGuard event-to-TTS evidence.
+
+The voice onboarding prompt is explicitly voice-only and preserves the existing
+typed Core workflow: bounded ZHA pairing, spoken operator instruction, spoken
+follow-up, discovery refresh, semantic inspection, room commissioning, and
+typed alert-policy creation. The listener diagnostics now expose only bounded
+metadata for event result and delivery status, including recorded response and
+TTS delivery outcomes; response text is not persisted.
+
+Focused SENTRY validation after this correction: 135 unittest cases passed
+across always-on voice, resident ANIMA events, bridge, and Codex agent prompt
+coverage. No commit or hosted CI is claimed for this local dirty-tree change.
+
 ## Phase 0 — 2026-09-03
 
 - Repository root: `/srv/ATLAS/100_ACTIVE/Projects/SENTRY`
@@ -207,3 +229,71 @@
   the `sentry` icon. Installed inspection now resolves the local orb asset and
   reports a populated `_NET_WM_ICON`. Exact focused validation passes
   `118/118`.
+- Desktop/application quick actions now expose `Launch on Main Displays` and
+  `Launch on RTX Display`. Named launches validate and persist `:1.0` or
+  `:1.1`, restart only `sentry-ui.service`, and select the sole non-HDMI or
+  HDMI playback sink respectively. Live RTX-to-main proof observed the GTK
+  process and default output on each requested target while the default USB
+  microphone source remained unchanged. SENTRY was returned to main. Exact
+  affected suites pass `124/124`; desktop-file validation passes.
+- Operator testing showed Desktop Icons NG did not render those standard
+  actions on the desktop shortcut. Installed-source inspection confirmed DING
+  hardcodes `Open` and `Launch using Dedicated Graphics Card`; it does not
+  enumerate desktop-file actions. The canonical SENTRY app is now pinned to
+  the Ubuntu dock, which does enumerate the exact Main/RTX actions. The desktop
+  shortcut's generic dedicated-GPU launch environment is now mapped to the RTX
+  display/HDMI route. Exact live environment reproduction reached `:1.1` plus
+  HDMI and then restored `:1.0` plus analog; USB input was unchanged. Exact
+  affected suites pass `125/125`.
+
+## Unattended ANIMA event wake/TTS target evidence — 2026-09-07
+
+- The existing dirty SENTRY source connects `AttentionQueueSource` to the
+  existing same-process resident voice loop at idle. It uses the filtered Core
+  eligibility route, exact claim, existing persistent Codex thread, recorded
+  Core result receipt, and existing Kokoro speaker. There is no embedded
+  cognition fallback or second model/speaker process.
+- The production path is opt-in only: absent, disabled, malformed, or
+  context-unready private ANIMA config leaves the callback disconnected. No
+  production configuration, service state, deployment, or ANIMA repository was
+  changed in this slice.
+- Added resident integration checks for exact wake/result/TTS ordering and
+  provider-start outage. Existing focused checks cover no-action, required
+  notification without forced speech, Core receipt disposition, and source
+  latching after uncertainty.
+- Validation: focused ANIMA event/runtime/voice suites **117/117 PASSED**;
+  full unittest discovery **494/494 PASSED**; Python compilation **PASSED**;
+  tracked `git diff --check` **PASSED**; Ruff **NOT RUN** because unavailable.
+  Live Core/real-model/production TTS delivery **NOT RUN**.
+
+### Owner clarification — two independent wake sources
+
+The operator clarified that an ANIMA event must not depend on SENTRY being in
+microphone `LISTENING` or waiting for the wake word. The explicit off switch is
+SENTRY sleep mode. While awake, the resident ANIMA event worker polls Core
+independently of microphone chunks and may deliver an authorized SenseGuard or
+other household-event alert through the existing speaker.
+
+There are two separate wake sources:
+
+1. an operator-intonated wake word; and
+2. a Core-authorized autonomous ANIMA event.
+
+The event source is intentionally provider- and sensor-neutral. SenseGuard is
+one possible producer, alongside presence changes, HA device state, routines,
+weather, provider observations, and future typed integrations. Core creates the
+same `AUTONOMOUS_ATTENTION` request for any eligible event; the resident worker
+does not special-case SenseGuard.
+
+There are two permitted paths to unsolicited delivery: an explicit
+`ALWAYS_NOTIFY` policy, or a current `LEARNED_PROACTIVE` disposition after
+ANIMA's learning and initiative rules permit proactive delivery. SENTRY may
+reason about whether an eligible event deserves attention using the supplied
+preferences, routines, memory, presence, freshness, urgency, and prior
+delivery, but it cannot override a denied or still-learning Core disposition.
+
+After either source produces a successfully delivered spoken response, the
+listener opens the same bounded follow-up-listening window so the operator can
+ask a question without another wake word. Active capture, an approval dialogue,
+current speech, or SENTRY sleep still defers/disables event handling safely;
+none of those conditions is required for the alert to be generated.

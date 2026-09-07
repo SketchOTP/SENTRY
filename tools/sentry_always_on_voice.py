@@ -30,17 +30,36 @@ from perception.vosk_kws import (  # noqa: E402
     VoskStreamingCommandRecognizer,
 )
 from perception.voice import KokoroSpeaker, PulseCachedWakeChime, WhisperTranscriber  # noqa: E402
+from perception.remote_voice import RemotePcmStream, RemoteWavPlayback  # noqa: E402
 from tools.sentry_office_vision import OfficeVisionInspector  # noqa: E402
 from tools.sentry_ask import (  # noqa: E402
     ask,
     complete_action_presentation,
+    configured_anima_events,
     expire_action_response,
     fail_action_presentation,
     invalidate_action_dialogue_for_restart,
 )
+from tools.sentry_anima import AnimaConfig  # noqa: E402
 
 
-def main(argv: list[str] | None = None) -> int:
+def _load_anima_voice_settings() -> dict[str, object]:
+    """Read household voice presentation settings through ANIMA only."""
+    try:
+        config = AnimaConfig.load()
+        if config is None:
+            return {}
+        value = config.client().voice_settings()
+        voice = value.get("voice_id")
+        speed = value.get("speech_speed")
+        if isinstance(voice, str) and isinstance(speed, (int, float)):
+            return {"kokoro_voice": voice, "kokoro_speed": float(speed)}
+    except Exception as exc:  # noqa: BLE001 - voice keeps running with last local config
+        print(json.dumps({"ok": False, "status": "anima_voice_settings_unavailable", "error": type(exc).__name__}, sort_keys=True), file=sys.stderr)
+    return {}
+
+
+def main(argv: list[str] | None = None, *, anima_event_fn=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path("~/.config/sentry/config.json"))
     parser.add_argument("--allow-disabled", action="store_true", help="run an explicitly disabled listener only for bounded qualification")
@@ -49,7 +68,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         config = load_config(args.config.expanduser())
-        voice = AlwaysOnVoiceConfig.from_mapping(config.get("voice"))
+        configured_voice = dict(config.get("voice") or {})
+        configured_voice.update(_load_anima_voice_settings())
+        config["voice"] = configured_voice
+        voice = AlwaysOnVoiceConfig.from_mapping(configured_voice)
         if not voice.always_on_enabled and not args.allow_disabled:
             print(json.dumps({"ok": False, "status": "disabled", "error": "always-on voice is disabled in local config"}, sort_keys=True))
             return 2
@@ -116,9 +138,28 @@ def main(argv: list[str] | None = None) -> int:
         )
         wake_chime = PulseCachedWakeChime()
         wake_chime.prepare()
+        if anima_event_fn is None:
+            anima_event_fn = _optional_anima_events(diagnostics)
+        if voice.projection_microphone_url is not None or voice.projection_playback_url is not None:
+            if not voice.projection_token_file:
+                raise ValueError("voice.projection_token_file is required for projection transport")
+            if not voice.projection_microphone_url or not voice.projection_playback_url:
+                raise ValueError("projection microphone and playback URLs must be configured together")
+            stream = RemotePcmStream(
+                url=voice.projection_microphone_url,
+                token_file=voice.projection_token_file,
+                sample_rate=voice.sample_rate,
+            )
+            remote_playback = RemoteWavPlayback(
+                url=voice.projection_playback_url,
+                token_file=voice.projection_token_file,
+            )
+        else:
+            stream = PipeWirePcmStream(source=voice.microphone_source, sample_rate=voice.sample_rate)
+            remote_playback = None
         loop = AlwaysOnVoiceLoop(
             voice,
-            stream=PipeWirePcmStream(source=voice.microphone_source, sample_rate=voice.sample_rate),
+            stream=stream,
             vad=SileroVad(),
             wake_detector=wake_detector,
             command_recognizer=command_recognizer,
@@ -128,8 +169,10 @@ def main(argv: list[str] | None = None) -> int:
                 voice=voice.kokoro_voice,
                 speed=voice.kokoro_speed,
                 level_callback=lambda level: diagnostics.update(output_audio_level=round(level, 4)),
+                remote_playback=remote_playback,
             ),
             ask_fn=ask,
+            anima_event_fn=anima_event_fn,
             action_presentation_completed_fn=complete_action_presentation,
             action_presentation_failed_fn=fail_action_presentation,
             action_response_expired_fn=expire_action_response,
@@ -145,6 +188,15 @@ def main(argv: list[str] | None = None) -> int:
         return loop.run(stop_event)
     finally:
         wake_chime.close()
+
+
+def _optional_anima_events(diagnostics: VoiceDiagnostics):
+    """ANIMA config failure must not disable ordinary owner voice."""
+    try:
+        return configured_anima_events()
+    except Exception as exc:  # noqa: BLE001 - no private config/error contents
+        diagnostics.update(anima_event_status="NOT_READY", anima_event_exception_type=type(exc).__name__)
+        return None
 
 
 if __name__ == "__main__":
