@@ -1809,3 +1809,22 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Focused native UI validation passed `29/29`; Ruff and `git diff --check`
   passed. Direct visual screenshot capture was unavailable because the Pi
   image does not include a Wayland screenshot utility.
+
+## OUTCOME-SENTRY-RPI5-PROJECTION-CENTERING-CORRECTION-2026-09-07
+
+- Completed: 2026-09-07
+- Verdict: **PASSED — CENTERED FULLSCREEN PROJECTION**
+- Implementation SHA: recorded in the final local commit and handoff below.
+
+### Result
+
+- Removed the prior 3,600 px GTK layout child that distorted natural fullscreen
+  sizing and moved the orb downward.
+- Retained the 1,200 px projection orb and centered fallback, using the
+  full-screen projection canvas as the solid-black backdrop. The backdrop no
+  longer creates a finite visible box or a layout minimum.
+- Deployed to `sketch@rpi5`; local and remote source hashes match and
+  `sentry-projection-ui.service` is active after restart.
+- Focused native UI validation passed `29/29`; Ruff and `git diff --check`
+  passed. Direct visual screenshot capture remains unavailable because the Pi
+  image does not include a Wayland screenshot utility.

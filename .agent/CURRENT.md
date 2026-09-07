@@ -724,3 +724,14 @@ This file is a mutable snapshot. Do not use it to erase historical outcomes or d
   `/dev/hailo0` and the Hailo Python platform, but detector/recognizer HEFs and
   the official Apps package are not present, so live Hailo matching remains
   `EXTERNAL_RESOURCE_GATE_HAILO_FACE_MODELS` and CPU matching is not relabeled.
+
+## Pi projection centering correction — 2026-09-07
+
+- The previous oversized 3,600 px GTK child changed the projection window's
+  natural layout height and pushed the orb toward the bottom of the TV.
+- Removed that layout child. Projection now uses its full-screen solid-black
+  canvas as the backdrop while retaining the 1,200 px orb and centered Cairo
+  fallback. This removes the visible finite box edge without forcing a large
+  layout minimum, restoring normal fullscreen centering.
+- The corrected source was deployed to `sketch@rpi5`; local and remote source
+  hashes match and `sentry-projection-ui.service` is active.
