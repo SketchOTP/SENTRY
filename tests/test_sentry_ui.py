@@ -1,5 +1,5 @@
-import json
 import inspect
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +12,7 @@ from tools.sentry_ui import (
     apply_sleep_preference,
     load_sleep_preference,
     load_voice_preferences,
+    orb_canvas_size,
     read_voice_status,
     resolve_sleep_transition_status,
     save_sleep_preference,
@@ -23,6 +24,10 @@ from tools.sentry_ui import (
 
 
 class SentryNativeUiTests(unittest.TestCase):
+    def test_projection_orb_is_twice_desktop_canvas(self):
+        self.assertEqual(orb_canvas_size(projection_mode=False), 600)
+        self.assertEqual(orb_canvas_size(projection_mode=True), 1200)
+
     def test_voice_catalog_has_broad_english_accent_and_gender_coverage(self):
         identifiers = {identifier for identifier, _label in KOKORO_ENGLISH_VOICES}
         self.assertGreaterEqual(len(identifiers), 28)

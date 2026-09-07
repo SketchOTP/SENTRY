@@ -20,6 +20,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+DESKTOP_ORB_SIZE = 600
+PROJECTION_ORB_SIZE = DESKTOP_ORB_SIZE * 2
+
 from perception.remote_voice import authorization_header, read_private_token
 from perception.voice import (
     KOKORO_ENGLISH_VOICE_IDS,
@@ -27,6 +30,12 @@ from perception.voice import (
     KOKORO_MAX_SPEED,
     KOKORO_MIN_SPEED,
 )
+
+
+def orb_canvas_size(*, projection_mode: bool) -> int:
+    """Use a TV-appropriate orb canvas while preserving desktop composition."""
+
+    return PROJECTION_ORB_SIZE if projection_mode else DESKTOP_ORB_SIZE
 
 
 def load_voice_preferences(config_path: Path) -> tuple[str, float]:
@@ -1197,9 +1206,15 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             }
         """
 
-        def __init__(self, *, on_context_failure: Callable[[], None] | None = None):
+        def __init__(
+            self,
+            *,
+            on_context_failure: Callable[[], None] | None = None,
+            projection_mode: bool = False,
+        ):
             super().__init__()
-            self.set_size_request(600, 600)
+            orb_size = orb_canvas_size(projection_mode=projection_mode)
+            self.set_size_request(orb_size, orb_size)
             self.set_required_version(3, 3)
             if hasattr(self, "set_allowed_apis"):
                 self.set_allowed_apis(Gdk.GLAPI.GL)
@@ -1390,11 +1405,15 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             status.set_valign(Gtk.Align.CENTER)
             status.set_vexpand(True)
             self.projection_fallback_orb = Gtk.DrawingArea()
-            self.projection_fallback_orb.set_content_width(600)
-            self.projection_fallback_orb.set_content_height(600)
+            orb_size = orb_canvas_size(projection_mode=self.projection_mode)
+            self.projection_fallback_orb.set_content_width(orb_size)
+            self.projection_fallback_orb.set_content_height(orb_size)
             self.projection_fallback_orb.set_draw_func(self._draw_projection_fallback)
             self.projection_fallback_orb.set_visible(False)
-            self.status_orb = StatusOrb(on_context_failure=self._show_projection_fallback if self.projection_mode else None)
+            self.status_orb = StatusOrb(
+                on_context_failure=self._show_projection_fallback if self.projection_mode else None,
+                projection_mode=self.projection_mode,
+            )
             self.status_orb.set_halign(Gtk.Align.CENTER)
             orb_stack = Gtk.Overlay()
             orb_stack.set_halign(Gtk.Align.CENTER)
