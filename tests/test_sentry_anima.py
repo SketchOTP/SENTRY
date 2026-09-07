@@ -348,6 +348,35 @@ class ResidentAnimaTests(unittest.TestCase):
         self.assertEqual(self.client.events, [])
         self.assertEqual(turn.diagnostics["stage"], "PROFILE_NOT_ENABLED")
 
+    def test_recognized_speaker_context_is_translated_to_server_mapped_observation(self):
+        turn = ResidentAnimaTurn()
+        self.addCleanup(turn.close)
+        with voice_origin("always_on_voice"):
+            turn.prepare(
+                "go to sleep",
+                "sentry",
+                self.workspace,
+                profile_data=tomllib.loads(self.profile),
+                speaker_context={
+                    "status": "recognized",
+                    "person_id": "anima-person-reference",
+                    "identity_confidence": 0.93,
+                    "observed_at": "2026-09-07T20:00:00+00:00",
+                },
+            )
+        self.assertEqual(self.client.events[0], (
+            "open", "sentry", "always_on_voice", "go to sleep",
+            {
+                "endpoint_id": "sentry-voice",
+                "profile_state": "recognized",
+                "state": "recognized",
+                "local_proximity": False,
+                "profile_id": "anima-person-reference",
+                "confidence": 93,
+                "observed_at": "2026-09-07T20:00:00+00:00",
+            },
+        ))
+
     def test_denial_normalization_removes_only_redundant_descendants(self):
         parent = self.root / ".config/sentry"
         token_root = self.root / "client"

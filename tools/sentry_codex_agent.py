@@ -476,6 +476,7 @@ def invoke_sentry_agent(
                 anima.prepare(
                     operator_request or question, request_id or child_env["SENTRY_REQUEST_ID"], cwd,
                     profile_data=profile_data,
+                    speaker_context=speaker_context,
                 )
             if isinstance(anima_profile, dict) and autonomous_binding is None:
                 args[len(launcher):len(launcher)] = ["-c", f"mcp_servers.anima_household.enabled={'true' if anima.path else 'false'}"]

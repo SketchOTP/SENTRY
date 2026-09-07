@@ -180,6 +180,33 @@ class AnimaConfig:
         return client
 
 
+def _identity_observation(speaker_context: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Translate SENTRY's bounded camera result into an ANIMA observation.
+
+    ANIMA still maps the profile server-side.  The profile id is an observed
+    SENTRY profile reference, never an authoritative household principal.
+    """
+    if not isinstance(speaker_context, dict):
+        return None
+    status = str(speaker_context.get("status", "unavailable"))
+    recognized = status == "recognized"
+    observation: dict[str, Any] = {
+        "endpoint_id": "sentry-voice",
+        "profile_state": "recognized" if recognized else status,
+        "state": status,
+        "local_proximity": False,
+    }
+    if recognized and isinstance(speaker_context.get("person_id"), str):
+        observation["profile_id"] = speaker_context["person_id"]
+        confidence = speaker_context.get("identity_confidence")
+        if isinstance(confidence, (int, float)):
+            observation["confidence"] = round(max(0.0, min(1.0, float(confidence))) * 100)
+    observed_at = speaker_context.get("observed_at")
+    if isinstance(observed_at, str) and observed_at:
+        observation["observed_at"] = observed_at
+    return observation
+
+
 class ResidentAnimaTurn:
     """One direct interaction, no retries; bindings never enter model context."""
 
@@ -208,6 +235,7 @@ class ResidentAnimaTurn:
         workspace: Path,
         *,
         profile_data: dict[str, Any],
+        speaker_context: dict[str, Any] | None = None,
     ) -> None:
         if VOICE_SURFACE.get() != "always_on_voice":
             return
@@ -237,7 +265,10 @@ class ResidentAnimaTurn:
             self.deadline = time.monotonic() + TURN_SECONDS
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=TURN_SECONDS)
             opened = self.client.open_direct_interaction(
-                sentry_request_id, "always_on_voice", question, None
+                sentry_request_id,
+                "always_on_voice",
+                question,
+                _identity_observation(speaker_context),
             )
             if opened.get("status") != "CLAIMED":
                 raise ValueError("direct interaction not claimed")
