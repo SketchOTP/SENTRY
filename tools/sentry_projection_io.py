@@ -1,8 +1,8 @@
 """Small authenticated I/O endpoint for a remote SENTRY projection host.
 
 This process is intended to run on the RPi5.  It owns only PipeWire capture,
-PipeWire playback, and the logical audio-output selector.  It has no ANIMA,
-Home Assistant, database, model, or filesystem-authority interface.
+bounded PipeWire/ALSA playback, and the logical audio-output selector.  It has
+no ANIMA, Home Assistant, database, model, or filesystem-authority interface.
 """
 
 from __future__ import annotations
@@ -22,17 +22,18 @@ from perception.remote_voice import (
     constant_time_token_match,
     play_wav_with_pipewire,
     read_private_token,
+    validate_wav_payload,
 )
 
-
 OUTPUT_VALUES = {"usb", "hdmi"}
+HDMI_ALSA_DEVICE = "hdmi:CARD=vc4hdmi1,DEV=0"
 SINK_LINE = re.compile(r"^\s*[│ ]*[* ]*([0-9]+)\.\s+(.+?)\s+\[vol:")
 
 
 def _read_json(body: bytes) -> dict[str, Any]:
     value = json.loads(body.decode("utf-8"))
     if not isinstance(value, dict):
-        raise ValueError("request must be a JSON object")
+        raise ValueError("request must be a JSON object")  # noqa: TRY004
     return value
 
 
@@ -118,9 +119,48 @@ class ProjectionState:
                 sinks.append({"id": match.group(1), "name": match.group(2).strip()})
         return sinks
 
+    def hdmi_available(self) -> bool:
+        """Probe the fixed HDMI PCM path without emitting audio."""
+
+        try:
+            result = subprocess.run(
+                [
+                    "aplay",
+                    "--dump-hw-params",
+                    "-q",
+                    "-D",
+                    HDMI_ALSA_DEVICE,
+                    "-f",
+                    "S32_LE",
+                    "-c",
+                    "2",
+                    "-r",
+                    "48000",
+                    "-t",
+                    "raw",
+                    "/dev/null",
+                ],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return result.returncode == 0
+
     def set_output(self, output: str) -> dict[str, Any]:
         if output not in OUTPUT_VALUES:
             raise ValueError("audio_output must be usb or hdmi")
+        if output == "hdmi":
+            if not self.hdmi_available():
+                raise RuntimeError("no HDMI ALSA playback device is currently available")
+            with self._lock:
+                self._write_settings(output)
+            return {
+                "audio_output": output,
+                "sink": {"id": "rpi5-hdmi", "name": "Roku TV HDMI"},
+            }
         candidates = self.sinks()
         matching = [
             sink for sink in candidates
@@ -134,6 +174,22 @@ class ProjectionState:
         with self._lock:
             self._write_settings(output)
         return {"audio_output": output, "sink": matching[0]}
+
+    def play_wav(self, wav_bytes: bytes) -> None:
+        """Play through the selected bounded output path."""
+
+        if self.selected_output() != "hdmi":
+            play_wav_with_pipewire(wav_bytes)
+            return
+        validate_wav_payload(wav_bytes)
+        subprocess.run(
+            ["aplay", "-q", "-D", HDMI_ALSA_DEVICE, "-"],
+            input=wav_bytes,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=125,
+            check=True,
+        )
 
 
 class ProjectionHandler(BaseHTTPRequestHandler):
@@ -166,7 +222,7 @@ class ProjectionHandler(BaseHTTPRequestHandler):
         self._send(401, {"ok": False, "error": "authentication_required"})
         return False
 
-    def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
+    def do_GET(self) -> None:
         if not self._authorized():
             return
         if self.path == "/health":
@@ -216,7 +272,7 @@ class ProjectionHandler(BaseHTTPRequestHandler):
             except subprocess.TimeoutExpired:
                 process.kill()
 
-    def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+    def do_POST(self) -> None:
         if not self._authorized():
             return
         if self.path == "/v1/output":
@@ -241,7 +297,7 @@ class ProjectionHandler(BaseHTTPRequestHandler):
             payload = self.rfile.read(length)
             if len(payload) != length:
                 raise ValueError("incomplete WAV payload")
-            play_wav_with_pipewire(payload)
+            self.state.play_wav(payload)
         except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
             self._send(422, {"ok": False, "error": str(exc)})
             return

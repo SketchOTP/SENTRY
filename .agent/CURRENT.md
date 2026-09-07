@@ -735,3 +735,18 @@ This file is a mutable snapshot. Do not use it to erase historical outcomes or d
   layout minimum, restoring normal fullscreen centering.
 - The corrected source was deployed to `sketch@rpi5`; local and remote source
   hashes match and `sentry-projection-ui.service` is active.
+
+## Pi HDMI audio routing correction — 2026-09-07
+
+- Root cause was confirmed on the Pi: the connected TV's `vc4-hdmi-1` ALSA
+  device accepts playback through the `hdmi:CARD=vc4hdmi1,DEV=0` plugin, but
+  the PipeWire graph exposes only the USB sink. A direct `hw:` PipeWire node
+  was rejected because the raw device exposes IEC958-only parameters.
+- The projection I/O service now keeps USB on PipeWire and uses the fixed HDMI
+  ALSA plugin for HDMI playback. HDMI selection performs a silent
+  `aplay --dump-hw-params` probe and writes the setting only when the device is
+  available; no raw host/device choice is model-controlled.
+- Deployed source hash matches the local implementation. The authenticated
+  Pi route now returns `audio_output=hdmi`, and a bounded silent WAV playback
+  through `/v1/tts` returned `played=true`. The projection I/O service and
+  PipeWire remain active.

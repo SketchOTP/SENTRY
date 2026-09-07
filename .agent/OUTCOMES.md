@@ -1828,3 +1828,26 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Focused native UI validation passed `29/29`; Ruff and `git diff --check`
   passed. Direct visual screenshot capture remains unavailable because the Pi
   image does not include a Wayland screenshot utility.
+
+## OUTCOME-SENTRY-RPI5-HDMI-AUDIO-ROUTING-2026-09-07
+
+- Completed: 2026-09-07
+- Verdict: **PASSED — HDMI ROUTING RESTORED**
+- Implementation SHA: recorded in the final local commit and handoff below.
+
+### Result
+
+- Confirmed the failure was caused by the Pi audio graph, not office targeting:
+  HDMI-A-2 is connected and its ALSA playback device is present, but PipeWire
+  publishes only the USB sink. The direct raw HDMI device exposes IEC958-only
+  parameters, so a generic PipeWire sink definition was rejected.
+- Added a bounded fixed HDMI ALSA playback path to the Pi projection I/O
+  service. USB continues through PipeWire; HDMI uses the Pi's `hdmi:` ALSA
+  plugin after a silent capability probe. The model still selects only the
+  semantic `usb` or `hdmi` value.
+- Deployed and restarted `sentry-projection-io.service`. Authenticated HDMI
+  selection returned `ok=true`, output readback returned `audio_output=hdmi`,
+  and a bounded silent WAV returned `played=true` through the real Pi
+  endpoint.
+- Focused projection audio tests, Ruff, and `git diff --check` passed. No
+  audible sample was emitted during validation.
