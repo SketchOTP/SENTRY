@@ -7,26 +7,26 @@ import base64
 import json
 import math
 import os
-import shutil
 import subprocess
 import sys
 import threading
 import time
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from perception.voice import (  # noqa: E402
+from perception.remote_voice import authorization_header, read_private_token
+from perception.voice import (
     KOKORO_ENGLISH_VOICE_IDS,
     KOKORO_ENGLISH_VOICES,
     KOKORO_MAX_SPEED,
     KOKORO_MIN_SPEED,
 )
-from perception.remote_voice import authorization_header, read_private_token  # noqa: E402
 
 
 def load_voice_preferences(config_path: Path) -> tuple[str, float]:
@@ -34,10 +34,10 @@ def load_voice_preferences(config_path: Path) -> tuple[str, float]:
 
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError("SENTRY config must be an object")
+        raise TypeError("SENTRY config must be an object")
     voice = payload.get("voice", {})
     if not isinstance(voice, dict):
-        raise ValueError("SENTRY voice config must be an object")
+        raise TypeError("SENTRY voice config must be an object")
     identifier = str(voice.get("kokoro_voice", "bm_george"))
     speed = float(voice.get("kokoro_speed", 0.9))
     if identifier not in KOKORO_ENGLISH_VOICE_IDS:
@@ -52,10 +52,10 @@ def load_sleep_preference(config_path: Path) -> bool:
 
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError("SENTRY config must be an object")
+        raise TypeError("SENTRY config must be an object")
     voice = payload.get("voice", {})
     if not isinstance(voice, dict):
-        raise ValueError("SENTRY voice config must be an object")
+        raise TypeError("SENTRY voice config must be an object")
     return bool(voice.get("sleep_enabled", False))
 
 
@@ -64,10 +64,10 @@ def _persist_voice_settings(config_path: Path, updates: dict[str, Any]) -> None:
 
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError("SENTRY config must be an object")
+        raise TypeError("SENTRY config must be an object")
     voice = payload.setdefault("voice", {})
     if not isinstance(voice, dict):
-        raise ValueError("SENTRY voice config must be an object")
+        raise TypeError("SENTRY voice config must be an object")
     voice.update(updates)
 
     temporary = config_path.with_name(f".{config_path.name}.{os.getpid()}.tmp")
@@ -108,7 +108,7 @@ def save_sleep_preference(config_path: Path, enabled: bool) -> None:
     """Persist the fail-closed wake suppression preference."""
 
     if not isinstance(enabled, bool):
-        raise ValueError("sleep preference must be boolean")
+        raise TypeError("sleep preference must be boolean")
     _persist_voice_settings(config_path, {"sleep_enabled": enabled})
 
 
@@ -313,9 +313,9 @@ class OrbStateController:
                 self.transition_duration = 0.9
             elif state == "LISTENING" and self.previous_state == "WAKE_DETECTED":
                 self.transition_duration = 0.82
-            elif self.previous_state in {"LISTENING", "FOLLOWUP_LISTENING"} and state == "PROCESSING":
-                self.transition_duration = 1.55
-            elif self.previous_state == "PROCESSING" and state == "SPEAKING":
+            elif (
+                self.previous_state in {"LISTENING", "FOLLOWUP_LISTENING"} and state == "PROCESSING"
+            ) or (self.previous_state == "PROCESSING" and state == "SPEAKING"):
                 self.transition_duration = 1.55
             elif state in {"SPEAKING", "FOLLOWUP_LISTENING"}:
                 self.transition_duration = 0.72
@@ -425,7 +425,7 @@ def projection_io_request(method: str, path: str, payload: dict[str, Any] | None
     with urllib.request.urlopen(request, timeout=3) as response:
         value = json.loads(response.read(8192).decode("utf-8"))
     if not isinstance(value, dict):
-        raise ValueError("projection response must be an object")
+        raise TypeError("projection response must be an object")
     return value
 
 
@@ -500,10 +500,10 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
         gi.require_version("Gtk", "4.0")
         gi.require_version("Gdk", "4.0")
         gi.require_version("GdkPixbuf", "2.0")
+        import cairo
         from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
         from OpenGL import GL
         from OpenGL.GL import shaders
-        import cairo
     except (ImportError, ValueError) as exc:  # pragma: no cover - host dependency
         raise RuntimeError(f"GTK 4 is required for the native SENTRY application: {exc}") from exc
 
@@ -1770,7 +1770,6 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
                 transition_state=self._sleep_transition_state,
             )
             state, guidance, identity = voice_status_summary(payload)
-            model = voice_indicator_model(payload)
             wake_at = str(payload.get("last_wake_at") or "") or None
             acknowledge = should_acknowledge_wake(self._last_wake_at, wake_at) if self._status_initialized else False
             self.status_orb.present(payload, acknowledge_wake=acknowledge)
