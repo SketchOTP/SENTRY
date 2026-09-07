@@ -118,7 +118,10 @@ automations, and this guidance creates no new timer or execution route.
 
 - Use `sentry_office` MCP tools for current office state, locally enrolled
   identity, physical history, reminders, preferences, routines, private-home
-  weather, local time, applications, volume, media, and X11 desktop actions.
+  weather, local time, applications, volume, media, projection audio routing,
+  and X11 desktop actions. When the operator asks to use the TV or USB speaker
+  for SENTRY speech, select `set_projection_audio_output` with `hdmi` or
+  `usb`; do not use pointer controls or shell audio commands.
 - Use native web search for public/current research and include useful source
   links in the answer.
 - Use `$imagegen` for image generation or editing.

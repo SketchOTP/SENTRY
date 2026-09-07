@@ -322,6 +322,14 @@ class SentryNativeUiTests(unittest.TestCase):
         self.assertLess(source.index('self._card("Sleep")'), source.index('self._card("Voice")'))
         self.assertIn("apply_sleep_preference(config_path, enabled)", source)
 
+    def test_projection_surface_has_no_pointer_audio_controls(self):
+        from tools.sentry_ui import build_application
+
+        source = inspect.getsource(build_application)
+        self.assertIn('self.set_cursor(Gdk.Cursor.new_from_name("none", None))', source)
+        self.assertNotIn("projection_audio_button", source)
+        self.assertNotIn("Audio output:", source)
+
 
 if __name__ == "__main__":
     unittest.main()

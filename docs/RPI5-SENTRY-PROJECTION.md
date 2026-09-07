@@ -30,11 +30,13 @@ new Pi→PC TCP listener directly.
 
 ## Audio output
 
-The projection exposes a bounded `usb`/`hdmi` selector at its local audio
-control endpoint. The current Pi PipeWire graph exposes the USB speaker as the
-active sink. HDMI is currently visible as an ALSA card but has no active
-PipeWire sink, so selecting HDMI remains unavailable until the TV audio profile
-is exposed by PipeWire.
+The projection is voice-only: it does not display the current audio target or
+provide a clickable selector. SENTRY's typed `set_projection_audio_output`
+tool routes speech to `usb` or `hdmi` through the authenticated Pi control
+endpoint. The current Pi PipeWire graph exposes the USB speaker as the active
+sink. HDMI is currently visible as an ALSA card but has no active PipeWire
+sink, so SENTRY will report HDMI unavailable until the TV audio profile is
+exposed by PipeWire.
 
 ## Evidence and limits
 

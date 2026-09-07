@@ -3,7 +3,7 @@ import tempfile
 import tomllib
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from mcp import Client
 
@@ -59,13 +59,15 @@ class SentryMCPTests(unittest.IsolatedAsyncioTestCase):
         async with Client(mcp) as client:
             result = await client.list_tools()
         names = {tool.name for tool in result.tools}
-        self.assertEqual(len(names), 37)
+        self.assertEqual(len(names), 39)
         self.assertTrue({
             "get_current_office_state",
             "inspect_office_camera",
             "find_applications",
             "open_web_page",
             "get_system_volume",
+            "get_projection_audio_output",
+            "set_projection_audio_output",
             "capture_desktop",
             "open_local_artifact",
             "get_alarms",
@@ -93,6 +95,29 @@ class SentryMCPTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(by_name["cancel_alarm"].annotations.destructive_hint)
         self.assertFalse(by_name["cancel_pending_office_reminder"].annotations.destructive_hint)
         self.assertFalse(by_name["open_web_page"].annotations.open_world_hint)
+
+    async def test_projection_audio_output_is_a_voice_selectable_typed_tool(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            authority = ExecutionAuthority(Path(tmp) / "authority")
+            with patch.dict("os.environ", {
+                "SENTRY_REQUEST_ID": "request-audio-1",
+                "SENTRY_THREAD_ID": "thread-audio-1",
+                "SENTRY_OPERATOR_REQUEST": "Switch SENTRY audio output to HDMI",
+                "SENTRY_AUTHORITY_EPOCH": "epoch-audio-1",
+            }, clear=False), patch("tools.sentry_mcp_server.AUTHORITY", authority), patch(
+                "tools.sentry_mcp_server._projection_io_request",
+                return_value={"ok": True, "audio_output": "hdmi"},
+            ) as request:
+                async with Client(mcp) as client:
+                    response = await client.call_tool(
+                        "set_projection_audio_output", {"output": "hdmi"}
+                    )
+
+        self.assertFalse(response.is_error)
+        self.assertEqual(json.loads(response.content[0].text)["audio_output"], "hdmi")
+        request.assert_called_once_with(
+            "POST", "/v1/output", {"audio_output": "hdmi"}, config_path=ANY
+        )
 
     async def test_camera_tool_returns_metadata_and_ephemeral_image(self):
         metadata = {"status": "observed", "people": [{"person_id": "primary_user"}], "frames_persisted": False}

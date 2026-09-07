@@ -2,6 +2,18 @@
 
 Last updated: 2026-09-07
 
+## Voice-only Pi audio routing and projection cursor — 2026-09-07
+
+The RPi5 projection is now a voice-only display surface. Its visible USB/HDMI
+audio selector was removed, and projection mode hides the pointer with an
+invisible GTK cursor. SENTRY's typed `sentry_office` MCP surface now exposes
+`get_projection_audio_output` and `set_projection_audio_output(output)` for
+natural-language USB/HDMI routing through the authenticated Pi I/O endpoint.
+The output tool remains host-authorized and audited; it does not expose raw
+PipeWire commands to the model. The source was deployed to the Pi and the
+projection service restarted successfully. Desktop SENTRY audio controls and
+the local microphone route are unchanged.
+
 ## Owner RPi5 projection increment — 2026-09-07
 
 The owner-authorized RPi5 projection is deployed on `pi` (`aarch64`,

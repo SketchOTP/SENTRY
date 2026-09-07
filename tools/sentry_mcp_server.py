@@ -43,6 +43,7 @@ from tools.sentry_desktop import (
 )
 from tools.sentry_office_vision import inspect_office_camera as _inspect_office_camera
 from tools.sentry_identity_enrollment import IdentityEnrollmentManager
+from tools.sentry_ui import projection_io_request as _projection_io_request
 
 
 BASE_URL = os.environ.get("SENTRY_BASE_URL", "http://127.0.0.1:48174")
@@ -288,6 +289,25 @@ def adjust_system_volume(delta_percent: float) -> dict:
 def set_system_muted(muted: bool) -> dict:
     """Mute or unmute the default PipeWire output."""
     return _tier1("set_system_muted", {"muted": muted}, f"system mute {muted}", lambda: _set_muted(muted))
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
+def get_projection_audio_output() -> dict:
+    """Read the selected USB or HDMI audio output for the SENTRY projection."""
+    return _projection_io_request("GET", "/v1/output", config_path=CONFIG_PATH)
+
+
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=False))
+def set_projection_audio_output(output: Literal["usb", "hdmi"]) -> dict:
+    """Route SENTRY projection speech to the Pi USB speaker or HDMI TV audio."""
+    return _tier1(
+        "set_projection_audio_output",
+        {"output": output},
+        f"SENTRY projection audio output {output}",
+        lambda: _projection_io_request(
+            "POST", "/v1/output", {"audio_output": output}, config_path=CONFIG_PATH
+        ),
+    )
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False))

@@ -1765,3 +1765,27 @@ The Architect accepted the substantive conversational-orchestration result at im
 - Node.js `v24.20.0` is installed on the Linux PC for the owner account. The
   SENTRY tree remains uncommitted until the coordinated commit after final
   validation.
+
+## OUTCOME-SENTRY-RPI5-VOICE-ONLY-AUDIO-2026-09-07
+
+- Completed: 2026-09-07
+- Verdict: **PASSED — VOICE-ONLY PROJECTION CONTROL**
+- Implementation SHA: recorded in the final local commit and handoff below.
+
+### Result
+
+- Removed the Pi projection's displayed audio label and clickable selector.
+- Added typed `get_projection_audio_output` and
+  `set_projection_audio_output(output)` tools to the existing `sentry_office`
+  MCP server. The model may choose `usb` or `hdmi` from natural language; the
+  host routes the request through the authenticated fixed `/v1/output` Pi
+  endpoint and the existing execution authority/audit boundary.
+- Projection mode now installs an invisible GTK cursor. The desktop SENTRY
+  window and microphone/source routing are unchanged.
+- Local MCP integration validation passed with the live Pi: current output
+  read as USB and a typed USB set request completed successfully. The Pi source
+  hash matched the local source after deployment, and
+  `sentry-projection-ui.service` remained active in fullscreen projection mode.
+- Targeted UI/MCP tests passed `41/41`; targeted Ruff, `git diff --check`, and
+  the projection deployment checks passed. Full repository Ruff remains a
+  pre-existing broader-worktree issue and was not claimed as clean.

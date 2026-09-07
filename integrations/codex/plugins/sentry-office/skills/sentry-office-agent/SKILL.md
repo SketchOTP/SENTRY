@@ -10,7 +10,9 @@ Use Codex as the agent. Do not build or simulate a second intent router.
 ## Route work to the right capability
 
 - Use `sentry_office` MCP tools for authoritative office facts and structured
-  Linux desktop actions.
+  Linux desktop actions. For a request to route SENTRY projection speech to
+  the TV or USB speaker, use `set_projection_audio_output` with `hdmi` or
+  `usb`; do not use pointer controls or shell audio commands.
 - Use native web search for current public information.
 - Use `$imagegen` for requested image generation or editing.
 - Use shell/file tools only for work inside the dedicated resident workspace.

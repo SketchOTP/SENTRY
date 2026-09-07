@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
@@ -420,11 +421,36 @@ def voice_status_path() -> Path:
     return Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")) / "sentry" / "voice.json"
 
 
-def projection_io_request(method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Call only the Pi-local typed projection controls, never arbitrary HTTP."""
+def projection_io_request(
+    method: str,
+    path: str,
+    payload: dict[str, Any] | None = None,
+    *,
+    config_path: Path | None = None,
+) -> dict[str, Any]:
+    """Call one fixed Pi projection endpoint through the private token boundary."""
 
-    base_url = os.environ.get("SENTRY_PROJECTION_IO_BASE_URL", "http://127.0.0.1:48221").rstrip("/")
-    token_file = Path(os.environ.get("SENTRY_PROJECTION_TOKEN_FILE", "~/.config/sentry/projection.token")).expanduser()
+    if path != "/v1/output" or method not in {"GET", "POST"}:
+        raise ValueError("unsupported projection control")
+
+    base_url = os.environ.get("SENTRY_PROJECTION_IO_BASE_URL")
+    token_path = os.environ.get("SENTRY_PROJECTION_TOKEN_FILE")
+    if not base_url or not token_path:
+        source = config_path or Path(os.environ.get("SENTRY_CONFIG_PATH", "~/.config/sentry/config.json")).expanduser()
+        try:
+            configuration = json.loads(source.read_text(encoding="utf-8"))
+            voice = configuration.get("voice", {}) if isinstance(configuration, dict) else {}
+            playback_url = voice.get("projection_playback_url") if isinstance(voice, dict) else None
+            if not base_url and isinstance(playback_url, str):
+                parsed = urllib.parse.urlsplit(playback_url)
+                if parsed.scheme == "http" and parsed.netloc:
+                    base_url = f"{parsed.scheme}://{parsed.netloc}"
+            if not token_path and isinstance(voice, dict) and isinstance(voice.get("projection_token_file"), str):
+                token_path = voice["projection_token_file"]
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError):
+            pass
+    base_url = (base_url or "http://127.0.0.1:48221").rstrip("/")
+    token_file = Path(token_path or "~/.config/sentry/projection.token").expanduser()
     token = read_private_token(token_file)
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     headers = {"Authorization": authorization_header(token)}
@@ -1333,6 +1359,7 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             self.projection_mode = projection_mode
             if projection_mode:
                 self.set_decorated(False)
+                self.set_cursor(Gdk.Cursor.new_from_name("none", None))
             self.manager: Any = None
             if not projection_mode:
                 # Keep the projection dependency-light: identity enrollment
@@ -1426,24 +1453,12 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             status.append(self.state_label)
             main.append(status)
 
-            if self.projection_mode:
-                projection_audio = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-                projection_audio.set_halign(Gtk.Align.CENTER)
-                self.projection_audio_label = Gtk.Label(label="Audio output: checking…")
-                self.projection_audio_label.add_css_class("muted")
-                self.projection_audio_button = Gtk.Button(label="Audio output")
-                self.projection_audio_button.connect("clicked", self._toggle_projection_audio)
-                projection_audio.append(self.projection_audio_label)
-                projection_audio.append(self.projection_audio_button)
-                main.append(projection_audio)
             root.set_child(main)
 
             # A projection renders the same state animation but owns no local
             # voice, identity, or household state. Those remain on the PC.
             if self.projection_mode:
                 self.set_child(root)
-                self._projection_audio_output = "usb"
-                self._refresh_projection_audio()
                 self.fullscreen()
                 return
 
@@ -1802,43 +1817,6 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             self._last_wake_at = wake_at
             self._status_initialized = True
             return True
-
-        def _refresh_projection_audio(self) -> None:
-            def worker() -> None:
-                try:
-                    result = projection_io_request("GET", "/v1/output")
-                    output = str(result.get("audio_output", "usb"))
-                    GLib.idle_add(self._set_projection_audio_label, output, None)
-                except Exception as exc:  # noqa: BLE001 - projection UI shows bounded failure
-                    GLib.idle_add(self._set_projection_audio_label, None, type(exc).__name__)
-
-            threading.Thread(target=worker, name="sentry-projection-audio", daemon=True).start()
-
-        def _set_projection_audio_label(self, output: str | None, error: str | None) -> bool:
-            if error is not None:
-                self.projection_audio_label.set_text(f"Audio unavailable ({error})")
-                return False
-            if output not in {"usb", "hdmi"}:
-                output = "usb"
-            self._projection_audio_output = output
-            self.projection_audio_label.set_text(f"Audio output: {output.upper()}")
-            self.projection_audio_button.set_label("Switch output")
-            return False
-
-        def _toggle_projection_audio(self, _button) -> None:
-            target = "hdmi" if self._projection_audio_output == "usb" else "usb"
-            self.projection_audio_button.set_sensitive(False)
-
-            def worker() -> None:
-                try:
-                    projection_io_request("POST", "/v1/output", {"audio_output": target})
-                    GLib.idle_add(self._set_projection_audio_label, target, None)
-                except Exception as exc:  # noqa: BLE001 - projection UI shows bounded failure
-                    GLib.idle_add(self._set_projection_audio_label, None, type(exc).__name__)
-                finally:
-                    GLib.idle_add(self.projection_audio_button.set_sensitive, True)
-
-            threading.Thread(target=worker, name="sentry-projection-audio-change", daemon=True).start()
 
         def _run(self, operation: Callable[[], Any], complete: Callable[[Any], None]) -> None:
             if self._busy:

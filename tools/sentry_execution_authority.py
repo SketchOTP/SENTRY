@@ -85,6 +85,7 @@ RISK_TIERS: dict[str, int] = {
     "set_acknowledgement_preference": 1, "create_one_shot_alarm": 1, "cancel_alarm": 1,
     "launch_application": 1, "open_web_page": 1, "open_local_artifact": 1,
     "set_system_volume": 1, "adjust_system_volume": 1, "set_system_muted": 1,
+    "get_projection_audio_output": 0, "set_projection_audio_output": 1,
     "control_media": 1,
     "propose_file_move": 2, "press_keys": 2, "type_into_active_window": 2,
     "click_desktop": 2,
@@ -116,6 +117,9 @@ DIRECT_REQUEST_PATTERNS: dict[str, tuple[re.Pattern[str], ...]] = {
         re.compile(r"\b(louder|quieter)\b"),
     ),
     "set_system_muted": (re.compile(r"\b(mute|unmute)\b"),),
+    "set_projection_audio_output": (
+        re.compile(r"\b(change|switch|set|use|route|send)\b.*\b(audio|sound|speaker|output)\b.*\b(usb|hdmi|tv|television)\b"),
+    ),
     "control_media": (re.compile(r"\b(play|pause|resume|next|previous|stop)\b.*\b(media|music|song|track|playlist)?\b"),),
     "propose_file_move": (
         re.compile(r"\b(move|relocate)\b.*\b(file|image|document|folder|/|\\)\b"),
