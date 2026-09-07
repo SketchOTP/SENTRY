@@ -1637,8 +1637,8 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             red, green, blue = frame["color"]
             cx, cy = width / 2.0, height / 2.0
             t = float(frame["time"])
-            audio = max(0.0, min(1.0, float(frame["audio_level"])))
-            wake = float(frame["wake_progress"])
+            audio = max(0.0, min(1.0, float(frame.get("audio_level") or 0.0)))
+            wake = max(0.0, min(1.0, float(frame.get("wake_progress") or 0.0)))
             radius = min(width, height) * (0.31 + audio * 0.018)
             context.set_operator(cairo.OPERATOR_SOURCE)
             context.set_source_rgb(0.001, 0.0015, 0.006)
