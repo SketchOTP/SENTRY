@@ -1,0 +1,17 @@
+[Unit]
+Description=SENTRY voice supervisor (ANIMA-owned wake availability)
+After=default.target
+Wants=sentry-voice.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/ATLAS/100_ACTIVE/Projects/SENTRY
+ExecStart=%h/.venvs/sentry-ubuntu/bin/python tools/sentry_voice_supervisor.py --poll-seconds 5
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

@@ -132,13 +132,13 @@ class SentryLauncherTests(unittest.TestCase):
             self.assertEqual(calls[0][0], ["systemctl", "--user", "start", *units])
             self.assertEqual(calls[1][0], ["gapplication", "launch", UI_APPLICATION_ID])
 
-    def test_sleep_preserves_ui_and_support_services_but_does_not_start_voice(self):
+    def test_sleep_setting_does_not_remove_voice_from_launch_units(self):
         with tempfile.TemporaryDirectory() as directory:
             config = self._config(Path(directory), voice={"sleep_enabled": True})
             units = configured_launch_units(config)
             self.assertIn("sentry-ui.service", units)
             self.assertIn("sentry-state-api.service", units)
-            self.assertNotIn("sentry-voice.service", units)
+            self.assertIn("sentry-voice.service", units)
 
     def test_disabled_optional_services_remain_stopped(self):
         with tempfile.TemporaryDirectory() as directory:

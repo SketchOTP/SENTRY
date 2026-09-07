@@ -67,7 +67,10 @@ def configured_launch_units(config_path: Path) -> tuple[str, ...]:
         and bool(proactivity.get("enabled", False))
     ):
         units.append("sentry-proactive.service")
-    if bool(voice.get("always_on_enabled")) and not bool(voice.get("sleep_enabled", False)):
+    # Wake availability is household-owned by ANIMA. Always start the
+    # resident boundary when locally enabled; the voice process and its
+    # supervisor apply ANIMA's current sleep/standby decision.
+    if bool(voice.get("always_on_enabled")):
         units.append("sentry-voice.service")
     return tuple(units)
 

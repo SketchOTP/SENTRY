@@ -9,13 +9,10 @@ from tools.sentry_ui import (
     KOKORO_ENGLISH_VOICES,
     ORB_STYLES,
     OrbStateController,
-    apply_sleep_preference,
-    load_sleep_preference,
     load_voice_preferences,
     orb_canvas_size,
     read_voice_status,
     resolve_sleep_transition_status,
-    save_sleep_preference,
     save_voice_preferences,
     should_acknowledge_wake,
     voice_indicator_model,
@@ -64,39 +61,6 @@ class SentryNativeUiTests(unittest.TestCase):
                 save_voice_preferences(path, "unknown_voice", 1.0)
             with self.assertRaises(ValueError):
                 save_voice_preferences(path, "bm_george", 1.5)
-
-    def test_sleep_preference_defaults_off_and_persists_across_reload(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "config.json"
-            path.write_text(json.dumps({
-                "voice": {"kokoro_voice": "bm_george", "kokoro_speed": 0.9},
-                "weather": {"enabled": True},
-            }), encoding="utf-8")
-            self.assertFalse(load_sleep_preference(path))
-            save_sleep_preference(path, True)
-            self.assertTrue(load_sleep_preference(path))
-            payload = json.loads(path.read_text(encoding="utf-8"))
-            self.assertEqual(payload["weather"], {"enabled": True})
-            self.assertEqual(payload["voice"]["kokoro_voice"], "bm_george")
-            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
-
-    def test_sleep_apply_stops_and_wake_apply_starts_resident_listener(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "config.json"
-            path.write_text(json.dumps({"voice": {"sleep_enabled": False}}), encoding="utf-8")
-            with patch("tools.sentry_ui.voice_service_is_active", return_value=False), patch(
-                "tools.sentry_ui.subprocess.run"
-            ) as run:
-                self.assertEqual(apply_sleep_preference(path, True), "sleeping")
-                self.assertEqual(run.call_args.args[0][2], "stop")
-            self.assertTrue(load_sleep_preference(path))
-
-            with patch("tools.sentry_ui.voice_service_is_active", return_value=True), patch(
-                "tools.sentry_ui.subprocess.run"
-            ) as run:
-                self.assertEqual(apply_sleep_preference(path, False), "starting")
-                self.assertEqual(run.call_args.args[0][2], "start")
-            self.assertFalse(load_sleep_preference(path))
 
     def test_voice_status_is_rendered_inside_native_ui(self):
         state, guidance, identity = voice_status_summary({
@@ -314,13 +278,14 @@ class SentryNativeUiTests(unittest.TestCase):
         self.assertIn('label="Preview voice"', source)
         self.assertIn('label="Save and apply"', source)
 
-    def test_settings_put_persistent_sleep_toggle_before_voice_controls(self):
+    def test_settings_do_not_offer_a_local_sleep_toggle(self):
         from tools.sentry_ui import build_application
 
         source = inspect.getsource(build_application)
-        self.assertIn("Gtk.Switch", source)
-        self.assertLess(source.index('self._card("Sleep")'), source.index('self._card("Voice")'))
-        self.assertIn("apply_sleep_preference(config_path, enabled)", source)
+        self.assertIn('self._card("Wake availability")', source)
+        self.assertIn("managed in ANIMA Settings", source)
+        self.assertNotIn('self._card("Sleep")', source)
+        self.assertNotIn("apply_sleep_preference(config_path, enabled)", source)
 
     def test_projection_surface_has_no_pointer_audio_controls(self):
         from tools.sentry_ui import build_application

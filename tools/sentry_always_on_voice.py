@@ -52,11 +52,18 @@ def _load_anima_voice_settings() -> dict[str, object]:
         value = config.client().voice_settings()
         voice = value.get("voice_id")
         speed = value.get("speech_speed")
+        sleep_enabled = value.get("sleep_enabled")
+        settings: dict[str, object] = {
+            "sleep_enabled": sleep_enabled if isinstance(sleep_enabled, bool) else False,
+        }
         if isinstance(voice, str) and isinstance(speed, (int, float)):
-            return {"kokoro_voice": voice, "kokoro_speed": float(speed)}
-    except Exception as exc:  # noqa: BLE001 - voice keeps running with last local config
+            settings.update({"kokoro_voice": voice, "kokoro_speed": float(speed)})
+        return settings
+    except Exception as exc:  # noqa: BLE001 - the supervisor retries the bridge
         print(json.dumps({"ok": False, "status": "anima_voice_settings_unavailable", "error": type(exc).__name__}, sort_keys=True), file=sys.stderr)
-    return {}
+        # A configured but unreachable ANIMA bridge fails closed for wake
+        # availability. The local config is not a second sleep authority.
+        return {"sleep_enabled": True}
 
 
 def main(argv: list[str] | None = None, *, anima_event_fn=None) -> int:

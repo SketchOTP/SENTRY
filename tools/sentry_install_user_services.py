@@ -16,7 +16,7 @@ ICON_SOURCE = REPO_ROOT / "deploy" / "icons" / "hicolor" / "512x512" / "apps" / 
 UNIT_NAMES = ("sentry-perception.service", "sentry-state-api.service", "sentry-proactive.service")
 ROUTINE_UNIT_NAMES = ("sentry-routines.service", "sentry-routines.timer")
 WEATHER_UNIT_NAMES = ("sentry-weather.service", "sentry-weather.timer")
-VOICE_UNIT_NAMES = ("sentry-voice.service", "sentry-ui.service")
+VOICE_UNIT_NAMES = ("sentry-voice.service", "sentry-ui.service", "sentry-voice-supervisor.service")
 ALARM_UNIT_NAMES = ("sentry-alarms.service", "sentry-alarms.timer")
 LEGACY_UI_UNIT_NAMES = ("sentry-voice-status.service", "sentry-identity-ui.service")
 APPLICATION_DESKTOP_NAME = "local.sentry.Control.desktop"
@@ -179,6 +179,7 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
         _run_systemctl("disable", "sentry-weather.timer")
     if _voice_enabled(existing):
         _run_systemctl("enable", "sentry-voice.service")
+        _run_systemctl("enable", "sentry-voice-supervisor.service")
     else:
         _run_systemctl("disable", *VOICE_UNIT_NAMES)
     if _alarms_enabled(existing):
@@ -200,6 +201,7 @@ def install(config_path: Path, *, start: bool = True, systemd_user_dir: Path | N
             _run_systemctl("start", "sentry-weather.timer")
         if _voice_enabled(existing):
             _run_systemctl("start", "sentry-voice.service")
+            _run_systemctl("start", "sentry-voice-supervisor.service")
         if _alarms_enabled(existing):
             _run_systemctl("start", "sentry-alarms.timer")
     return config_path

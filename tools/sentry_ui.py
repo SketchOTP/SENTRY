@@ -57,18 +57,6 @@ def load_voice_preferences(config_path: Path) -> tuple[str, float]:
     return identifier, speed
 
 
-def load_sleep_preference(config_path: Path) -> bool:
-    """Read the persistent wake-suppression preference; absence means awake."""
-
-    payload = json.loads(config_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        raise TypeError("SENTRY config must be an object")
-    voice = payload.get("voice", {})
-    if not isinstance(voice, dict):
-        raise TypeError("SENTRY voice config must be an object")
-    return bool(voice.get("sleep_enabled", False))
-
-
 def _persist_voice_settings(config_path: Path, updates: dict[str, Any]) -> None:
     """Atomically persist validated voice settings while preserving all others."""
 
@@ -114,24 +102,6 @@ def save_voice_preferences(config_path: Path, identifier: str, speed: float) -> 
     )
 
 
-def save_sleep_preference(config_path: Path, enabled: bool) -> None:
-    """Persist the fail-closed wake suppression preference."""
-
-    if not isinstance(enabled, bool):
-        raise TypeError("sleep preference must be boolean")
-    _persist_voice_settings(config_path, {"sleep_enabled": enabled})
-
-
-def voice_service_is_active() -> bool:
-    result = subprocess.run(
-        ["systemctl", "--user", "is-active", "--quiet", "sentry-voice.service"],
-        check=False,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    return result.returncode == 0
-
-
 def apply_voice_preferences(config_path: Path, identifier: str, speed: float) -> bool:
     """Persist a selection and reload the active resident listener when needed."""
 
@@ -146,31 +116,6 @@ def apply_voice_preferences(config_path: Path, identifier: str, speed: float) ->
             timeout=30,
         )
     return was_active
-
-
-def apply_sleep_preference(config_path: Path, enabled: bool) -> str:
-    """Persist Sleep and enforce it at the resident service boundary."""
-
-    save_sleep_preference(config_path, enabled)
-    command = "stop" if enabled else "start"
-    try:
-        subprocess.run(
-            ["systemctl", "--user", command, "sentry-voice.service"],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            timeout=30,
-        )
-        active = voice_service_is_active()
-        if enabled and active:
-            raise RuntimeError("resident listener remained active after enabling Sleep")
-        if not enabled and not active:
-            raise RuntimeError("resident listener did not start after disabling Sleep")
-    except Exception:
-        # Keep the persisted setting aligned with the actual pre-toggle state.
-        save_sleep_preference(config_path, not enabled)
-        raise
-    return "sleeping" if enabled else "starting"
 
 
 def preview_voice(identifier: str, speed: float) -> bool:
@@ -1374,9 +1319,10 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             self._last_state: str | None = None
             self._last_wake_at: str | None = None
             self._status_initialized = False
-            self.sleep_enabled = False if projection_mode else load_sleep_preference(config_path)
+            # Sleep/standby is an ANIMA household setting. This UI only
+            # reflects the resident status and never writes a local mode.
+            self.sleep_enabled = False
             self._sleep_transition_state: str | None = None
-            self._setting_sleep_programmatically = False
             self._build()
             if not projection_mode:
                 self._load_profiles()
@@ -1481,39 +1427,14 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             settings_header.append(title)
             settings.append(settings_header)
 
-            sleep_card = self._card("Sleep")
-            sleep_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
-            sleep_copy = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-            sleep_copy.set_hexpand(True)
-            sleep_title = Gtk.Label(label="Disable wake listening", xalign=0)
-            sleep_title.add_css_class("preference-label")
-            sleep_help = Gtk.Label(
-                label="While enabled, SENTRY cannot be activated by the wake word.",
+            sleep_card = self._card("Wake availability")
+            sleep_message = Gtk.Label(
+                label="Sleep and standby are managed in ANIMA Settings for the active projection.",
                 xalign=0,
                 wrap=True,
             )
-            sleep_help.add_css_class("muted")
-            sleep_copy.append(sleep_title)
-            sleep_copy.append(sleep_help)
-            self.sleep_toggle = Gtk.Switch()
-            self.sleep_toggle.set_valign(Gtk.Align.CENTER)
-            self.sleep_toggle.set_active(self.sleep_enabled)
-            self.sleep_toggle.set_tooltip_text("Prevent all wake-word activation")
-            self.sleep_toggle.connect("notify::active", self._sleep_toggled)
-            sleep_row.append(sleep_copy)
-            sleep_row.append(self.sleep_toggle)
-            sleep_card.append(sleep_row)
-            self.sleep_message = Gtk.Label(
-                label=(
-                    "Sleeping. Wake-word listening is off."
-                    if self.sleep_enabled
-                    else "Sleep is off. Wake-word listening is available."
-                ),
-                xalign=0,
-                wrap=True,
-            )
-            self.sleep_message.add_css_class("muted")
-            sleep_card.append(self.sleep_message)
+            sleep_message.add_css_class("muted")
+            sleep_card.append(sleep_message)
             settings.append(sleep_card)
 
             self.settings_runtime_label = Gtk.Label(label="Voice: unavailable", xalign=0)
@@ -1525,7 +1446,7 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
 
             voice_card = self._card("Voice")
             voice_help = Gtk.Label(
-                label="Voice and speaking pace are managed by ANIMA for every SENTRY instance. Sleep mode remains local to this projection.",
+                label="Voice, speaking pace, and wake availability are managed by ANIMA for the active SENTRY projection.",
                 xalign=0,
                 wrap=True,
             )
@@ -1803,8 +1724,11 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             self.settings_toggle.set_tooltip_text("Open SENTRY settings and people")
 
         def _refresh_status(self) -> bool:
+            runtime_payload = read_voice_status()
+            if isinstance(runtime_payload.get("sleep_enabled"), bool):
+                self.sleep_enabled = bool(runtime_payload["sleep_enabled"])
             payload, self._sleep_transition_state = resolve_sleep_transition_status(
-                read_voice_status(),
+                runtime_payload,
                 sleep_enabled=self.sleep_enabled,
                 transition_state=self._sleep_transition_state,
             )
@@ -1865,52 +1789,11 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             self.save_voice_button.set_sensitive(not self._busy)
             self.voice_choice.set_sensitive(not self._busy)
             self.voice_speed.set_sensitive(not self._busy)
-            self.sleep_toggle.set_sensitive(not self._busy)
             self.progress.set_fraction(accepted / target if active else 0)
             self.progress.set_text(f"{accepted} of {target}" if active else "No enrollment active")
 
         def _voice_speed_changed(self, scale) -> None:
             self.voice_speed_value.set_text(f"{scale.get_value():.2f}×")
-
-        def _set_sleep_toggle(self, enabled: bool) -> None:
-            self._setting_sleep_programmatically = True
-            try:
-                self.sleep_toggle.set_active(enabled)
-            finally:
-                self._setting_sleep_programmatically = False
-
-        def _sleep_toggled(self, switch, _property) -> None:
-            if self._setting_sleep_programmatically:
-                return
-            enabled = bool(switch.get_active())
-            previous = self.sleep_enabled
-            self._sleep_transition_state = "SLEEPING" if enabled else "STARTING"
-            self.sleep_message.set_text(
-                "Enabling Sleep…" if enabled else "Waking SENTRY…"
-            )
-            self._refresh_status()
-
-            def complete(_result: str) -> None:
-                self.sleep_enabled = enabled
-                if enabled:
-                    self._sleep_transition_state = None
-                self.sleep_message.set_text(
-                    "Sleeping. Wake-word listening is off."
-                    if enabled
-                    else "Sleep is off. Wake-word listening is available."
-                )
-
-            def failed(message: str) -> None:
-                self.sleep_enabled = previous
-                self._sleep_transition_state = None
-                self._set_sleep_toggle(previous)
-                self.sleep_message.set_text(f"Sleep setting was not applied: {message}")
-
-            self._run_voice_operation(
-                lambda: apply_sleep_preference(config_path, enabled),
-                complete,
-                failed=failed,
-            )
 
         def _selected_voice_preferences(self) -> tuple[str, float]:
             identifier = self.voice_choice.get_active_id()
