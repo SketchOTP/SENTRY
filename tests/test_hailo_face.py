@@ -26,6 +26,7 @@ class HailoFaceTests(unittest.TestCase):
             )
 
     def test_hailo_runtime_reports_missing_model_gate_without_faking_availability(self) -> None:
+        self.assertFalse(HailoFaceRuntime(HailoFaceConfig.from_mapping({})).status()["available"])
         runtime = HailoFaceRuntime(HailoFaceConfig())
         status = runtime.status()
         self.assertFalse(status["available"])

@@ -34,13 +34,19 @@ class HailoFaceConfig:
     recognition_threshold: float = 0.60
 
     @classmethod
-    def from_mapping(cls, values: dict[str, Any] | None) -> "HailoFaceConfig":
+    def from_mapping(cls, values: dict[str, Any] | None) -> HailoFaceConfig:
         values = values or {}
         result = cls(
             device_path=Path(str(values.get("device_path", "/dev/hailo0"))).expanduser(),
-            detection_hef=Path(str(values.get("detection_hef", ""))).expanduser(),
-            recognition_hef=Path(str(values.get("recognition_hef", ""))).expanduser(),
-            hailo_apps_root=Path(str(values.get("hailo_apps_root", ""))).expanduser(),
+            detection_hef=Path(
+                str(values.get("detection_hef", "/nonexistent/anima-hailo-face-detection.hef"))
+            ).expanduser(),
+            recognition_hef=Path(
+                str(values.get("recognition_hef", "/nonexistent/anima-hailo-face-recognition.hef"))
+            ).expanduser(),
+            hailo_apps_root=Path(
+                str(values.get("hailo_apps_root", "/nonexistent/hailo-apps"))
+            ).expanduser(),
             input_device=str(values.get("input_device", "/dev/video0")),
             recognition_threshold=float(values.get("recognition_threshold", 0.60)),
         )
