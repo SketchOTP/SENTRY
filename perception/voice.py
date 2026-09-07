@@ -12,6 +12,7 @@ import base64
 import io
 import json
 import os
+import selectors
 import shutil
 import signal
 import subprocess
@@ -422,6 +423,9 @@ class KokoroSpeaker:
         self.remote_playback = remote_playback
         self._lock = threading.RLock()
         self._process: subprocess.Popen[bytes] | None = None
+        self._tts_lock = threading.RLock()
+        self._tts_process: subprocess.Popen[bytes] | None = None
+        self._tts_ready = False
 
     @property
     def available(self) -> bool:
@@ -436,6 +440,75 @@ class KokoroSpeaker:
         with self._lock:
             return self._process is not None and self._process.poll() is None
 
+    def warm(self) -> bool:
+        """Start the resident Kokoro worker and load its model once.
+
+        The worker is deliberately lazy for callers that do not need speech,
+        but the always-on listener calls this during startup so the first
+        response does not pay the model-load cost.
+        """
+        if not self.available:
+            return False
+        with self._tts_lock:
+            if self._tts_process is not None and self._tts_process.poll() is None and self._tts_ready:
+                return True
+            self._stop_tts_worker()
+            try:
+                process = subprocess.Popen(
+                    [
+                        self.python_executable,
+                        str(self.worker_script),
+                        "--persistent",
+                        "--voice",
+                        self.voice,
+                        "--speed",
+                        str(self.speed),
+                    ],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
+                self._tts_process = process
+                ready = json.loads(self._read_tts_line(process).decode("utf-8"))
+                if not isinstance(ready, dict) or ready.get("ready") is not True:
+                    raise ValueError("Kokoro worker did not become ready")
+                self._tts_ready = True
+                return True
+            except (OSError, TypeError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
+                self._stop_tts_worker()
+                return False
+
+    def _read_tts_line(self, process: subprocess.Popen[bytes]) -> bytes:
+        if process.stdout is None:
+            raise OSError("Kokoro worker stdout is unavailable")
+        selector = selectors.DefaultSelector()
+        try:
+            selector.register(process.stdout, selectors.EVENT_READ)
+            if not selector.select(self.timeout_seconds):
+                raise subprocess.TimeoutExpired("Kokoro worker", self.timeout_seconds)
+            line = process.stdout.readline()
+            if not line:
+                raise OSError("Kokoro worker exited before responding")
+            return line
+        finally:
+            selector.close()
+
+    def _stop_tts_worker(self) -> None:
+        process = self._tts_process
+        self._tts_process = None
+        self._tts_ready = False
+        if process is None:
+            return
+        if process.poll() is None:
+            _terminate_capture_process(process)
+        for stream in (process.stdin, process.stdout):
+            if stream is not None:
+                try:
+                    stream.close()
+                except OSError:
+                    pass
+
     def speak(self, text: str) -> bool:
         if not self.available or not isinstance(text, str) or not text.strip():
             return False
@@ -443,63 +516,67 @@ class KokoroSpeaker:
             with self.speech_activity.acquire() as acquired:
                 if not acquired:
                     return False
-                synth = subprocess.run(
-                    [self.python_executable, str(self.worker_script)],
-                    input=(json.dumps({"text": text, "voice": self.voice, "speed": self.speed}) + "\n").encode("utf-8"),
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    timeout=self.timeout_seconds,
-                    check=False,
-                )
-                if synth.returncode != 0:
-                    return False
-                response = json.loads(synth.stdout.decode("utf-8"))
-                audio = base64.b64decode(response["audioBase64"], validate=True)
-                if not audio:
-                    return False
-                if self.remote_playback is not None:
-                    return bool(self.remote_playback.send(audio))
-                pcm, sample_rate, channels = _decode_wav(audio)
-                process = subprocess.Popen(
-                    [
-                        self.player,
-                        "--rate",
-                        str(sample_rate),
-                        "--channels",
-                        str(channels),
-                        "--format",
-                        "s16",
-                        "--media-role",
-                        "Communication",
-                        "-",
-                    ],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
-                )
-                with self._lock:
-                    self._process = process
-                meter: threading.Thread | None = None
-                if self.level_callback is not None:
-                    meter = threading.Thread(
-                        target=_report_pcm_levels,
-                        args=(pcm, sample_rate, channels, self.level_callback, process),
-                        name="sentry-tts-level",
-                        daemon=True,
+                with self._tts_lock:
+                    if not self.warm():
+                        return False
+                    process = self._tts_process
+                    if process is None or process.stdin is None:
+                        return False
+                    process.stdin.write(
+                        (json.dumps({"text": text, "voice": self.voice, "speed": self.speed}) + "\n").encode("utf-8")
                     )
-                    meter.start()
-                process.communicate(pcm, timeout=self.timeout_seconds)
-                if meter is not None:
-                    meter.join(timeout=2)
-                if self.level_callback is not None:
-                    self.level_callback(0.0)
-                with self._lock:
-                    if self._process is process:
-                        self._process = None
-                return process.returncode == 0
+                    process.stdin.flush()
+                    response = json.loads(self._read_tts_line(process).decode("utf-8"))
+                    if not isinstance(response, dict) or response.get("ok", True) is not True:
+                        return False
+                    audio = base64.b64decode(response["audioBase64"], validate=True)
+                    if not audio:
+                        return False
+                    if self.remote_playback is not None:
+                        return bool(self.remote_playback.send(audio))
+                    pcm, sample_rate, channels = _decode_wav(audio)
+                    process = subprocess.Popen(
+                        [
+                            self.player,
+                            "--rate",
+                            str(sample_rate),
+                            "--channels",
+                            str(channels),
+                            "--format",
+                            "s16",
+                            "--media-role",
+                            "Communication",
+                            "-",
+                        ],
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.PIPE,
+                    )
+                    with self._lock:
+                        self._process = process
+                    meter: threading.Thread | None = None
+                    if self.level_callback is not None:
+                        meter = threading.Thread(
+                            target=_report_pcm_levels,
+                            args=(pcm, sample_rate, channels, self.level_callback, process),
+                            name="sentry-tts-level",
+                            daemon=True,
+                        )
+                        meter.start()
+                    process.communicate(pcm, timeout=self.timeout_seconds)
+                    if meter is not None:
+                        meter.join(timeout=2)
+                    if self.level_callback is not None:
+                        self.level_callback(0.0)
+                    with self._lock:
+                        if self._process is process:
+                            self._process = None
+                    return process.returncode == 0
         except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
             if self.level_callback is not None:
                 self.level_callback(0.0)
+            with self._tts_lock:
+                self._stop_tts_worker()
             self.cancel()
             return False
 
@@ -521,6 +598,12 @@ class KokoroSpeaker:
                 if self._process is process:
                     self._process = None
         return True
+
+    def close(self) -> None:
+        """Stop playback and release the resident synthesis worker."""
+        self.cancel()
+        with self._tts_lock:
+            self._stop_tts_worker()
 
 
 def _decode_wav(audio: bytes) -> tuple[bytes, int, int]:

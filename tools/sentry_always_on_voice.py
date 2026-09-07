@@ -164,6 +164,17 @@ def main(argv: list[str] | None = None, *, anima_event_fn=None) -> int:
         else:
             stream = PipeWirePcmStream(source=voice.microphone_source, sample_rate=voice.sample_rate)
             remote_playback = None
+        speaker = KokoroSpeaker(
+            python_executable=args.kokoro_python,
+            voice=voice.kokoro_voice,
+            speed=voice.kokoro_speed,
+            level_callback=lambda level: diagnostics.update(output_audio_level=round(level, 4)),
+            remote_playback=remote_playback,
+        )
+        # Load Kokoro before advertising readiness so the first response does
+        # not pay the model startup cost. A later speak() still retries if the
+        # worker or its model becomes unavailable.
+        diagnostics.update(tts_warm=speaker.warm())
         loop = AlwaysOnVoiceLoop(
             voice,
             stream=stream,
@@ -171,13 +182,7 @@ def main(argv: list[str] | None = None, *, anima_event_fn=None) -> int:
             wake_detector=wake_detector,
             command_recognizer=command_recognizer,
             transcriber=WhisperTranscriber(model_name=voice.whisper_model),
-            speaker=KokoroSpeaker(
-                python_executable=args.kokoro_python,
-                voice=voice.kokoro_voice,
-                speed=voice.kokoro_speed,
-                level_callback=lambda level: diagnostics.update(output_audio_level=round(level, 4)),
-                remote_playback=remote_playback,
-            ),
+            speaker=speaker,
             ask_fn=ask,
             anima_event_fn=anima_event_fn,
             action_presentation_completed_fn=complete_action_presentation,
@@ -195,6 +200,7 @@ def main(argv: list[str] | None = None, *, anima_event_fn=None) -> int:
         return loop.run(stop_event)
     finally:
         wake_chime.close()
+        speaker.close()
 
 
 def _optional_anima_events(diagnostics: VoiceDiagnostics):

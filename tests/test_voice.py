@@ -3,6 +3,8 @@ import base64
 import io
 import json
 from pathlib import Path
+import sys
+import tempfile
 from unittest.mock import Mock, patch
 from types import SimpleNamespace
 import wave
@@ -82,7 +84,22 @@ class VoiceTests(unittest.TestCase):
         ask.assert_not_called()
         self.speaker.speak.assert_not_called()
 
-    def test_kokoro_uses_local_worker_and_pipewire_not_remote_service(self):
+    def _write_persistent_worker(self, directory: str, audio_b64: str) -> Path:
+        worker = Path(directory) / "fake_kokoro_worker.py"
+        worker.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json, sys\n"
+            f"audio = {audio_b64!r}\n"
+            "print(json.dumps({'ready': True}), flush=True)\n"
+            "for line in sys.stdin:\n"
+            "    if line.strip():\n"
+            "        print(json.dumps({'ok': True, 'audioBase64': audio}), flush=True)\n",
+            encoding="utf-8",
+        )
+        worker.chmod(0o755)
+        return worker
+
+    def test_kokoro_worker_is_warmed_once_and_reused_for_multiple_responses(self):
         output = io.BytesIO()
         with wave.open(output, "wb") as wav:
             wav.setnchannels(1)
@@ -90,27 +107,51 @@ class VoiceTests(unittest.TestCase):
             wav.setframerate(24_000)
             wav.writeframes(b"\x00\x00" * 8)
         audio_b64 = base64.b64encode(output.getvalue()).decode("ascii")
-        synth = Mock(return_value=SimpleNamespace(
-            returncode=0,
-            stdout=json.dumps({"audioBase64": audio_b64}).encode(),
-            stderr=b"",
-        ))
-        player = Mock()
-        player.returncode = 0
-        with patch("perception.voice.subprocess.run", synth), patch(
-            "perception.voice.subprocess.Popen", return_value=player
-        ) as popen:
+        playback = Mock()
+        playback.send.return_value = True
+        with tempfile.TemporaryDirectory() as directory:
+            worker = self._write_persistent_worker(directory, audio_b64)
             speaker = KokoroSpeaker(
-                python_executable="/usr/bin/python3",
-                worker_script=Path(__file__).resolve().parents[1] / "tools" / "sentry_kokoro_worker.py",
-                player="/usr/bin/pw-play",
+                python_executable=sys.executable,
+                worker_script=worker,
+                remote_playback=playback,
             )
+            self.assertTrue(speaker.warm())
+            process = speaker._tts_process
+            self.assertIsNotNone(process)
+            first_pid = process.pid
             self.assertTrue(speaker.speak("Welcome home."))
-        self.assertEqual(synth.call_args.args[0][0], "/usr/bin/python3")
-        self.assertEqual(player.communicate.call_args.args[0], b"\x00\x00" * 8)
-        self.assertEqual(player.communicate.call_args.kwargs, {"timeout": 300})
-        self.assertIn("--rate", popen.call_args.args[0])
-        self.assertIn("24000", popen.call_args.args[0])
+            self.assertTrue(speaker.speak("The worker is still warm."))
+            self.assertEqual(speaker._tts_process.pid, first_pid)
+            speaker.close()
+
+        self.assertEqual(playback.send.call_count, 2)
+
+    def test_kokoro_warm_worker_still_drives_pipewire_and_audio_levels(self):
+        output = io.BytesIO()
+        with wave.open(output, "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(24_000)
+            wav.writeframes((8192).to_bytes(2, "little", signed=True) * 480)
+        audio_b64 = base64.b64encode(output.getvalue()).decode("ascii")
+        levels: list[float] = []
+        with tempfile.TemporaryDirectory() as directory:
+            worker = self._write_persistent_worker(directory, audio_b64)
+            player = Path(directory) / "fake_pw_play.py"
+            player.write_text("#!/usr/bin/env python3\nimport sys\nsys.stdin.buffer.read()\n", encoding="utf-8")
+            player.chmod(0o755)
+            speaker = KokoroSpeaker(
+                python_executable=sys.executable,
+                worker_script=worker,
+                player=str(player),
+                level_callback=levels.append,
+            )
+            self.assertTrue(speaker.warm())
+            self.assertTrue(speaker.speak("Welcome home."))
+            speaker.close()
+        self.assertGreater(max(levels), 0.0)
+        self.assertEqual(levels[-1], 0.0)
 
     def test_wake_chime_is_preloaded_then_played_from_the_audio_server_cache(self):
         upload = SimpleNamespace(returncode=0)
@@ -152,37 +193,6 @@ class VoiceTests(unittest.TestCase):
         self.assertGreater(quiet, silence)
         self.assertGreater(loud, quiet)
         self.assertLessEqual(loud, 1.0)
-
-    def test_kokoro_reports_actual_output_pcm_level_then_resets(self):
-        output = io.BytesIO()
-        with wave.open(output, "wb") as wav:
-            wav.setnchannels(1)
-            wav.setsampwidth(2)
-            wav.setframerate(24_000)
-            wav.writeframes((8192).to_bytes(2, "little", signed=True) * 480)
-        audio_b64 = base64.b64encode(output.getvalue()).decode("ascii")
-        synth = Mock(return_value=SimpleNamespace(
-            returncode=0,
-            stdout=json.dumps({"audioBase64": audio_b64}).encode(),
-            stderr=b"",
-        ))
-        player = Mock()
-        player.returncode = 0
-        player.poll.return_value = None
-        levels: list[float] = []
-        with patch("perception.voice.subprocess.run", synth), patch(
-            "perception.voice.subprocess.Popen", return_value=player,
-        ):
-            speaker = KokoroSpeaker(
-                python_executable="/usr/bin/python3",
-                worker_script=Path(__file__).resolve().parents[1] / "tools" / "sentry_kokoro_worker.py",
-                player="/usr/bin/pw-play",
-                level_callback=levels.append,
-            )
-            self.assertTrue(speaker.speak("Audio-reactive orb proof."))
-        self.assertGreater(max(levels), 0.0)
-        self.assertEqual(levels[-1], 0.0)
-
 
 if __name__ == "__main__":
     unittest.main()
