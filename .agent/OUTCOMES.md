@@ -1951,3 +1951,17 @@ The Architect accepted the substantive conversational-orchestration result at im
   initiative state. The stale Tapo request was correctly not replayed.
 - Exact post-fix Tapo unlock-to-TTS evidence remains pending one fresh physical
   unlock within the 120-second eligibility window.
+
+## OUTCOME-SENTRY-TAPO-UNLOCK-TTS-006 — Physical end-to-end pass
+
+- Date: 2026-09-09
+- Status: PASSED / E5 operationally observed
+- Physical Tapo event `d9a84c1f-d1a9-5794-b3bc-964bc630aa9d` reported
+  `unlocked` for the canonical Front Door Lock at `2026-09-09T11:41:28Z`.
+- ANIMA created and SENTRY claimed request
+  `7dac34fe-b5a8-5e8e-84df-551d2255d80c`; provider-start preceded model work.
+- Terminal evidence is `COMPLETED / RESPONSE`, model decision `speak`, Core
+  initiative `ALWAYS_NOTIFY`, notification allowed and required, and host TTS
+  `DELIVERED`. SENTRY then entered `FOLLOWUP_LISTENING`.
+- The preceding physical `locked` report completed `NO_ACTION` with
+  `LEARNING_REQUIRED`, matching the owner-selected unlock-only rule.

@@ -17,12 +17,13 @@ temporary Core unavailability and clears after recovery.
 
 Focused regression passes 118 tests and the full Ubuntu suite passes 529
 tests. The live voice service was restarted, returned to `LISTENING`, and
-subsequently claimed two fresh ANIMA Attention events. A mandatory Ring event
-completed with Core `RESPONSE` and host TTS `DELIVERED`; a Wansview event
-completed `NO_ACTION` under its current initiative disposition. The original
-Tapo event was already outside the 120-second freshness boundary and was not
-replayed. A fresh physical Tapo unlock remains required for exact-device E5
-confirmation.
+subsequently claimed fresh ANIMA Attention events. A physical Tapo unlock at
+`2026-09-09T11:41:28Z` created request `7dac34fe-b5a8-5e8e-84df-551d2255d80c`;
+Core applied `ALWAYS_NOTIFY`, the resident model selected `speak`, the result
+was durably recorded as `RESPONSE`, Kokoro reported `DELIVERED`, and SENTRY
+entered follow-up listening. A physical lock event remained correctly silent
+because the owner rule applies only to `UNLOCKED`. The earlier stale request
+was not replayed.
 
 ## Idle ANIMA polling state correction — 2026-09-09
 
