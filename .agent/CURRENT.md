@@ -15,7 +15,9 @@ results remain authoritative.
 Focused personality/resident regression passes 73 tests, complete unittest
 discovery passes 537 tests, and the live voice service restarted active on the
 corrected source. A real low-stakes model turn showed the selected Projectionist
-profile in its cinematic wording. Hosted exact-head qualification is pending.
+profile in its cinematic wording. Implementation
+`7b67c9f77333558c3849562a3ec7fad1854b087b` passed exact-head hosted CI
+`34378126483` in both deterministic and security-focused jobs.
 
 ## Push-first immediate household alert path — 2026-09-09
 

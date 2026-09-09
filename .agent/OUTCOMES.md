@@ -2000,5 +2000,6 @@ The Architect accepted the substantive conversational-orchestration result at im
   policy, notification rules, tool authorization or verified outcomes.
 - Focused tests pass 73/73, complete unittest discovery passes 537/537,
   compilation and `git diff --check` pass, and the live service restarted
-  active. A real low-stakes model turn used cinematic phrasing; hosted
-  exact-head qualification is pending.
+  active. A real low-stakes model turn used cinematic phrasing. Implementation
+  `7b67c9f77333558c3849562a3ec7fad1854b087b` passed exact-head hosted CI
+  `34378126483` in both deterministic and security-focused jobs.
