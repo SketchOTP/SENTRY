@@ -595,14 +595,37 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         self.client.provider_start.assert_not_called()
         self.speaker.speak.assert_not_called()
 
-    def test_unsupported_or_lost_claim_response_halts_without_fallback_or_retry(self):
-        self.client.call.side_effect = OSError("secret payload must not appear")
+    def test_pre_provider_transport_failure_recovers_without_model_or_fallback(self):
+        self.client.call.side_effect = [
+            OSError("secret payload must not appear"),
+            {"status": "EMPTY", "items": []},
+        ]
         source = self.queue_source()
-        result = source()
+        with patch("tools.sentry_anima_events.time.monotonic", return_value=100.0):
+            result = source()
+        self.assertEqual(result["status"], "NOT_READY")
+        self.assertEqual(result["gate"], "EVENT_CORE_TEMPORARILY_UNAVAILABLE")
         self.assertEqual(result["exception_type"], "OSError")
         self.assertNotIn("secret", json.dumps(result))
-        self.assertEqual(source()["gate"], "EVENT_SOURCE_REVIEW_REQUIRED")
-        self.client.call.assert_called_once()
+        with patch("tools.sentry_anima_events.time.monotonic", return_value=115.0):
+            self.assertEqual(source()["status"], "EMPTY")
+        self.assertEqual(self.client.call.call_count, 2)
+        self.client.provider_start.assert_not_called()
+
+    def test_retryable_core_http_failure_does_not_latch_source(self):
+        class CoreUnavailable(RuntimeError):
+            http_status = 503
+            transport_code = None
+
+        self.client.call.side_effect = [
+            CoreUnavailable("private"),
+            {"status": "EMPTY", "items": []},
+        ]
+        source = self.queue_source()
+        with patch("tools.sentry_anima_events.time.monotonic", return_value=100.0):
+            self.assertEqual(source()["gate"], "EVENT_CORE_TEMPORARILY_UNAVAILABLE")
+        with patch("tools.sentry_anima_events.time.monotonic", return_value=115.0):
+            self.assertEqual(source()["status"], "EMPTY")
         self.client.provider_start.assert_not_called()
 
     def test_unknown_execution_latches_source_no_next_claim(self):
@@ -616,7 +639,9 @@ class ResidentEventIntegrationTests(unittest.TestCase):
     def test_setup_failures_happen_before_claim(self):
         for target in ("tools.sentry_anima.AnimaConfig.client", "tools.sentry_anima_events.tempfile.TemporaryDirectory"):
             with self.subTest(target=target), patch(target, side_effect=OSError("synthetic setup failure")):
-                self.assertEqual(self.queue_source()()["status"], "UNKNOWN_RESULT")
+                result = self.queue_source()()
+                self.assertEqual(result["status"], "NOT_READY")
+                self.assertEqual(result["gate"], "EVENT_CORE_TEMPORARILY_UNAVAILABLE")
         self.client.call.assert_not_called()
         self.claim.assert_not_called()
 

@@ -525,3 +525,13 @@ The direct move is a live observation. The operator waived artificial deferred
 approval, cancellation, and revision drills after that proof; those paths are
 qualified by deterministic fail-closed tests only and must not be described as
 live operator evidence.
+
+## 2026-09-09 — Retry availability only before provider execution
+
+- A resident queue reader must distinguish temporary Core unavailability from
+  ambiguous provider work. Connection loss while listing or claiming work is
+  recoverable when provider-start has not occurred; permanently latching that
+  state silently disables all future unattended alerts after a routine Core
+  restart.
+- Once provider-start succeeds, an unknown model/result boundary remains
+  non-replayable and must retain its explicit review-required latch.

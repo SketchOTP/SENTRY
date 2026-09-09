@@ -23,6 +23,7 @@ STATUS_KEYS = {
     "vad_healthy", "microphone_audio_level", "output_audio_level", "last_wake_at",
     "speaker_context_active", "speaker_context_state", "speaker_context_display_name",
     "speaker_context_preflight_active", "last_segment_outcome", "anima_event_status",
+    "anima_event_gate",
     "active_instance_id", "voice_id", "speech_speed",
 }
 

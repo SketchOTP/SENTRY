@@ -1931,3 +1931,23 @@ The Architect accepted the substantive conversational-orchestration result at im
   Related suites passed 101/101 and `git diff --check` passed.
 - The unrelated dirty V0.4 worktree was preserved; no commit or release is
   claimed.
+
+## OUTCOME-SENTRY-ANIMA-EVENT-TRANSPORT-RECOVERY-005 — Implemented and operationally observed
+
+- Date: 2026-09-09
+- Status: IMPLEMENTED / E4 regression / E5 live worker recovery
+- A real Tapo unlock was journaled by ANIMA but stayed `PENDING` because the
+  resident event source had permanently latched after a temporary ANIMA Core
+  restart. No Tapo/provider ingestion defect was found in that event.
+- Pre-provider transport and retryable service failures now remain `NOT_READY`
+  only until the next bounded poll. Invalid contracts and all ambiguous work
+  after provider-start retain the permanent review-required latch; no model or
+  side effect is retried.
+- Focused event/voice tests passed 118/118, full Ubuntu regression passed
+  529/529, compilation and `git diff --check` passed.
+- After service restart, the live resident worker claimed two new bounded
+  Attention requests. One required Ring event reached `RESPONSE` with TTS
+  `DELIVERED`; one Wansview event ended `NO_ACTION` according to current Core
+  initiative state. The stale Tapo request was correctly not replayed.
+- Exact post-fix Tapo unlock-to-TTS evidence remains pending one fresh physical
+  unlock within the 120-second eligibility window.

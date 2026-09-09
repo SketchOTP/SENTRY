@@ -200,9 +200,10 @@ class AttentionQueueSource:
     """One eligible request per idle callback, using only the client transport.
 
     Core MUST implement the filtered route; never fall back to interactions/open.
-    The enable epoch is host-owned and fixed for this source's lifetime. A lost
-    response or uncertain execution latches this source closed until reviewed.
-    There is no background thread, second agent, or automatic recovery/replay.
+    The enable epoch is host-owned and fixed for this source's lifetime. A
+    transient transport failure before provider execution is safe to poll again;
+    a lost result or uncertain provider execution latches this source closed
+    until reviewed. There is no second agent or automatic model replay.
     """
 
     def __init__(
@@ -298,6 +299,12 @@ class AttentionQueueSource:
                     on_work_started=on_work_started,
                 )
             except Exception as exc:  # noqa: BLE001 - never retry an ambiguous claim
+                if _retryable_pre_provider_failure(exc):
+                    return {
+                        **not_ready,
+                        "gate": "EVENT_CORE_TEMPORARILY_UNAVAILABLE",
+                        "exception_type": type(exc).__name__,
+                    }
                 self._halted = True
                 return {"status": "UNKNOWN_RESULT", "delivery_status": "NOT_ATTEMPTED",
                         "stage": "EVENT_SOURCE", "exception_type": type(exc).__name__}
@@ -306,6 +313,32 @@ class AttentionQueueSource:
             return result
         finally:
             self._lock.release()
+
+
+def _retryable_pre_provider_failure(exc: Exception) -> bool:
+    """Classify only failures that occur before provider/model execution.
+
+    This helper is used solely by ``AttentionQueueSource`` around setup and
+    queue claim. ``QueuedEventLease`` contains every post-provider-start error
+    and returns UNKNOWN_RESULT, which remains permanently latched above.
+    """
+
+    transport_code = getattr(exc, "transport_code", None)
+    http_status = getattr(exc, "http_status", None)
+    return (
+        isinstance(exc, (ConnectionError, TimeoutError, OSError))
+        or transport_code in {
+            "TIMEOUT",
+            "REMOTE_DISCONNECTED",
+            "CONNECTION_REFUSED",
+            "CONNECTION_RESET",
+            "SOCKET_NOT_FOUND",
+            "HTTP_PROTOCOL_ERROR",
+            "OS_ERROR",
+            "TRANSPORT_ERROR",
+        }
+        or (type(http_status) is int and (http_status in {408, 425, 429} or 500 <= http_status <= 599))
+    )
 
 
 def validate_event_binding(path: Path, profile: dict, workspace: Path, request_id: str | None) -> dict:

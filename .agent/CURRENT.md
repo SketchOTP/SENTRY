@@ -2,6 +2,28 @@
 
 Last updated: 2026-09-09
 
+## Unattended ANIMA transport recovery correction — 2026-09-09
+
+A live Tapo unlock reached ANIMA and created an `AUTONOMOUS_ATTENTION`
+request, but the resident SENTRY worker did not claim it. The worker had
+latched `NOT_READY` after ANIMA Core was restarted: the event source treated a
+pre-provider socket interruption like ambiguous provider/model execution.
+
+The source now retries only bounded transport/service failures that occur
+before provider execution. Invalid contracts still fail closed, and every
+`UNKNOWN_RESULT` after provider-start still permanently latches the source so
+possibly-started model work is never replayed. A safe diagnostic gate reports
+temporary Core unavailability and clears after recovery.
+
+Focused regression passes 118 tests and the full Ubuntu suite passes 529
+tests. The live voice service was restarted, returned to `LISTENING`, and
+subsequently claimed two fresh ANIMA Attention events. A mandatory Ring event
+completed with Core `RESPONSE` and host TTS `DELIVERED`; a Wansview event
+completed `NO_ACTION` under its current initiative disposition. The original
+Tapo event was already outside the 120-second freshness boundary and was not
+replayed. A fresh physical Tapo unlock remains required for exact-device E5
+confirmation.
+
 ## Idle ANIMA polling state correction — 2026-09-09
 
 The resident voice loop now leaves the projection in its existing standby or

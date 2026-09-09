@@ -1424,6 +1424,7 @@ class AlwaysOnVoiceLoop:
             status = result.get("status") if isinstance(result, dict) else None
             result_status = result.get("result_status") if isinstance(result, dict) else None
             delivery_status = result.get("delivery_status") if isinstance(result, dict) else None
+            gate = result.get("gate") if isinstance(result, dict) else None
             safe_status = status if status in allowed_statuses else "UNKNOWN_RESULT"
             safe_result_status = result_status if result_status in allowed_statuses else None
             safe_delivery_status = delivery_status if delivery_status in {
@@ -1431,6 +1432,15 @@ class AlwaysOnVoiceLoop:
                 "BUSY_NOT_DELIVERED",
             } else None
             values: dict[str, object] = {"anima_event_status": safe_status}
+            if gate in {
+                "EVENT_POLL_INTERVAL",
+                "EVENT_SOURCE_BUSY",
+                "EVENT_SOURCE_REVIEW_REQUIRED",
+                "EVENT_CORE_TEMPORARILY_UNAVAILABLE",
+            }:
+                values["anima_event_gate"] = gate
+            elif "anima_event_gate" in self.diagnostics.payload:
+                values["anima_event_gate"] = None
             if safe_result_status is not None:
                 values["anima_event_result_status"] = safe_result_status
             if safe_delivery_status is not None:

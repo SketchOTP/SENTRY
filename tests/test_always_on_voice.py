@@ -248,6 +248,26 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         self.assertFalse(any(call.args and call.args[0] == VoiceState.PROCESSING for call in set_state.call_args_list))
         self.assertEqual(loop.diagnostics.payload["anima_event_status"], "EMPTY")
 
+    def test_anima_transport_gate_is_visible_and_clears_after_recovery(self):
+        loop, _ = self.make_loop([])
+        loop.state = VoiceState.LISTENING
+        loop.anima_event_fn = Mock(return_value={
+            "status": "NOT_READY",
+            "delivery_status": "NOT_ATTEMPTED",
+            "gate": "EVENT_CORE_TEMPORARILY_UNAVAILABLE",
+        })
+        loop._process_idle_anima_event()
+        self.assertEqual(
+            loop.diagnostics.payload["anima_event_gate"],
+            "EVENT_CORE_TEMPORARILY_UNAVAILABLE",
+        )
+        loop._next_anima_event_poll = 0
+        loop.anima_event_fn.return_value = {
+            "status": "EMPTY", "delivery_status": "NOT_ATTEMPTED"
+        }
+        loop._process_idle_anima_event()
+        self.assertIsNone(loop.diagnostics.payload["anima_event_gate"])
+
     def test_claimed_anima_work_displays_processing_until_result(self):
         loop, _ = self.make_loop([])
         loop.state = VoiceState.LISTENING
