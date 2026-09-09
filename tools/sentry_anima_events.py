@@ -270,7 +270,12 @@ class AttentionQueueSource:
             raise ValueError("EVENT_QUEUE_CONTRACT_MISMATCH")
         UUID(value["request_id"])
 
-    def __call__(self, *, speaker: Any = None) -> dict[str, Any]:
+    def __call__(
+        self,
+        *,
+        speaker: Any = None,
+        on_work_started: Callable[[], None] | None = None,
+    ) -> dict[str, Any]:
         not_ready = {"status": "NOT_READY", "delivery_status": "NOT_ATTEMPTED"}
         if not self._lock.acquire(blocking=False):
             return {**not_ready, "gate": "EVENT_SOURCE_BUSY"}
@@ -290,6 +295,7 @@ class AttentionQueueSource:
                     claim_next=self._claim_next, speaker=speaker,
                     enabled=self.enabled, context_ready=self.context_ready,
                     persistent_history_allowed=self.persistent_history_allowed,
+                    on_work_started=on_work_started,
                 )
             except Exception as exc:  # noqa: BLE001 - never retry an ambiguous claim
                 self._halted = True
@@ -505,6 +511,7 @@ def run_resident_event(
     speaker: Any = None,
     enabled: bool = False, context_ready: bool = False,
     persistent_history_allowed: bool = False, runner: Callable[..., Any] | None = None,
+    on_work_started: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Explicit same-resident hook; no polling or production enablement.
 
@@ -610,6 +617,8 @@ def run_resident_event(
             initiative: dict[str, Any] = {}
 
             def execute(active: QueuedEventLease) -> EventResult:
+                if on_work_started is not None:
+                    on_work_started()
                 invocation = invoke_sentry_agent(
                     "ANIMA autonomous Attention event", [], session_id=thread_id,
                     working_directory=workspace, request_id=correlation_id,

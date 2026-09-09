@@ -531,6 +531,8 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         )
 
     def test_queue_claim_is_filtered_under_resident_lock_then_same_model_and_speaker(self):
+        work_started = Mock()
+
         def claim(path, payload):
             self.assertEqual(payload["origin"], "AUTONOMOUS_ATTENTION")
             self.assertEqual(payload["not_before"], self.enable_epoch.isoformat())
@@ -546,10 +548,11 @@ class ResidentEventIntegrationTests(unittest.TestCase):
             return self.queue_claim()
         self.client.call.side_effect = claim
         with patch("tools.sentry_anima_events._event_process", side_effect=lambda args, lease, **kw: self.model(args, **kw)):
-            result = self.queue_source()(speaker=self.speaker)
+            result = self.queue_source()(speaker=self.speaker, on_work_started=work_started)
         self.assertEqual(result["delivery_status"], "DELIVERED")
         self.assertEqual(self.client.call.call_count, 2)
         self.client.provider_start.assert_called_once_with(self.request_id, "synthetic-private-binding")
+        work_started.assert_called_once_with()
         self.speaker.speak.assert_called_once()
         self.assertEqual(self.store.load()["thread_id"], self.thread_id)
 
@@ -561,15 +564,19 @@ class ResidentEventIntegrationTests(unittest.TestCase):
     def test_queue_empty_is_throttled_without_start_or_model(self):
         self.client.call.return_value = {"status": "EMPTY", "items": []}
         source = self.queue_source()
-        with patch("tools.sentry_anima_events.time.monotonic", return_value=100.0):
-            self.assertEqual(source()["status"], "EMPTY")
-            throttled = source()
-            self.assertEqual(throttled["status"], "EMPTY")
-            self.assertEqual(throttled["gate"], "EVENT_POLL_INTERVAL")
-        with patch("tools.sentry_anima_events.time.monotonic", return_value=115.0):
-            self.assertEqual(source()["status"], "EMPTY")
+        work_started = Mock()
+        with patch("tools.sentry_codex_agent.invoke_sentry_agent") as model:
+            with patch("tools.sentry_anima_events.time.monotonic", return_value=100.0):
+                self.assertEqual(source(on_work_started=work_started)["status"], "EMPTY")
+                throttled = source(on_work_started=work_started)
+                self.assertEqual(throttled["status"], "EMPTY")
+                self.assertEqual(throttled["gate"], "EVENT_POLL_INTERVAL")
+            with patch("tools.sentry_anima_events.time.monotonic", return_value=115.0):
+                self.assertEqual(source(on_work_started=work_started)["status"], "EMPTY")
+            model.assert_not_called()
         self.assertEqual(self.client.call.call_count, 2)
         self.client.provider_start.assert_not_called()
+        work_started.assert_not_called()
 
     def test_old_wrong_origin_started_and_cross_household_claims_never_start(self):
         for fields in (

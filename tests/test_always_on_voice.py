@@ -142,7 +142,9 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         callback = Mock(return_value={"status": "RECORDED", "answer": "PRIVATE_NOT_DIAGNOSTICS"})
         loop.anima_event_fn = callback
         loop._process_idle_anima_event()
-        callback.assert_called_once_with(speaker=self.speaker)
+        callback.assert_called_once()
+        self.assertIs(callback.call_args.kwargs["speaker"], self.speaker)
+        self.assertTrue(callable(callback.call_args.kwargs["on_work_started"]))
         self.assertEqual(loop.state, VoiceState.LISTENING)
         self.assertNotIn("PRIVATE_NOT_DIAGNOSTICS", str(loop.diagnostics.payload))
         loop._process_idle_anima_event()
@@ -229,7 +231,45 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         loop.state = VoiceState.DISABLED
         loop.anima_event_fn = Mock(return_value={"status": "EMPTY"})
         loop._process_idle_anima_event()
-        loop.anima_event_fn.assert_called_once_with(speaker=loop.speaker)
+        loop.anima_event_fn.assert_called_once()
+        self.assertIs(loop.anima_event_fn.call_args.kwargs["speaker"], loop.speaker)
+        self.assertTrue(callable(loop.anima_event_fn.call_args.kwargs["on_work_started"]))
+
+    def test_empty_anima_poll_never_displays_processing(self):
+        loop, _ = self.make_loop([])
+        loop.state = VoiceState.LISTENING
+        loop.anima_event_fn = Mock(return_value={"status": "EMPTY"})
+        set_state = Mock(wraps=loop._set_state)
+        loop._set_state = set_state
+
+        loop._process_idle_anima_event()
+
+        self.assertEqual(loop.state, VoiceState.LISTENING)
+        self.assertFalse(any(call.args and call.args[0] == VoiceState.PROCESSING for call in set_state.call_args_list))
+        self.assertEqual(loop.diagnostics.payload["anima_event_status"], "EMPTY")
+
+    def test_claimed_anima_work_displays_processing_until_result(self):
+        loop, _ = self.make_loop([])
+        loop.state = VoiceState.LISTENING
+        observed_states = []
+
+        def process(*, speaker, on_work_started):
+            self.assertIs(speaker, loop.speaker)
+            observed_states.append(loop.state)
+            on_work_started()
+            observed_states.append(loop.state)
+            return {
+                "status": "RECORDED",
+                "result_status": "NO_ACTION",
+                "delivery_status": "NOT_ATTEMPTED",
+            }
+
+        loop.anima_event_fn = process
+        loop._process_idle_anima_event()
+
+        self.assertEqual(observed_states, [VoiceState.LISTENING, VoiceState.PROCESSING])
+        self.assertEqual(loop.state, VoiceState.LISTENING)
+        self.assertEqual(loop.diagnostics.payload["last_segment_outcome"], "anima_event_idle")
 
     def test_anima_idle_hook_remains_off_in_sleep_mode(self):
         loop, _ = self.make_loop([])

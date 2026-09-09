@@ -1,6 +1,21 @@
 # Current Project State
 
-Last updated: 2026-09-08
+Last updated: 2026-09-09
+
+## Idle ANIMA polling state correction — 2026-09-09
+
+The resident voice loop now leaves the projection in its existing standby or
+listening state while it performs the bounded 15-second ANIMA Core queue check.
+It transitions to `PROCESSING` only after an eligible request has been claimed
+and ANIMA has durably accepted `provider-start`, immediately before the
+persistent SENTRY model invocation begins. Empty and locally throttled polls do
+not call provider-start or the model.
+
+Focused voice/event regression passes 116 tests and the full Ubuntu suite
+passes 527 tests. After restarting the live service, a 36-second high-frequency
+observation crossed multiple empty poll intervals with zero `PROCESSING`
+samples, zero command dispatches, `anima_event_status=EMPTY`, and Kokoro warm.
+No live household event or model turn was triggered for this correction.
 
 ## Unattended ANIMA event delivery and trial — 2026-09-08
 

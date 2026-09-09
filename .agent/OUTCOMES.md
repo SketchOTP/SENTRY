@@ -2,6 +2,21 @@
 
 ---
 
+## OUTCOME-SENTRY-ANIMA-IDLE-POLL-STATE-026B — 2026-09-09
+
+- `PASSED` (`E4_REGRESSION_PROTECTED`): 116 focused voice/event tests and all
+  527 SENTRY tests pass. Empty queue results do not call provider-start, do not
+  invoke the model, and do not display `PROCESSING`.
+- `PASSED` (`E5_OPERATIONALLY_OBSERVED`): after live service restart, a
+  36-second 5 Hz observation crossed multiple 15-second Core queue polls with
+  `anima_event_status=EMPTY`, zero command dispatches, Kokoro warm, and zero
+  `PROCESSING` samples.
+- `NOT RUN`: no live eligible household event or model turn was manufactured
+  for this UI-state correction. The claimed-work transition is target-tested;
+  prior unattended event evidence remains preserved separately below.
+
+---
+
 ## OUTCOME-SENTRY-ANIMA-UNATTENDED-EVENT-TRIAL-026A — 2026-09-08
 
 - `PASSED` (`E5_OPERATIONALLY_OBSERVED`, synthetic source): a fresh ANIMA

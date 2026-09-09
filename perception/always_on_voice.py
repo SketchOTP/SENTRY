@@ -1393,9 +1393,23 @@ class AlwaysOnVoiceLoop:
             return
         self._next_anima_event_poll = self.clock() + 15.0
         previous_state = self.state
-        self._set_state(VoiceState.PROCESSING)
+        work_started = False
+
+        def mark_work_started() -> None:
+            nonlocal work_started
+            if work_started:
+                return
+            work_started = True
+            self._set_state(
+                VoiceState.PROCESSING,
+                last_segment_outcome="anima_event_processing",
+            )
+
         try:
-            result = self.anima_event_fn(speaker=self.speaker)
+            result = self.anima_event_fn(
+                speaker=self.speaker,
+                on_work_started=mark_work_started,
+            )
             # Never persist event content or generated speech in diagnostics.
             # Keep the service's metadata-only lifecycle visible.  In
             # particular, a recorded terminal result such as RESPONSE or
@@ -1436,10 +1450,16 @@ class AlwaysOnVoiceLoop:
                 self._schedule_focus_after_speech()
                 self._set_state(VoiceState.SPEAKING, last_segment_outcome="anima_event_spoken")
             else:
-                self._set_state(previous_state, last_segment_outcome="anima_event_idle")
+                if work_started:
+                    self._set_state(previous_state, last_segment_outcome="anima_event_idle")
+                else:
+                    self.diagnostics.update(last_segment_outcome="anima_event_idle")
         except Exception as exc:  # noqa: BLE001 - optional ANIMA failure must not stop manual voice
             self.diagnostics.update(anima_event_status="UNKNOWN_RESULT", anima_event_exception_type=type(exc).__name__)
-            self._set_state(previous_state, last_segment_outcome="anima_event_unavailable")
+            if work_started:
+                self._set_state(previous_state, last_segment_outcome="anima_event_unavailable")
+            else:
+                self.diagnostics.update(last_segment_outcome="anima_event_unavailable")
 
     def _run_anima_event_worker(self, stop_event: threading.Event) -> None:
         """Poll Core independently of microphone chunks while SENTRY is awake."""
