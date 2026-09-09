@@ -5,11 +5,13 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
 import tomllib
 
@@ -74,7 +76,18 @@ class ResidentEventIntegrationTests(unittest.TestCase):
             session_store=self.store,
             authority=ExecutionAuthority(self.root / "authority", workspace=self.workspace),
         )
-        self.client = Mock(spec=["provider_start", "renew", "submit_result", "call", "context", "worker_id"])
+        self.client = Mock(
+            spec=[
+                "provider_start",
+                "renew",
+                "submit_result",
+                "call",
+                "context",
+                "tools",
+                "wait_eligible",
+                "worker_id",
+            ]
+        )
         self.client.worker_id = "synthetic"
         self.client.provider_start.return_value = {"status": "PROVIDER_RUNNING"}
         self.client.submit_result.side_effect = lambda *_, **kw: {
@@ -82,6 +95,8 @@ class ResidentEventIntegrationTests(unittest.TestCase):
             "notification": self.initiative_context()["household_context"]["initiative"]["notification"],
         }
         self.client.context.side_effect = lambda *_: self.initiative_context()
+        self.client.tools.return_value = {"tools": [], "unavailable_tools": []}
+        self.client.call.return_value = {"state": "available", "provider_id": "sentry"}
         client_patch = patch.object(AnimaConfig, "client", return_value=self.client)
         client_patch.start()
         self.addCleanup(client_patch.stop)
@@ -109,6 +124,20 @@ class ResidentEventIntegrationTests(unittest.TestCase):
                 "evaluated_at": datetime.now(timezone.utc).isoformat(), **updates,
             },
         }}}
+
+    def mandatory_announcement_context(self):
+        return self.initiative_context(
+            announcement={
+                "schema_version": 1,
+                "text": "Front Door Lock was unlocked.",
+                "event_id": str(uuid4()),
+                "event_type": "external.android.lock_reported",
+                "occurred_at": datetime.now(timezone.utc).isoformat(),
+                "canonical_resource_id": str(uuid4()),
+                "canonical_resource_name": "Front Door Lock",
+                "authority": "ANIMA_CANONICAL_EVENT",
+            }
+        )
 
     def exact_claim(self, request_id, source_surface):
         self.assertEqual((request_id, source_surface), (self.request_id, "anima_attention"))
@@ -173,6 +202,49 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         self.assertNotIn("Synthetic current result", self.store.path.read_text())
         self.assertEqual((self.codex_home / "sentry-resident.config.toml").read_text(), self.profile)
 
+    def test_mandatory_alert_speaks_immediately_while_low_effort_model_runs(self):
+        spoken = threading.Event()
+        self.decision = "silent"
+        self.client.context.side_effect = lambda *_: self.mandatory_announcement_context()
+        self.speaker.speak.side_effect = lambda text: (
+            self.assertEqual(text, "Front Door Lock was unlocked."),
+            spoken.set(),
+            True,
+        )[-1]
+
+        def model_after_speech(args, **kwargs):
+            self.assertTrue(spoken.wait(1), "factual alert must begin before model completion")
+            self.assertIn('model_reasoning_effort="low"', args)
+            for name in ("health.json", "context.json", "tools.json"):
+                preload = Path(kwargs["env"]["ANIMA_PREBOUND_FILE"]).with_name(name)
+                self.assertEqual(preload.stat().st_mode & 0o777, 0o600)
+                self.assertEqual(json.loads(preload.read_text())["request_id"], self.request_id)
+            return self.model(args, **kwargs)
+
+        self.runner.side_effect = model_after_speech
+        result = self.run_event()
+        self.assertEqual(result["delivery_status"], "DELIVERED")
+        self.assertTrue(result["immediate_delivery"])
+        self.assertEqual(result["result_status"], "RESPONSE")
+        self.assertEqual(result["audible_start_objective"], "MET")
+        self.assertLessEqual(result["event_to_tts_start_ms"], 3000)
+        self.client.submit_result.assert_called_once_with(
+            self.request_id,
+            "synthetic-private-binding",
+            status="RESPONSE",
+            response="Front Door Lock was unlocked.",
+            provider_ambiguous=False,
+        )
+
+    def test_push_wait_does_not_call_model_or_claim_until_work_is_available(self):
+        source = self.queue_source()
+        stop = threading.Event()
+        self.client.wait_eligible.return_value = {"status": "EMPTY", "items": []}
+        self.assertFalse(source.wait_until_ready(stop))
+        self.client.wait_eligible.assert_called_once()
+        self.client.provider_start.assert_not_called()
+        self.runner.assert_not_called()
+
     def test_unattended_wake_records_core_result_before_existing_tts(self):
         order = []
 
@@ -215,7 +287,7 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         result = self.run_event()
         self.assertEqual(result["result_status"], "UNAVAILABLE")
         self.assertEqual(result["model_status"], "unavailable")
-        self.client.context.assert_not_called()
+        self.client.context.assert_called_once()
         self.speaker.speak.assert_not_called()
 
     def test_model_partial_remains_distinct_from_reasoned_silence(self):
@@ -224,7 +296,7 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         result = self.run_event()
         self.assertEqual(result["result_status"], "PARTIAL")
         self.assertEqual(result["model_status"], "partial")
-        self.client.context.assert_not_called()
+        self.client.context.assert_called_once()
         self.speaker.speak.assert_not_called()
 
     def test_operational_trial_ledger_is_private_and_content_free(self):
@@ -315,13 +387,16 @@ class ResidentEventIntegrationTests(unittest.TestCase):
             self.client.reset_mock()
             self.client.context.side_effect = value if isinstance(value, Exception) else lambda *_, v=value: v
             result = self.run_event()
-            self.assertEqual(result["delivery_status"], "BLOCKED_INITIATIVE")
+            if isinstance(value, Exception):
+                self.assertEqual(result["gate"], "EVENT_PRELOAD_UNAVAILABLE")
+            else:
+                self.assertEqual(result["delivery_status"], "BLOCKED_INITIATIVE")
             self.assertNotIn("PRIVATE", json.dumps(result))
         self.speaker.speak.assert_not_called()
 
-    def test_context_is_fetched_after_model_before_submit_with_exact_binding(self):
+    def test_context_is_preloaded_before_model_with_exact_binding(self):
         def context(request_id, binding):
-            self.runner.assert_called_once()
+            self.runner.assert_not_called()
             self.client.submit_result.assert_not_called()
             self.assertEqual((request_id, binding), (self.request_id, "synthetic-private-binding"))
             return self.initiative_context(allowed=False, required=False, reason="PROACTIVE_DISABLED")
@@ -526,14 +601,20 @@ class ResidentEventIntegrationTests(unittest.TestCase):
 
     def serve_queue(self, claim):
         metadata = {key: claim[key] for key in ("request_id", "household_id", "provider_id", "origin", "created_at")}
-        self.client.call.side_effect = lambda path, payload: (
-            {"status": "AVAILABLE", "items": [metadata]} if path.endswith("/eligible") else claim
+        self.client.call.side_effect = lambda path, payload=None: (
+            {"state": "available", "provider_id": "sentry"}
+            if path == "/v1/health"
+            else {"status": "AVAILABLE", "items": [metadata]}
+            if path.endswith("/eligible")
+            else claim
         )
 
     def test_queue_claim_is_filtered_under_resident_lock_then_same_model_and_speaker(self):
         work_started = Mock()
 
-        def claim(path, payload):
+        def claim(path, payload=None):
+            if path == "/v1/health":
+                return {"state": "available", "provider_id": "sentry"}
             self.assertEqual(payload["origin"], "AUTONOMOUS_ATTENTION")
             self.assertEqual(payload["not_before"], self.enable_epoch.isoformat())
             self.assertEqual(payload["max_age_seconds"], 120)
@@ -550,7 +631,7 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         with patch("tools.sentry_anima_events._event_process", side_effect=lambda args, lease, **kw: self.model(args, **kw)):
             result = self.queue_source()(speaker=self.speaker, on_work_started=work_started)
         self.assertEqual(result["delivery_status"], "DELIVERED")
-        self.assertEqual(self.client.call.call_count, 2)
+        self.assertEqual(self.client.call.call_count, 3)
         self.client.provider_start.assert_called_once_with(self.request_id, "synthetic-private-binding")
         work_started.assert_called_once_with()
         self.speaker.speak.assert_called_once()
@@ -561,18 +642,13 @@ class ResidentEventIntegrationTests(unittest.TestCase):
             self.assertEqual(self.queue_source(**{name: False})()["status"], "NOT_READY")
         self.client.call.assert_not_called()
 
-    def test_queue_empty_is_throttled_without_start_or_model(self):
+    def test_queue_empty_never_starts_model(self):
         self.client.call.return_value = {"status": "EMPTY", "items": []}
         source = self.queue_source()
         work_started = Mock()
         with patch("tools.sentry_codex_agent.invoke_sentry_agent") as model:
-            with patch("tools.sentry_anima_events.time.monotonic", return_value=100.0):
-                self.assertEqual(source(on_work_started=work_started)["status"], "EMPTY")
-                throttled = source(on_work_started=work_started)
-                self.assertEqual(throttled["status"], "EMPTY")
-                self.assertEqual(throttled["gate"], "EVENT_POLL_INTERVAL")
-            with patch("tools.sentry_anima_events.time.monotonic", return_value=115.0):
-                self.assertEqual(source(on_work_started=work_started)["status"], "EMPTY")
+            self.assertEqual(source(on_work_started=work_started)["status"], "EMPTY")
+            self.assertEqual(source(on_work_started=work_started)["status"], "EMPTY")
             model.assert_not_called()
         self.assertEqual(self.client.call.call_count, 2)
         self.client.provider_start.assert_not_called()
@@ -634,7 +710,7 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         with patch("tools.sentry_codex_agent.invoke_sentry_agent", return_value={"ok": False}):
             self.assertEqual(source()["result_status"], "UNKNOWN_RESULT")
         self.assertEqual(source()["gate"], "EVENT_SOURCE_REVIEW_REQUIRED")
-        self.assertEqual(self.client.call.call_count, 2)
+        self.assertEqual(self.client.call.call_count, 3)
 
     def test_setup_failures_happen_before_claim(self):
         for target in ("tools.sentry_anima.AnimaConfig.client", "tools.sentry_anima_events.tempfile.TemporaryDirectory"):

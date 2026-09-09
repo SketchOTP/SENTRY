@@ -18,6 +18,7 @@ from perception.voice import (
     ReactiveVoiceLoop,
     normalized_audio_level,
 )
+from perception.speech_activity import SpeechActivityGate
 
 
 class VoiceTests(unittest.TestCase):
@@ -115,6 +116,7 @@ class VoiceTests(unittest.TestCase):
                 python_executable=sys.executable,
                 worker_script=worker,
                 remote_playback=playback,
+                speech_activity=SpeechActivityGate(Path(directory) / "speech.lock"),
             )
             self.assertTrue(speaker.warm())
             process = speaker._tts_process
@@ -146,6 +148,7 @@ class VoiceTests(unittest.TestCase):
                 worker_script=worker,
                 player=str(player),
                 level_callback=levels.append,
+                speech_activity=SpeechActivityGate(Path(directory) / "speech.lock"),
             )
             self.assertTrue(speaker.warm())
             self.assertTrue(speaker.speak("Welcome home."))

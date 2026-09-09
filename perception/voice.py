@@ -22,6 +22,7 @@ import time
 import uuid
 import wave
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
@@ -510,31 +511,47 @@ class KokoroSpeaker:
                     pass
 
     def speak(self, text: str) -> bool:
+        return bool(self.speak_with_timing(text)["delivered"])
+
+    def speak_with_timing(self, text: str) -> dict[str, str | bool | None]:
+        """Speak and return the playback-owner timestamp, never synthesis start."""
+        delivery: dict[str, str | bool | None] = {
+            "delivered": False,
+            "tts_start_at": None,
+            "timing_source": None,
+        }
         if not self.available or not isinstance(text, str) or not text.strip():
-            return False
+            return delivery
         try:
             with self.speech_activity.acquire() as acquired:
                 if not acquired:
-                    return False
+                    return delivery
                 with self._tts_lock:
                     if not self.warm():
-                        return False
+                        return delivery
                     process = self._tts_process
                     if process is None or process.stdin is None:
-                        return False
+                        return delivery
                     process.stdin.write(
                         (json.dumps({"text": text, "voice": self.voice, "speed": self.speed}) + "\n").encode("utf-8")
                     )
                     process.stdin.flush()
                     response = json.loads(self._read_tts_line(process).decode("utf-8"))
                     if not isinstance(response, dict) or response.get("ok", True) is not True:
-                        return False
+                        return delivery
                     audio = base64.b64decode(response["audioBase64"], validate=True)
                     if not audio:
-                        return False
+                        return delivery
                     if self.remote_playback is not None:
-                        return bool(self.remote_playback.send(audio))
+                        timed = getattr(self.remote_playback, "send_with_timing", None)
+                        remote_delivery = timed(audio) if callable(timed) else None
+                        if isinstance(remote_delivery, dict):
+                            return remote_delivery
+                        delivery["delivered"] = bool(self.remote_playback.send(audio))
+                        return delivery
                     pcm, sample_rate, channels = _decode_wav(audio)
+                    delivery["tts_start_at"] = datetime.now(timezone.utc).isoformat()
+                    delivery["timing_source"] = "LOCAL_PLAYBACK_PROCESS"
                     process = subprocess.Popen(
                         [
                             self.player,
@@ -571,14 +588,15 @@ class KokoroSpeaker:
                     with self._lock:
                         if self._process is process:
                             self._process = None
-                    return process.returncode == 0
+                    delivery["delivered"] = process.returncode == 0
+                    return delivery
         except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
             if self.level_callback is not None:
                 self.level_callback(0.0)
             with self._tts_lock:
                 self._stop_tts_worker()
             self.cancel()
-            return False
+            return delivery
 
     def cancel(self) -> bool:
         with self._lock:

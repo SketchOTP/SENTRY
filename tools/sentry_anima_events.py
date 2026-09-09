@@ -31,6 +31,8 @@ _RESULT_STATUSES = frozenset({
     "WAITING_CONFIRMATION", "WAITING_STRONGER_AUTH", "FAILED",
     "UNAVAILABLE", "UNKNOWN_RESULT",
 })
+_PREFLIGHT_LOCK = threading.Lock()
+_VERIFIED_PREFLIGHTS: set[str] = set()
 
 _TRIAL_FIELDS = (
     "recorded_at",
@@ -46,6 +48,24 @@ _TRIAL_FIELDS = (
     "delivery_status",
     "stage",
     "exception_type",
+    "event_occurred_at",
+    "request_created_at",
+    "claim_received_at",
+    "provider_started_at",
+    "model_started_at",
+    "model_completed_at",
+    "tts_requested_at",
+    "tts_start_at",
+    "tts_timing_source",
+    "tts_completed_at",
+    "immediate_delivery",
+    "event_to_tts_start_ms",
+    "event_to_tts_complete_ms",
+    "request_to_claim_ms",
+    "request_to_model_complete_ms",
+    "provider_model_ms",
+    "audible_start_objective",
+    "contextual_response_objective",
 )
 
 
@@ -116,18 +136,35 @@ def _initiative_notification(context: Any, request_id: str, *, now: datetime | N
             or (required and (not allowed or reason != "ALWAYS_NOTIFY"))
         ):
             return denied
-        return {key: notification[key] for key in (
+        result = {key: notification[key] for key in (
             "allowed", "required", "reason", "request_id", "evaluated_at",
         )}
+        announcement = notification.get("announcement")
+        if announcement is not None:
+            required_fields = {
+                "schema_version", "text", "event_id", "event_type", "occurred_at",
+                "canonical_resource_id", "canonical_resource_name", "authority",
+            }
+            if (
+                set(announcement) != required_fields
+                or announcement.get("schema_version") != 1
+                or announcement.get("authority") != "ANIMA_CANONICAL_EVENT"
+                or not all(
+                    isinstance(announcement.get(key), str) and announcement[key]
+                    for key in required_fields - {"schema_version"}
+                )
+                or len(announcement["text"]) > 400
+            ):
+                return denied
+            occurred = datetime.fromisoformat(announcement["occurred_at"])
+            if occurred.tzinfo is None or not -5 <= (
+                (now or datetime.now(timezone.utc)) - occurred
+            ).total_seconds() <= 120:
+                return denied
+            result["announcement"] = dict(announcement)
+        return result
     except (KeyError, TypeError, ValueError, OverflowError):
         return denied
-
-
-def _fetch_initiative(client: Any, request_id: str, binding: str) -> dict[str, Any]:
-    try:
-        return _initiative_notification(client.context(request_id, binding), request_id)
-    except Exception:  # noqa: BLE001 - missing authority blocks delivery, not silent reasoning
-        return {"allowed": False, "required": False, "reason": "UNAVAILABLE"}
 
 
 def verify_autonomous_cli(launcher: list[str], codex_home: Path, workspace: Path, profile: dict) -> None:
@@ -140,6 +177,15 @@ def verify_autonomous_cli(launcher: list[str], codex_home: Path, workspace: Path
     import subprocess
 
     from tools.sentry_codex_profile import autonomous_turn_overrides
+
+    fingerprint = json.dumps(
+        [launcher, str(codex_home), str(workspace), profile],
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    with _PREFLIGHT_LOCK:
+        if fingerprint in _VERIFIED_PREFLIGHTS:
+            return
 
     environment = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "CODEX_HOME": str(codex_home)}
     for key in ("XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME", "XDG_RUNTIME_DIR"):
@@ -168,6 +214,8 @@ def verify_autonomous_cli(launcher: list[str], codex_home: Path, workspace: Path
     servers = json.loads(result.stdout)
     if not isinstance(servers, list) or [item.get("name") for item in servers if item.get("enabled") is True] != ["anima_household"]:
         raise ValueError("AUTONOMOUS_UNEXPECTED_MCP_ENABLED")
+    with _PREFLIGHT_LOCK:
+        _VERIFIED_PREFLIGHTS.add(fingerprint)
 
 
 def configured_attention_source(agent: Any) -> AttentionQueueSource | None:
@@ -189,11 +237,13 @@ def configured_attention_source(agent: Any) -> AttentionQueueSource | None:
         return None
     if set(settings) != {"enabled", "context_ready", "enabled_at", "household_id"}:
         raise ValueError("EVENT_AUTOWAKE_CONFIG_INVALID")
-    return AttentionQueueSource(
+    source = AttentionQueueSource(
         agent, household_id=str(settings["household_id"]),
         not_before=datetime.fromisoformat(str(settings["enabled_at"])),
         enabled=True, context_ready=True, persistent_history_allowed=True,
     )
+    source.warm_runtime()
+    return source
 
 
 class AttentionQueueSource:
@@ -222,24 +272,90 @@ class AttentionQueueSource:
         # Owner permits nonrestricted household context in the same thread.
         # This host input never overrides the persistent MCP restricted gate.
         self.persistent_history_allowed = persistent_history_allowed
-        self._next_poll = 0.0
         self._halted = False
         self._lock = threading.Lock()
+        self._ready_lock = threading.Lock()
+        self._available_candidate: dict[str, Any] | None = None
 
-    def _claim_next(self, client: Any, correlation_id: str, source_surface: str) -> dict[str, Any]:
-        filters = {
+    def warm_runtime(self) -> None:
+        """Qualify the CLI/profile at voice startup, before any event is claimed."""
+        import tomllib
+
+        from tools.sentry_codex_agent import (
+            _default_workspace,
+            _launcher_args,
+            _resident_codex_home,
+        )
+
+        workspace = Path(
+            os.environ.get("SENTRY_AGENT_WORKSPACE", _default_workspace())
+        ).expanduser().resolve()
+        launcher = _launcher_args()
+        if launcher is None or not workspace.is_dir():
+            raise ValueError("RESIDENT_EXECUTOR_UNAVAILABLE")
+        codex_home = _resident_codex_home()
+        profile = tomllib.loads((codex_home / "sentry-resident.config.toml").read_text())
+        verify_autonomous_cli(launcher, codex_home, workspace, profile)
+
+    def _filters(self) -> dict[str, Any]:
+        return {
             "origin": "AUTONOMOUS_ATTENTION",
             "not_before": self.not_before.isoformat(),
             "max_age_seconds": 120,
         }
-        listing = client.call("/v1/provider/requests/eligible", {**filters, "limit": 1})
-        if listing == {"status": "EMPTY", "items": []}:
-            return {"status": "EMPTY"}
-        items = listing.get("items")
-        if listing.get("status") != "AVAILABLE" or not isinstance(items, list) or len(items) != 1:
-            raise ValueError("EVENT_QUEUE_CONTRACT_MISMATCH")
-        candidate = items[0]
-        self._validate_candidate(candidate)
+
+    def wait_until_ready(self, stop_event: threading.Event) -> bool:
+        """Block on Core's authenticated push channel; never contact the model."""
+        if self._halted or stop_event.is_set():
+            return False
+        with self._ready_lock:
+            if self._available_candidate is not None:
+                stop_event.wait(0.05)
+                return not stop_event.is_set()
+        try:
+            from tools.sentry_anima import AnimaConfig
+
+            config = AnimaConfig.load()
+            if config is None:
+                stop_event.wait(1.0)
+                return False
+            listing = config.client().wait_eligible(
+                {**self._filters(), "limit": 1}, wait_seconds=25
+            )
+            if listing == {"status": "EMPTY", "items": []}:
+                return False
+            items = listing.get("items")
+            if listing.get("status") != "AVAILABLE" or not isinstance(items, list) or len(items) != 1:
+                raise ValueError("EVENT_QUEUE_CONTRACT_MISMATCH")
+            candidate = items[0]
+            self._validate_candidate(candidate)
+            with self._ready_lock:
+                self._available_candidate = candidate
+            return True
+        except Exception as exc:  # noqa: BLE001 - a push transport failure is pre-provider
+            if not _retryable_pre_provider_failure(exc):
+                self._halted = True
+            stop_event.wait(1.0)
+            return False
+
+    def _claim_next(self, client: Any, correlation_id: str, source_surface: str) -> dict[str, Any]:
+        filters = self._filters()
+        with self._ready_lock:
+            candidate = self._available_candidate
+            self._available_candidate = None
+        if candidate is None:
+            listing = client.call("/v1/provider/requests/eligible", {**filters, "limit": 1})
+            if listing == {"status": "EMPTY", "items": []}:
+                return {"status": "EMPTY"}
+            items = listing.get("items")
+            if (
+                listing.get("status") != "AVAILABLE"
+                or not isinstance(items, list)
+                or len(items) != 1
+            ):
+                raise ValueError("EVENT_QUEUE_CONTRACT_MISMATCH")
+            candidate = items[0]
+            self._validate_candidate(candidate)
         claim = client.call("/v1/provider/claims/exact", {
             **filters,
             "request_id": candidate["request_id"],
@@ -283,13 +399,6 @@ class AttentionQueueSource:
         try:
             if self._halted:
                 return {**not_ready, "gate": "EVENT_SOURCE_REVIEW_REQUIRED"}
-            if time.monotonic() < self._next_poll:
-                return {
-                    "status": "EMPTY",
-                    "delivery_status": "NOT_ATTEMPTED",
-                    "gate": "EVENT_POLL_INTERVAL",
-                }
-            self._next_poll = time.monotonic() + 15.0
             try:
                 result = run_resident_event(
                     self.agent, request_id=None, household_id=self.household_id,
@@ -449,7 +558,13 @@ class QueuedEventLease:
                 self._revoke()
                 return
 
-    def run(self, execute: Callable[[QueuedEventLease], EventResult]) -> dict[str, Any]:
+    def run(
+        self,
+        execute: Callable[[QueuedEventLease], EventResult],
+        *,
+        after_provider_start: Callable[[], None] | None = None,
+        telemetry: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Caller owns executor qualification and the resident session lock.
 
         Client calls must have bounded transport timeouts (the host client uses
@@ -469,6 +584,10 @@ class QueuedEventLease:
             started = self.client.provider_start(self.request_id, self._binding)
             if started.get("status") != "PROVIDER_RUNNING":
                 raise RuntimeError
+            if telemetry is not None:
+                telemetry["provider_started_at"] = datetime.now(timezone.utc).isoformat()
+            if after_provider_start is not None:
+                after_provider_start()
             if self.remaining_seconds <= 0:
                 raise TimeoutError
             stage = "EXECUTE"
@@ -534,6 +653,7 @@ class QueuedEventLease:
             "notification": notification,
             **({"detail": outcome.detail} if outcome.detail is not None else {}),
             "delivery_status": "NOT_ATTEMPTED", **self._failure,
+            **(telemetry or {}),
         }
 
 
@@ -616,7 +736,14 @@ def run_resident_event(
         with tempfile.TemporaryDirectory(prefix="event-", dir=root) as temporary:
             path = Path(temporary) / "binding.json"
             # Allocate both private files before claiming (permissions/disk failure).
-            for target in (path, path.with_name("metadata.json")):
+            preload_targets = (
+                path,
+                path.with_name("metadata.json"),
+                path.with_name("health.json"),
+                path.with_name("context.json"),
+                path.with_name("tools.json"),
+            )
+            for target in preload_targets:
                 with open(target, "x", encoding="utf-8", opener=lambda p, f: os.open(p, f, 0o600)) as stream:
                     stream.write("{}")
             deadline = time.monotonic() + 270
@@ -647,18 +774,109 @@ def run_resident_event(
                     json.dump(payload, stream)
             validate_event_binding(path, profile, workspace, correlation_id)
             final: dict[str, Any] = {}
-            initiative: dict[str, Any] = {}
+            telemetry: dict[str, Any] = {
+                "request_created_at": str(claim.get("created_at", "")),
+                "claim_received_at": datetime.now(timezone.utc).isoformat(),
+                "immediate_delivery": False,
+            }
+            try:
+                request_created = datetime.fromisoformat(telemetry["request_created_at"])
+                claim_received = datetime.fromisoformat(telemetry["claim_received_at"])
+                telemetry["request_to_claim_ms"] = round(
+                    (claim_received - request_created).total_seconds() * 1000, 3
+                )
+            except (TypeError, ValueError):
+                pass
+            try:
+                health = client.call("/v1/health")
+                context = client.context(request_id, claim["binding"])
+                tools = client.tools(request_id, claim["binding"])
+            except Exception as exc:  # noqa: BLE001 - provider has not started; reclaim stays safe
+                return {
+                    **blocked,
+                    "gate": "EVENT_PRELOAD_UNAVAILABLE",
+                    "exception_type": type(exc).__name__,
+                }
+            initiative = _initiative_notification(context, request_id)
+            announcement = initiative.get("announcement")
+            if isinstance(announcement, dict):
+                telemetry["event_occurred_at"] = announcement["occurred_at"]
+            for target, payload in (
+                (path.with_name("health.json"), health),
+                (path.with_name("context.json"), context),
+                (path.with_name("tools.json"), tools),
+            ):
+                encoded = json.dumps(
+                    {"version": 1, "request_id": request_id, "value": payload},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                if len(encoded.encode()) > 512 * 1024:
+                    raise ValueError("EVENT_PRELOAD_TOO_LARGE")
+                target.write_text(encoded, encoding="utf-8")
+                target.chmod(0o600)
+            immediate: dict[str, Any] = {
+                "attempted": False,
+                "delivered": False,
+                "thread": None,
+            }
+
+            def deliver_immediate() -> None:
+                if (
+                    not isinstance(announcement, dict)
+                    or initiative.get("allowed") is not True
+                    or initiative.get("required") is not True
+                    or initiative.get("reason") != "ALWAYS_NOTIFY"
+                    or speaker is None
+                    or getattr(speaker, "is_speaking", False)
+                ):
+                    return
+                immediate["attempted"] = True
+
+                def speak() -> None:
+                    telemetry["tts_requested_at"] = datetime.now(timezone.utc).isoformat()
+                    try:
+                        timed_speech = getattr(speaker, "speak_with_timing", None)
+                        if callable(timed_speech):
+                            delivery = timed_speech(announcement["text"])
+                        else:
+                            delivery = None
+                        if isinstance(delivery, dict):
+                            immediate["delivered"] = delivery.get("delivered") is True
+                            if isinstance(delivery.get("tts_start_at"), str):
+                                telemetry["tts_start_at"] = delivery["tts_start_at"]
+                                telemetry["tts_timing_source"] = delivery.get("timing_source")
+                        else:
+                            # Compatibility speakers expose invocation timing only;
+                            # production Kokoro records the playback-owned timestamp.
+                            telemetry["tts_start_at"] = telemetry["tts_requested_at"]
+                            telemetry["tts_timing_source"] = "HOST_SPEAK_INVOCATION"
+                            immediate["delivered"] = bool(speaker.speak(announcement["text"]))
+                    except Exception as exc:  # noqa: BLE001 - speech cannot replay provider work
+                        immediate["exception_type"] = type(exc).__name__
+                    finally:
+                        telemetry["tts_completed_at"] = datetime.now(timezone.utc).isoformat()
+
+                immediate["thread"] = threading.Thread(
+                    target=speak,
+                    daemon=True,
+                    name="sentry-immediate-alert",
+                )
+                immediate["thread"].start()
 
             def execute(active: QueuedEventLease) -> EventResult:
                 if on_work_started is not None:
                     on_work_started()
+                telemetry["model_started_at"] = datetime.now(timezone.utc).isoformat()
                 invocation = invoke_sentry_agent(
                     "ANIMA autonomous Attention event", [], session_id=thread_id,
                     working_directory=workspace, request_id=correlation_id,
                     timeout_seconds=max(1, int(active.remaining_seconds)),
                     autonomous_binding=path,
+                    effort="low",
                     runner=runner or (lambda args, **kwargs: _event_process(args, active, **kwargs)),
                 )
+                telemetry["model_completed_at"] = datetime.now(timezone.utc).isoformat()
                 if not invocation.get("ok") or invocation.get("thread_id", thread_id) not in {None, thread_id}:
                     return EventResult("UNKNOWN_RESULT")
                 final.update(invocation["result"])
@@ -679,11 +897,14 @@ def run_resident_event(
                     return EventResult("PARTIAL")
                 if status not in {"READY", "SUCCEEDED"} or model_status != "completed":
                     return EventResult("PARTIAL")
-                # Fetch even for silence: a required notification cannot be
-                # reported as handled merely because the model chose no channel.
-                # Core/prefs decide permission; host never manufactures speech.
-                initiative.update(_fetch_initiative(client, request_id, claim["binding"]))
-                required_unproduced = decision == "silent" and initiative["required"]
+                immediate_thread = immediate.get("thread")
+                if isinstance(immediate_thread, threading.Thread):
+                    immediate_thread.join(timeout=30)
+                required_unproduced = (
+                    decision == "silent"
+                    and initiative["required"]
+                    and not immediate["delivered"]
+                )
                 session["turn_count"] = int(session.get("turn_count", 0)) + 1
                 session["updated_at"] = datetime.now(timezone.utc).isoformat()
                 session["last_status"] = "autonomous_partial" if required_unproduced else "autonomous_completed"
@@ -691,6 +912,8 @@ def run_resident_event(
                 if decision == "silent":
                     if required_unproduced:
                         return EventResult("PARTIAL", detail="REQUIRED_NOTIFICATION_NOT_PRODUCED")
+                    if immediate["delivered"] and isinstance(announcement, dict):
+                        return EventResult("RESPONSE", announcement["text"])
                     return EventResult("NO_ACTION")
                 # Notification tools must also enforce this in Core BEFORE
                 # dispatch: a host final guard cannot undo an earlier MCP call.
@@ -698,27 +921,91 @@ def run_resident_event(
                     return EventResult("PARTIAL" if decision == "notify" else "NO_ACTION")
                 if decision == "notify":
                     # Tool success alone cannot prove notification delivery.
+                    if immediate["delivered"] and isinstance(announcement, dict):
+                        return EventResult("RESPONSE", announcement["text"])
                     return EventResult("TOOL_ACTIVITY_COMPLETED" if status == "SUCCEEDED" else "PARTIAL")
+                if (
+                    immediate["delivered"]
+                    and isinstance(announcement, dict)
+                    and " ".join(str(answer).lower().split())
+                    == " ".join(announcement["text"].lower().split())
+                ):
+                    return EventResult("RESPONSE", announcement["text"])
                 return EventResult("RESPONSE", answer)
 
-            receipt = lease.run(execute)
+            receipt = lease.run(
+                execute,
+                after_provider_start=deliver_immediate,
+                telemetry=telemetry,
+            )
+            immediate_thread = immediate.get("thread")
+            if isinstance(immediate_thread, threading.Thread):
+                immediate_thread.join(timeout=30)
+            if telemetry.get("model_started_at") and telemetry.get("model_completed_at"):
+                telemetry["provider_model_ms"] = round(
+                    (
+                        datetime.fromisoformat(telemetry["model_completed_at"])
+                        - datetime.fromisoformat(telemetry["model_started_at"])
+                    ).total_seconds()
+                    * 1000,
+                    3,
+                )
+            if telemetry.get("request_created_at") and telemetry.get("model_completed_at"):
+                try:
+                    request_at = datetime.fromisoformat(telemetry["request_created_at"])
+                    model_at = datetime.fromisoformat(telemetry["model_completed_at"])
+                    response_ms = round((model_at - request_at).total_seconds() * 1000, 3)
+                    telemetry["request_to_model_complete_ms"] = response_ms
+                    if not immediate["delivered"]:
+                        telemetry["contextual_response_objective"] = (
+                            "MET" if response_ms <= 12_000 else "MISSED"
+                        )
+                except (TypeError, ValueError):
+                    pass
+            if telemetry.get("event_occurred_at") and telemetry.get("tts_start_at"):
+                event_at = datetime.fromisoformat(telemetry["event_occurred_at"])
+                tts_start = datetime.fromisoformat(telemetry["tts_start_at"])
+                start_ms = round((tts_start - event_at).total_seconds() * 1000, 3)
+                telemetry["event_to_tts_start_ms"] = start_ms
+                telemetry["audible_start_objective"] = "MET" if start_ms <= 3000 else "MISSED"
+            if telemetry.get("event_occurred_at") and telemetry.get("tts_completed_at"):
+                telemetry["event_to_tts_complete_ms"] = round(
+                    (
+                        datetime.fromisoformat(telemetry["tts_completed_at"])
+                        - datetime.fromisoformat(telemetry["event_occurred_at"])
+                    ).total_seconds()
+                    * 1000,
+                    3,
+                )
+            receipt.update(telemetry)
+            receipt["immediate_delivery"] = bool(immediate["delivered"])
             receipt["decision"] = final.get("decision")
             if final.get("status") in {"completed", "partial", "unavailable"}:
                 receipt["model_status"] = final["status"]
             # Permission comes from the authenticated result response. Never
             # fall back to the snapshot read before submission/settings changes.
             returned_notification = receipt.pop("notification")
-            if initiative:
-                receipt["initiative_reason"] = initiative["reason"]
-                receipt["notification_allowed"] = initiative["allowed"]
-                receipt["notification_required"] = initiative["required"]
-                if not initiative["allowed"]:
-                    receipt["delivery_status"] = "BLOCKED_INITIATIVE"
+            receipt["initiative_reason"] = initiative["reason"]
+            receipt["notification_allowed"] = initiative["allowed"]
+            receipt["notification_required"] = initiative["required"]
+            if not initiative["allowed"]:
+                receipt["delivery_status"] = "BLOCKED_INITIATIVE"
             if final.get("decision") == "notify":
                 # The sidecar aggregates tool status, not a route-specific
                 # delivery receipt. Never turn a model decision into delivery.
                 receipt["notification_delivery_status"] = "NOT_VERIFIED"
-            if final.get("decision") == "speak" and initiative.get("allowed") and receipt["status"] == "RECORDED":
+            if immediate["delivered"]:
+                receipt["delivery_status"] = "DELIVERED"
+            elif immediate["attempted"]:
+                receipt["delivery_status"] = "FAILED"
+                if immediate.get("exception_type"):
+                    receipt.update(stage="TTS", exception_type=immediate["exception_type"])
+            if (
+                final.get("decision") == "speak"
+                and initiative.get("allowed")
+                and receipt["status"] == "RECORDED"
+                and not immediate["delivered"]
+            ):
                 current = _initiative_notification(
                     {"household_context": {"initiative": {"status": "AVAILABLE", "notification": returned_notification}}},
                     request_id,

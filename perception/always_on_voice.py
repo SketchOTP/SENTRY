@@ -409,7 +409,6 @@ class AlwaysOnVoiceLoop:
         self.identity_coordinator = identity_coordinator
         self.wake_chime_fn = wake_chime_fn
         self.anima_event_fn = anima_event_fn
-        self._next_anima_event_poll = 0.0
         self.clock = clock
         self.state = VoiceState.DISABLED
         self._timeline = PcmTimeline(
@@ -1388,10 +1387,8 @@ class AlwaysOnVoiceLoop:
             or self._action_response_authorization_id is not None
             or self._speech_samples or self.speech_activity.is_active()
             or getattr(self.speaker, "is_speaking", False)
-            or self.clock() < self._next_anima_event_poll
         ):
             return
-        self._next_anima_event_poll = self.clock() + 15.0
         previous_state = self.state
         work_started = False
 
@@ -1453,7 +1450,6 @@ class AlwaysOnVoiceLoop:
             # must not make the microphone appear conversationally armed.
             if (
                 status == "RECORDED"
-                and result_status == "RESPONSE"
                 and delivery_status == "DELIVERED"
             ):
                 self._rearm_until = self.clock() + self.config.post_speech_rearm_ms / 1000
@@ -1472,9 +1468,14 @@ class AlwaysOnVoiceLoop:
                 self.diagnostics.update(last_segment_outcome="anima_event_unavailable")
 
     def _run_anima_event_worker(self, stop_event: threading.Event) -> None:
-        """Poll Core independently of microphone chunks while SENTRY is awake."""
-        while not stop_event.wait(0.25):
+        """Wait for Core push independently of microphone chunks while SENTRY is awake."""
+        waiter = getattr(self.anima_event_fn, "wait_until_ready", None)
+        while not stop_event.is_set():
+            if callable(waiter) and not waiter(stop_event):
+                continue
             self._process_idle_anima_event()
+            if not callable(waiter):
+                stop_event.wait(0.25)
 
     def run(self, stop_event: threading.Event) -> int:
         if self.config.sleep_enabled:

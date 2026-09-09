@@ -266,6 +266,32 @@ coverage. No commit or hosted CI is claimed for this local dirty-tree change.
   tracked `git diff --check` **PASSED**; Ruff **NOT RUN** because unavailable.
   Live Core/real-model/production TTS delivery **NOT RUN**.
 
+## Push-first immediate household-alert latency evidence — 2026-09-09
+
+- The event worker now blocks on Core's authenticated request-ready wait rather
+  than a 15-second loop. Empty push waits were target-tested to produce no
+  provider-start and no model call; the live voice PID has an established Unix
+  connection to ANIMA Core while idle.
+- A strict canonical `ALWAYS_NOTIFY` envelope starts warm speech immediately
+  after durable provider-start. A deterministic model barrier proves speech
+  begins before the low-effort model can complete. Post-alert follow-up
+  listening is preserved even when the contextual model chooses silence.
+- Exact request health/context/catalogue snapshots are written mode 0600 and
+  consumed locally by the prebound MCP adapter. Direct voice turns with no
+  preload siblings continue to read Core normally.
+- The Pi projection endpoint returns its playback-process start timestamp; the
+  local speaker records the local playback-process start. Trial records contain
+  timing/status only, not announcement text, prompt, result or household data.
+- Validation: focused suites 132 passed plus 57 subtests; complete unittest
+  discovery 531 passed; Python compilation and `git diff --check` passed. The
+  live PC voice, Pi projection and ANIMA Core services are active. A fresh
+  physical alert timing sample remains NOT RUN.
+- Installed Codex CLI 0.153.4 app-server compatibility was reproduced through
+  `initialize` and `thread/start`. It cannot safely rotate the per-event
+  `ANIMA_PREBOUND_FILE` or frozen MCP catalogue on `turn/start`, and interrupt
+  does not promise MCP-child teardown. The existing process-group boundary is
+  retained to preserve stale-binding revocation and no-replay.
+
 ### Owner clarification — two independent wake sources
 
 The operator clarified that an ANIMA event must not depend on SENTRY being in

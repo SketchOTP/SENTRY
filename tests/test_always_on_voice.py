@@ -148,7 +148,7 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         self.assertEqual(loop.state, VoiceState.LISTENING)
         self.assertNotIn("PRIVATE_NOT_DIAGNOSTICS", str(loop.diagnostics.payload))
         loop._process_idle_anima_event()
-        callback.assert_called_once()
+        self.assertEqual(callback.call_count, 2)
 
     def test_anima_idle_hook_preserves_terminal_result_and_delivery_status(self):
         loop, _ = self.make_loop([])

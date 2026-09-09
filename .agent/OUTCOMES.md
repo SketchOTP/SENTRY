@@ -1965,3 +1965,25 @@ The Architect accepted the substantive conversational-orchestration result at im
   `DELIVERED`. SENTRY then entered `FOLLOWUP_LISTENING`.
 - The preceding physical `locked` report completed `NO_ACTION` with
   `LEARNING_REQUIRED`, matching the owner-selected unlock-only rule.
+
+## OUTCOME-SENTRY-PUSH-IMMEDIATE-ALERT-007 — mandatory speech no longer waits for reasoning
+
+- Date: 2026-09-09
+- Status: IMPLEMENTED / locally E4 regression protected / fresh physical timing pending
+- Replaced the 15-second queue check with an authenticated long wait released
+  by ANIMA's durable request notification. Empty waits do not change the orb to
+  processing, claim work, start a provider or invoke Codex.
+- Preloads the exact request's health, sparse context and frozen catalogue into
+  private files. The model-facing MCP reads validate the request and consume
+  those snapshots without another Core round trip.
+- For strict `ALWAYS_NOTIFY`, warm TTS starts after durable provider-start and
+  before the low-effort model turn completes. The model can add useful context
+  but is instructed not to repeat the factual first sentence.
+- Added playback-owner timestamps for Pi and office audio plus content-free
+  latency fields. Focused suites pass 132 tests plus 57 subtests; the complete
+  SENTRY suite passes 531 tests; compilation and diff checks pass.
+- Codex 0.153.4 app-server initialize/thread-start were reproduced in isolation,
+  but its turn contract has no per-turn environment or MCP catalogue and does
+  not guarantee MCP-child revocation. A shared app-server is therefore BLOCKED
+  by the accepted binding/fencing/no-replay invariants; the safe per-event
+  process boundary is retained.

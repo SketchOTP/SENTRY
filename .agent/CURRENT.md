@@ -2,6 +2,34 @@
 
 Last updated: 2026-09-09
 
+## Push-first immediate household alert path — 2026-09-09
+
+The awake resident no longer checks ANIMA every 15 seconds. Its event worker
+holds one authenticated Core wait that is released by ANIMA's durable database
+notification, while empty waits leave the orb and model idle. After an exact
+claim, SENTRY preloads Core health, sparse event context and the frozen
+request-specific tool catalogue before provider-start. Once provider-start is
+durable, an owner-mandated canonical factual alert begins through warm Kokoro
+while low-effort Codex context analysis runs in parallel.
+
+Production playback now returns `tts_start_at` from the process that owns audio
+launch: the Pi projection for remote speech or the local PipeWire process for
+office speech. The private trial ledger separately records request, claim,
+provider, model, TTS request/start/completion and objective timing without
+storing event text, model output or household payload. Contextual turns record
+the 12-second response objective separately from the 3-second mandatory-alert
+objective.
+
+Focused alert/voice/audio tests pass 132 tests plus 57 subtests; complete
+SENTRY unittest discovery passes 531 tests. The Pi projection service and PC
+voice service are deployed active, Kokoro is warm, and the voice process holds
+an authenticated Core wait socket while idle. The installed Codex 0.153.4
+app-server was reproduced but cannot rotate per-turn environment/MCP bindings
+or guarantee stale MCP-child teardown. Replacing the current per-event CLI
+process would weaken request-frozen tools, binding revocation and no-replay, so
+that optimization is blocked rather than falsely claimed. A physical event
+timing sample on this source is pending.
+
 ## Unattended ANIMA transport recovery correction — 2026-09-09
 
 A live Tapo unlock reached ANIMA and created an `AUTONOMOUS_ATTENTION`

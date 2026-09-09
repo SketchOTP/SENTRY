@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hmac
 import io
+import json
 import shutil
 import subprocess
 import threading
@@ -112,8 +113,12 @@ class RemoteWavPlayback:
         self.timeout_seconds = timeout_seconds
 
     def send(self, wav_bytes: bytes) -> bool:
+        return self.send_with_timing(wav_bytes)["delivered"]
+
+    def send_with_timing(self, wav_bytes: bytes) -> dict[str, str | bool | None]:
+        """Return the projection-owned playback-start timestamp when available."""
         if not isinstance(wav_bytes, bytes) or not 0 < len(wav_bytes) <= MAX_WAV_BYTES:
-            return False
+            return {"delivered": False, "tts_start_at": None, "timing_source": None}
         token = read_private_token(self.token_file)
         request = urllib.request.Request(
             self.url,
@@ -127,9 +132,22 @@ class RemoteWavPlayback:
         )
         try:
             with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
-                return 200 <= response.status < 300
-        except (OSError, urllib.error.HTTPError, urllib.error.URLError):
-            return False
+                payload = json.loads(response.read(4097))
+                start = payload.get("tts_start_at") if isinstance(payload, dict) else None
+                valid_start = isinstance(start, str) and bool(start.strip())
+                return {
+                    "delivered": 200 <= response.status < 300 and payload.get("played") is True,
+                    "tts_start_at": start if valid_start else None,
+                    "timing_source": "PROJECTION_PLAYBACK_PROCESS" if valid_start else None,
+                }
+        except (
+            OSError,
+            ValueError,
+            json.JSONDecodeError,
+            urllib.error.HTTPError,
+            urllib.error.URLError,
+        ):
+            return {"delivered": False, "tts_start_at": None, "timing_source": None}
 
 
 def validate_wav_payload(wav_bytes: bytes) -> tuple[bytes, int, int]:

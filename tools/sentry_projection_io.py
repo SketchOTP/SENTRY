@@ -13,6 +13,7 @@ import re
 import signal
 import subprocess
 import threading
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -177,12 +178,13 @@ class ProjectionState:
             self._write_settings(output)
         return {"audio_output": output, "sink": matching[0]}
 
-    def play_wav(self, wav_bytes: bytes) -> None:
+    def play_wav(self, wav_bytes: bytes) -> str:
         """Play through the selected bounded output path."""
 
         if self.selected_output() != "hdmi":
+            started_at = datetime.now(timezone.utc).isoformat()
             play_wav_with_pipewire(wav_bytes)
-            return
+            return started_at
         pcm, sample_rate, channels = validate_wav_payload(wav_bytes)
         converted = subprocess.run(
             [
@@ -212,6 +214,7 @@ class ProjectionState:
             timeout=125,
             check=True,
         )
+        started_at = datetime.now(timezone.utc).isoformat()
         subprocess.run(
             [
                 "aplay",
@@ -234,6 +237,7 @@ class ProjectionState:
             timeout=125,
             check=True,
         )
+        return started_at
 
 
 class ProjectionHandler(BaseHTTPRequestHandler):
@@ -341,11 +345,11 @@ class ProjectionHandler(BaseHTTPRequestHandler):
             payload = self.rfile.read(length)
             if len(payload) != length:
                 raise ValueError("incomplete WAV payload")
-            self.state.play_wav(payload)
+            started_at = self.state.play_wav(payload)
         except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
             self._send(422, {"ok": False, "error": str(exc)})
             return
-        self._send(200, {"ok": True, "played": True})
+        self._send(200, {"ok": True, "played": True, "tts_start_at": started_at})
 
     def log_message(self, _format: str, *_args: object) -> None:
         return
