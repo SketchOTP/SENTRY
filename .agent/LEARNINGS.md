@@ -535,3 +535,12 @@ live operator evidence.
   restart.
 - Once provider-start succeeds, an unknown model/result boundary remains
   non-replayable and must retain its explicit review-required latch.
+
+## 2026-09-09 — Active presentation configuration must override persistent style inertia
+
+- Successfully retrieving an owner-selected personality profile does not prove
+  perceptible behavior when a persistent agent also carries an unconditional
+  built-in style instruction and prior-turn presentation habits.
+- Mark the active profile as the current-turn presentation authority while
+  keeping it strictly subordinate to facts, identity, policy, notification
+  requirements, tool authorization and verified outcomes.

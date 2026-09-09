@@ -1987,3 +1987,18 @@ The Architect accepted the substantive conversational-orchestration result at im
   not guarantee MCP-child revocation. A shared app-server is therefore BLOCKED
   by the accepted binding/fencing/no-replay invariants; the safe per-event
   process boundary is retained.
+
+## OUTCOME-SENTRY-PERSONALITY-PRECEDENCE-008 — Implemented and live-model observed
+
+- Date: 2026-09-09
+- Status: IMPLEMENTED / E4 regression / E5 low-stakes model observation
+- ANIMA's active Projectionist profile was present in the direct-turn prompt,
+  but the resident instruction file still unconditionally selected the default
+  British-assistant presentation. The active profile now explicitly replaces
+  that built-in style and persistent-thread presentation habits for each turn.
+- The profile remains presentation-only and cannot alter Truth, identity,
+  policy, notification rules, tool authorization or verified outcomes.
+- Focused tests pass 73/73, complete unittest discovery passes 537/537,
+  compilation and `git diff --check` pass, and the live service restarted
+  active. A real low-stakes model turn used cinematic phrasing; hosted
+  exact-head qualification is pending.

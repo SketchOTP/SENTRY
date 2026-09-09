@@ -2,6 +2,21 @@
 
 Last updated: 2026-09-09
 
+## Active ANIMA personality precedence correction — 2026-09-09
+
+ANIMA was correctly returning the active owner profile, but the resident's
+static instruction file still unconditionally selected the built-in British
+assistant style. The active profile is now an explicit current-turn
+presentation override, including over presentation habits retained by the
+persistent thread. The override remains presentation-only: household Truth,
+identity, policy, notification requirements, tool authorization and verified
+results remain authoritative.
+
+Focused personality/resident regression passes 73 tests, complete unittest
+discovery passes 537 tests, and the live voice service restarted active on the
+corrected source. A real low-stakes model turn showed the selected Projectionist
+profile in its cinematic wording. Hosted exact-head qualification is pending.
+
 ## Push-first immediate household alert path — 2026-09-09
 
 The awake resident no longer checks ANIMA every 15 seconds. Its event worker

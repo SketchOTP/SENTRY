@@ -78,6 +78,8 @@ class CodexNativeAgentTests(unittest.TestCase):
         event = _event_prompt("request-1", profile)
         for prompt in (direct, event):
             self.assertIn('"name": "Dry wit"', prompt)
+            self.assertIn("replaces SENTRY's built-in presentation style", prompt)
+            self.assertIn("consistently and recognizably", prompt)
             self.assertIn("operational instruction", prompt)
             self.assertIn("ANIMA Truth, identity, policy", prompt)
             self.assertIn("remain calm, direct, factual", prompt)
