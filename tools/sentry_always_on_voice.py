@@ -154,11 +154,11 @@ def main(argv: list[str] | None = None, *, anima_event_fn=None) -> int:
         wake_detector = VoskKwsEvaluator(
             shared_vosk.model_path,
             # The restricted recognizer may not emit its final result until
-            # the whole utterance ends. Accept the exact partial token so the
-            # resident loop can preserve everything spoken after "Sentry" in
-            # its existing bounded in-memory capture.
+            # the whole utterance ends. Confirm a short run of exact partial
+            # frames so the resident loop retains the command without letting
+            # one transient ambient-speech hypothesis authorize capture.
             detect_partial=True,
-            partial_confirmation_frames=1,
+            partial_confirmation_frames=voice.wake_partial_confirmation_frames,
             debounce_seconds=voice.wake_debounce_ms / 1000,
             shared_model=shared_vosk,
         )

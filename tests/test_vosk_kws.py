@@ -105,6 +105,27 @@ class VoskKwsTests(unittest.TestCase):
         self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
         self.assertNotEqual(evaluator.last_result_class, "wake")
 
+    def test_partial_wake_requires_configured_consecutive_frames(self) -> None:
+        evaluator = self._evaluator(partial_confirmation_frames=6)
+        self.recognizer.payload = {"partial": "sentry"}
+        for _ in range(5):
+            self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+            self.assertEqual("partial_candidate", evaluator.last_result_class)
+        detections = evaluator.feed(np.zeros(512, dtype=np.int16))
+        self.assertEqual(1, len(detections))
+        self.assertEqual("partial", detections[0].detection_source)
+
+    def test_nonwake_resets_partial_confirmation_run(self) -> None:
+        evaluator = self._evaluator(partial_confirmation_frames=3)
+        self.recognizer.payload = {"partial": "sentry"}
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.recognizer.payload = {"partial": "[unk]"}
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.recognizer.payload = {"partial": "sentry"}
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.assertEqual("partial_candidate", evaluator.last_result_class)
+
     def test_nonwake_and_pcm_shape_are_rejected(self) -> None:
         evaluator = self._evaluator()
         self.recognizer.payload = {"partial": "[unk]"}

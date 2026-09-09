@@ -839,6 +839,10 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         self.assertFalse(AlwaysOnVoiceConfig.from_mapping({}).always_on_enabled)
         self.assertFalse(AlwaysOnVoiceConfig.from_mapping({}).sleep_enabled)
         self.assertEqual(AlwaysOnVoiceConfig.from_mapping({}).wake_token, "sentry")
+        self.assertEqual(
+            AlwaysOnVoiceConfig.from_mapping({}).wake_partial_confirmation_frames,
+            6,
+        )
         with self.assertRaises(ValueError):
             AlwaysOnVoiceConfig.from_mapping({"always_on_enabled": True})
 
@@ -1099,6 +1103,8 @@ class AlwaysOnVoiceTests(unittest.TestCase):
             AlwaysOnVoiceConfig.from_mapping({"vad_threshold": 0.35, "vad_continuation_threshold": 0.4})
         with self.assertRaises(ValueError):
             AlwaysOnVoiceConfig.from_mapping({"wake_identity_refresh_idle_seconds": 0})
+        with self.assertRaises(ValueError):
+            AlwaysOnVoiceConfig.from_mapping({"wake_partial_confirmation_frames": 1})
         with self.assertRaises(ValueError):
             AlwaysOnVoiceConfig.from_mapping({
                 "wake_identity_camera_duration_seconds": 6,

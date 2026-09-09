@@ -97,6 +97,10 @@ class AlwaysOnVoiceConfig:
     wake_token: str = "sentry"
     vosk_model_path: str | None = None
     vosk_grammar: tuple[str, ...] = ("sentry", "[unk]")
+    # Vosk partial hypotheses can briefly mistake ambient speech for the wake
+    # token. At 512 samples per 16 kHz frame, six consecutive exact frames add
+    # only 192 ms while filtering transient one-frame guesses.
+    wake_partial_confirmation_frames: int = 6
     wake_debounce_ms: int = 1000
     vad_backend: str = "silero_vad"
     # Live office qualification showed that 0.50 can classify a natural
@@ -158,6 +162,8 @@ class AlwaysOnVoiceConfig:
             raise ValueError("voice.wake_token must be the exact token sentry")
         if self.vosk_grammar != ("sentry", "[unk]"):
             raise ValueError("voice.vosk_grammar must be [sentry, [unk]]")
+        if not 2 <= self.wake_partial_confirmation_frames <= 30:
+            raise ValueError("voice.wake_partial_confirmation_frames must be from 2 through 30")
         if self.wake_debounce_ms < 0:
             raise ValueError("voice.wake_debounce_ms must be non-negative")
         if self.always_on_enabled and not self.vosk_model_path:
@@ -220,6 +226,7 @@ class AlwaysOnVoiceConfig:
             wake_token=str(values.get("wake_token", "sentry")),
             vosk_model_path=(str(values["vosk_model_path"]) if values.get("vosk_model_path") is not None else None),
             vosk_grammar=tuple(grammar),
+            wake_partial_confirmation_frames=int(values.get("wake_partial_confirmation_frames", 6)),
             wake_debounce_ms=int(values.get("wake_debounce_ms", 1000)),
             vad_backend=str(values.get("vad_backend", "silero_vad")),
             vad_threshold=float(values.get("vad_threshold", 0.35)),
