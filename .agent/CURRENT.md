@@ -1,6 +1,70 @@
 # Current Project State
 
-Last updated: 2026-09-07
+Last updated: 2026-09-08
+
+## Unattended ANIMA event delivery and trial — 2026-09-08
+
+The existing resident SENTRY process now handles eligible ANIMA Attention work
+without microphone listening, invokes the same persistent Codex brain through
+the credential-isolated ANIMA MCP boundary, and uses `decision=speak` for host
+Kokoro TTS. `notify` is reserved for a successful governed notification tool.
+One retained live qualification attempt ended `UNAVAILABLE`; a corrected fresh
+synthetic-source attempt ended `RESPONSE` with Core `ALWAYS_NOTIFY` and host
+delivery `DELIVERED`. Neither potentially started provider turn was replayed.
+
+The private metadata-only trial ledger contains no event text, model transcript
+or household payload. Healthy poll throttling now reports `EMPTY` instead of the
+misleading `NOT_READY`; after restart the service is `LISTENING` with Kokoro
+warm. The full Ubuntu suite passes 525 tests. ANIMA's multi-day household trial
+remains in progress; no physical event or several-day result is claimed here.
+
+## Office face layout and ANIMA control ownership — 2026-09-08
+
+The selected office-PC SENTRY face is display-only. Its original 600 px GL orb
+renderer, shader, animation, colors, and state model are unchanged. The GTK
+layout now measures from the live orb rather than a hidden fallback, keeping
+the orb centered with its state text below. The obsolete local voice,
+wake/sleep, and face-enrollment drawer is no longer reachable; those controls
+are owned by ANIMA.
+
+The live office window was restarted and observed active. A 1120x686 capture
+placed the rendered orb at x=558.8 against window center x=560, with the status
+label below it. Related SENTRY UI, service, endpoint-routing, identity, and
+ANIMA-event regression passed 101 tests. The wider dirty V0.4 worktree remains
+preserved and no commit or release is claimed.
+
+## ANIMA-owned face enrollment bridge — 2026-09-08
+
+The existing SENTRY identity enrollment manager is now available to ANIMA's
+authenticated owner UI through token-protected localhost-only routes. Capture
+sessions expose temporary reviewed samples with quality and guided pose labels;
+an operator can remove a bad sample before commit. Committed profiles continue
+to store only the normalized biometric prototype and sample count in SENTRY
+SQLite; raw JPEG previews remain memory-only.
+
+The state service uses a private mode-0640 credential shared only with ANIMA's
+local container group. It restarted successfully and retained the existing
+profile catalogue. Related SENTRY identity/state API regression passes 115
+tests. The protected unrelated V0.4 working changes remain preserved; no commit
+or release is claimed.
+
+## Autonomous ANIMA event context correction — 2026-09-07
+
+Three real Tapo lock/unlock Attention requests reached the resident persistent
+Codex turn, but the model returned `unavailable` and no TTS was attempted. This
+was not a reasoned decision that ordinary lock activity was unremarkable. The
+prebound MCP intentionally hides its credential/binding, while its context and
+catalogue tools require the non-secret ANIMA `request_id`; the autonomous prompt
+had supplied neither that ID nor the documented `anima_health` discovery step.
+
+The host now reads the exact ANIMA request ID from the already validated private
+binding, includes only that non-secret identifier in the autonomous prompt, and
+requires `anima_health` to return the same ID before context/catalogue reads.
+Model `unavailable` and `partial` outcomes are now preserved separately from a
+completed, reasoned `silent` decision. The 102 focused ANIMA/resident/Codex tests
+pass, the live voice service has been restarted, and it reports `LISTENING` with
+Kokoro warm. Ambiguous/failed provider-started requests were not replayed.
+Future ordinary lock events remain free to resolve to informed silence.
 
 ## Pi projection backdrop sizing — 2026-09-07
 

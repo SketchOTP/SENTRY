@@ -77,7 +77,7 @@ def inspect_office_camera(
 class OfficeVisionInspector:
     """Preload existing local models; open the camera only for bounded calls."""
 
-    def __init__(self, config_path: Path) -> None:
+    def __init__(self, config_path: Path, *, use_projection_camera: bool = True) -> None:
         self.config_path = config_path.expanduser()
         self.config = load_config(self.config_path)
         self.identity = identity_config_from_mapping(self.config.get("identity"))
@@ -90,7 +90,10 @@ class OfficeVisionInspector:
         voice = self.config.get("voice", {})
         self.remote_camera = (
             RemoteJpegCamera(str(voice["projection_camera_url"]), Path(str(voice["projection_token_file"])))
-            if isinstance(voice, dict) and voice.get("projection_camera_url") and voice.get("projection_token_file")
+            if use_projection_camera
+            and isinstance(voice, dict)
+            and voice.get("projection_camera_url")
+            and voice.get("projection_token_file")
             else None
         )
 

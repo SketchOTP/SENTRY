@@ -1,4 +1,4 @@
-"""Native GTK control surface for SENTRY voice status and identity enrollment."""
+"""Native GTK display surface for SENTRY voice state."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import base64
 import json
 import math
 import os
-import subprocess
 import sys
 import threading
 import time
@@ -102,22 +101,6 @@ def save_voice_preferences(config_path: Path, identifier: str, speed: float) -> 
     )
 
 
-def apply_voice_preferences(config_path: Path, identifier: str, speed: float) -> bool:
-    """Persist a selection and reload the active resident listener when needed."""
-
-    was_active = voice_service_is_active()
-    save_voice_preferences(config_path, identifier, speed)
-    if was_active:
-        subprocess.run(
-            ["systemctl", "--user", "restart", "sentry-voice.service"],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            timeout=30,
-        )
-    return was_active
-
-
 def preview_voice(identifier: str, speed: float) -> bool:
     """Speak one bounded local sample without changing the saved preference."""
 
@@ -160,6 +143,23 @@ RUNTIME_TO_ORB_STATE = {
     "DISABLED": "OFFLINE",
     "UNAVAILABLE": "OFFLINE",
 }
+
+
+def projection_instance_payload(
+    payload: dict[str, Any], *, projection_instance_id: str = "living_room"
+) -> dict[str, Any]:
+    """Keep an inactive projection dormant rather than mirroring another room."""
+
+    active_instance_id = payload.get("active_instance_id")
+    if isinstance(active_instance_id, str) and active_instance_id != projection_instance_id:
+        return {
+            "state": "INACTIVE",
+            "reason": f"SENTRY is active in {active_instance_id.replace('_', ' ')}.",
+            "active_instance_id": active_instance_id,
+            "sleep_enabled": False,
+            "wake_enabled": False,
+        }
+    return payload
 
 ORB_STYLES = {
     "STANDBY": {
@@ -1305,17 +1305,6 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             if projection_mode:
                 self.set_decorated(False)
                 self.set_cursor(Gdk.Cursor.new_from_name("none", None))
-            self.manager: Any = None
-            if not projection_mode:
-                # Keep the projection dependency-light: identity enrollment
-                # owns camera/database code and belongs only on the PC.
-                from tools.sentry_identity_enrollment import IdentityEnrollmentManager
-
-                self.manager = IdentityEnrollmentManager(config_path)
-            self.session: dict[str, Any] | None = None
-            self._busy = False
-            self._delete_candidate: str | None = None
-            self._preview_texture = None
             self._last_state: str | None = None
             self._last_wake_at: str | None = None
             self._status_initialized = False
@@ -1324,8 +1313,6 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             self.sleep_enabled = False
             self._sleep_transition_state: str | None = None
             self._build()
-            if not projection_mode:
-                self._load_profiles()
             self._refresh_status()
             GLib.timeout_add(40, self._refresh_status)
 
@@ -1396,8 +1383,11 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             orb_stack = Gtk.Overlay()
             orb_stack.set_halign(Gtk.Align.CENTER)
             orb_stack.set_valign(Gtk.Align.CENTER)
-            orb_stack.set_child(self.projection_fallback_orb)
-            orb_stack.add_overlay(self.status_orb)
+            # The live orb must be the measuring child. Making it an overlay
+            # over a hidden fallback collapses the stack to the label height,
+            # which pushes the 600 px desktop orb below the window center.
+            orb_stack.set_child(self.status_orb)
+            orb_stack.add_overlay(self.projection_fallback_orb)
             status.append(orb_stack)
             self.state_label = Gtk.Label(label="Standby", xalign=0.5)
             self.state_label.add_css_class("state")
@@ -1412,6 +1402,12 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
                 self.set_child(root)
                 self.fullscreen()
                 return
+
+            # Voice, wake/sleep, active-location, and identity enrollment now
+            # belong to ANIMA. The office application is the same display-only
+            # SENTRY face as the Pi projection, without a second settings UI.
+            self.set_child(root)
+            return
 
             scroll = Gtk.ScrolledWindow()
             scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -1583,7 +1579,6 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
         def _show_projection_fallback(self) -> bool:
             if not self.projection_mode:
                 return False
-            self.status_orb.set_visible(False)
             self.projection_fallback_orb.set_visible(True)
             return False
 
@@ -1715,16 +1710,12 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             )
 
         def close_settings(self) -> None:
-            """Restore the clean main surface whenever the application is launched."""
-
-            if self.projection_mode:
-                return
-            self.settings_drawer.set_reveal_child(False)
-            self.settings_toggle.set_icon_name("go-previous-symbolic")
-            self.settings_toggle.set_tooltip_text("Open SENTRY settings and people")
+            """Compatibility no-op: both SENTRY faces are display-only."""
 
         def _refresh_status(self) -> bool:
             runtime_payload = read_voice_status()
+            if self.projection_mode:
+                runtime_payload = projection_instance_payload(runtime_payload)
             if isinstance(runtime_payload.get("sleep_enabled"), bool):
                 self.sleep_enabled = bool(runtime_payload["sleep_enabled"])
             payload, self._sleep_transition_state = resolve_sleep_transition_status(
@@ -1732,16 +1723,13 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
                 sleep_enabled=self.sleep_enabled,
                 transition_state=self._sleep_transition_state,
             )
-            state, guidance, identity = voice_status_summary(payload)
+            state, guidance, _identity = voice_status_summary(payload)
             wake_at = str(payload.get("last_wake_at") or "") or None
             acknowledge = should_acknowledge_wake(self._last_wake_at, wake_at) if self._status_initialized else False
             self.status_orb.present(payload, acknowledge_wake=acknowledge)
             if self.projection_mode and self.projection_fallback_orb.get_visible():
                 self.projection_fallback_orb.queue_draw()
             self.state_label.set_text(guidance)
-            if not self.projection_mode:
-                self.settings_runtime_label.set_text(f"Voice state: {state.replace('_', ' ').title()}")
-                self.settings_speaker_label.set_text(identity)
             self._last_state = state
             self._last_wake_at = wake_at
             self._status_initialized = True
@@ -1868,22 +1856,6 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
 
             self._run_voice_operation(
                 lambda: preview_voice(identifier, speed),
-                complete,
-            )
-
-        def _save_selected_voice(self, _button) -> None:
-            identifier, speed = self._selected_voice_preferences()
-            label = self.voice_choice.get_active_text() or identifier
-            self.voice_message.set_text(f"Applying {label} at {speed:.2f}×…")
-
-            def complete(restarted: bool) -> None:
-                suffix = " The resident listener was reloaded." if restarted else ""
-                self.voice_message.set_text(
-                    f"Saved {label} at {speed:.2f}×.{suffix}"
-                )
-
-            self._run_voice_operation(
-                lambda: apply_voice_preferences(config_path, identifier, speed),
                 complete,
             )
 

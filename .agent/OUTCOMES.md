@@ -2,6 +2,24 @@
 
 ---
 
+## OUTCOME-SENTRY-ANIMA-UNATTENDED-EVENT-TRIAL-026A — 2026-09-08
+
+- `PASSED` (`E5_OPERATIONALLY_OBSERVED`, synthetic source): a fresh ANIMA
+  Attention request reached the persistent SENTRY Codex thread, selected
+  `speak`, and received a host Kokoro `DELIVERED` receipt under Core
+  `ALWAYS_NOTIFY`.
+- `PASSED` (`E4_REGRESSION_PROTECTED`): all 525 SENTRY tests pass, including
+  provider-start fencing, no replay, no microphone dependency, follow-up
+  listening after autonomous speech, private content-free trial records and
+  healthy idle-state reporting.
+- `IN_PROGRESS`: the multi-day owner trial began
+  `2026-09-09T02:21:00Z`. Physical alerts, owner judgment of discretionary
+  speech and several-day missed-alert/channel metrics require elapsed evidence.
+- The earlier model choice of an unavailable notification tool remains recorded
+  as `UNAVAILABLE`; it is not rewritten as successful or reasoned silence.
+
+---
+
 ## OUTCOME-SENTRY-V0.3-CONVERSATIONAL-ORCHESTRATION-001 — Bounded semantic conversation layer
 - Completed: 2026-08-31
 - Verdict: QUALIFIED — implementation commit `7d605af`; pending Architect acceptance
@@ -1851,3 +1869,50 @@ The Architect accepted the substantive conversational-orchestration result at im
   endpoint.
 - Focused projection audio tests, Ruff, and `git diff --check` passed. No
   audible sample was emitted during validation.
+## OUTCOME-SENTRY-ANIMA-AUTONOMOUS-CONTEXT-002 — Corrected and target-tested
+
+- Date: 2026-09-07
+- Status: IMPLEMENTED / TARGET-TESTED; post-fix physical event pending
+- Real Tapo activity exposed that the autonomous persistent Codex turn lacked
+  the non-secret ANIMA request ID required by its prebound context/catalogue
+  tools. The model correctly returned `unavailable`; this negative result is
+  preserved and is not called reasoned silence or TTS delivery.
+- The host now derives the request ID from the validated private binding and
+  directs the model through `anima_health` before exact context/catalogue reads.
+  Binding credentials remain private. `unavailable`, `partial`, and completed
+  `silent` are distinct host results.
+- Focused resident/ANIMA/Codex regression passed `102/102`; `git diff --check`
+  passed. The deployed voice process returned to `LISTENING` with warm Kokoro.
+  No failed provider-started request was replayed, no production fallback was
+  enabled, and no physical post-fix speech/silence decision is yet claimed.
+
+## OUTCOME-SENTRY-ANIMA-FACE-ENROLLMENT-BRIDGE-003 — Implemented and observed
+
+- Date: 2026-09-08
+- Status: IMPLEMENTED / E4 related regression / E5 service restart observation
+- SENTRY's existing local face manager now exposes token-authenticated,
+  localhost-only start/capture/remove/commit/cancel/delete operations for the
+  ANIMA owner console. The general state API remains localhost-only.
+- Enrollment samples and thumbnails are ephemeral and individually removable;
+  only a normalized profile prototype and bounded metadata survive commit.
+- The live service restarted active, its privacy-safe profile-catalogue digest
+  remained unchanged, and 115 related identity/state API tests passed.
+- No owner face was captured during validation and no commit/release is claimed.
+
+## OUTCOME-SENTRY-OFFICE-FACE-LAYOUT-004 — Implemented and visually observed
+
+- Date: 2026-09-08
+- Status: IMPLEMENTED / E4 related regression / E5 live-window observation
+- Corrected the GTK measurement defect that made the hidden fallback the orb
+  stack's measuring child. The existing live GL orb is now the measuring child,
+  so the artwork is centered and the existing state label is laid out beneath
+  it. No shader, animation, color, size, or state-programming changes were made.
+- The office face now returns before constructing the legacy settings/enrollment
+  drawer. Voice, wake/sleep, active-location, and person enrollment remain
+  ANIMA-owned; SENTRY's separate localhost enrollment service remains available
+  to ANIMA.
+- The live office service restarted successfully. Screenshot geometry measured
+  orb center x=558.8 in a 1120 px window, with the status label below the orb.
+  Related suites passed 101/101 and `git diff --check` passed.
+- The unrelated dirty V0.4 worktree was preserved; no commit or release is
+  claimed.

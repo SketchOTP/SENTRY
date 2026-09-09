@@ -7,8 +7,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.sentry_install_user_services import (
-    APPLICATION_DESKTOP_NAME,
     ALARM_UNIT_NAMES,
+    APPLICATION_DESKTOP_NAME,
     LEGACY_UI_UNIT_NAMES,
     ROUTINE_UNIT_NAMES,
     UNIT_NAMES,
@@ -189,7 +189,7 @@ class ResidentRuntimeTests(unittest.TestCase):
         launcher = Path("tools/sentry_codex_launcher.sh").read_text(encoding="utf-8")
         self.assertIn("/usr/bin/aa-exec -p chatgpt", launcher)
         self.assertIn("/usr/lib/chatgpt/resources/codex", launcher)
-        self.assertIn("Wants=sentry-ui.service", voice)
+        self.assertNotIn("Wants=sentry-ui.service", voice)
         self.assertIn("tools/sentry_ui.py", sentry_ui)
         self.assertNotIn("zenity", sentry_ui.lower())
         self.assertNotIn("PartOf=sentry-voice.service", sentry_ui)
@@ -217,8 +217,8 @@ class ResidentRuntimeTests(unittest.TestCase):
         self.assertIn("Persistent=true", alarms)
         native_ui = Path("tools/sentry_ui.py").read_text(encoding="utf-8")
         self.assertIn("Gtk.Application", native_ui)
-        self.assertIn("Voice status", native_ui)
-        self.assertIn("Add or update a person", native_ui)
+        self.assertIn("both SENTRY faces are display-only", native_ui)
+        self.assertIn("orb_stack.set_child(self.status_orb)", native_ui)
         self.assertNotIn("ThreadingHTTPServer", native_ui)
 
     def test_live_probe_uses_user_systemd_and_localhost_api(self):

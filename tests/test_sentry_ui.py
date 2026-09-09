@@ -3,7 +3,6 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from tools.sentry_ui import (
     KOKORO_ENGLISH_VOICES,
@@ -240,27 +239,22 @@ class SentryNativeUiTests(unittest.TestCase):
         self.assertFalse(should_acknowledge_wake("wake-1", "wake-1"))
         self.assertTrue(should_acknowledge_wake("wake-1", "wake-2"))
 
-    def test_settings_use_an_in_window_overlay_not_a_transient_popover(self):
+    def test_orb_is_the_measuring_child_and_status_is_appended_below_it(self):
         from tools.sentry_ui import build_application
 
         source = inspect.getsource(build_application)
-        self.assertIn("Gtk.Overlay", source)
-        self.assertIn("Gtk.Revealer", source)
-        self.assertIn("Gtk.RevealerTransitionType.SLIDE_LEFT", source)
-        self.assertIn("root.add_overlay(drawer_host)", source)
-        self.assertIn('"go-previous-symbolic"', source)
-        self.assertIn('"go-next-symbolic"', source)
-        self.assertNotIn("Gtk.Popover", source)
-        self.assertNotIn("Gtk.MenuButton", source)
+        self.assertIn("orb_stack.set_child(self.status_orb)", source)
+        self.assertIn("orb_stack.add_overlay(self.projection_fallback_orb)", source)
+        self.assertLess(source.index("status.append(orb_stack)"), source.index("status.append(self.state_label)"))
 
-    def test_application_launch_always_restores_collapsed_settings(self):
+    def test_office_surface_returns_as_display_only_before_legacy_drawer_construction(self):
         from tools.sentry_ui import build_application
 
         source = inspect.getsource(build_application)
-        self.assertIn("drawer.set_reveal_child(False)", source)
-        self.assertIn("def close_settings(self)", source)
-        self.assertIn("window.close_settings()", source)
-        self.assertIn('self.settings_toggle.set_icon_name("go-previous-symbolic")', source)
+        display_only = source.index("The office application is the same display-only")
+        legacy_drawer = source.index("scroll = Gtk.ScrolledWindow()")
+        self.assertLess(display_only, legacy_drawer)
+        self.assertIn("self.set_child(root)\n            return", source[display_only:legacy_drawer])
 
     def test_native_window_uses_the_sentry_icon_theme_name(self):
         from tools.sentry_ui import build_application
@@ -269,23 +263,14 @@ class SentryNativeUiTests(unittest.TestCase):
         self.assertIn('self.set_icon_name("sentry")', source)
         self.assertIn('application_id="local.sentry.Control"', source)
 
-    def test_settings_include_voice_selection_speed_preview_and_apply(self):
+    def test_voice_wake_and_identity_controls_are_owned_by_anima_not_the_office_window(self):
         from tools.sentry_ui import build_application
 
         source = inspect.getsource(build_application)
-        self.assertIn("Gtk.ComboBoxText", source)
-        self.assertIn("Gtk.Scale.new_with_range", source)
-        self.assertIn('label="Preview voice"', source)
-        self.assertIn('label="Save and apply"', source)
-
-    def test_settings_do_not_offer_a_local_sleep_toggle(self):
-        from tools.sentry_ui import build_application
-
-        source = inspect.getsource(build_application)
-        self.assertIn('self._card("Wake availability")', source)
-        self.assertIn("managed in ANIMA Settings", source)
-        self.assertNotIn('self._card("Sleep")', source)
-        self.assertNotIn("apply_sleep_preference(config_path, enabled)", source)
+        constructor = source[source.index("class SentryWindow"):source.index("def _build(self)")]
+        self.assertNotIn("IdentityEnrollmentManager", constructor)
+        self.assertNotIn("_load_profiles", constructor)
+        self.assertIn("both SENTRY faces are display-only", source)
 
     def test_projection_surface_has_no_pointer_audio_controls(self):
         from tools.sentry_ui import build_application

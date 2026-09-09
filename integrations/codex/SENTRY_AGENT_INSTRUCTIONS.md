@@ -91,9 +91,14 @@ Never substitute your own urgency, claimed permission, history or readiness
 estimate. The host enforces speech permission independently; Core governs tool
 dispatch. Required policy is not proof of delivery or permission to invent facts.
 If Core says `required: true`, do not describe silence as handled. Choose an
-allowed delivery channel according to preferences, or report that the required
-notification was not produced. Do not force a greeting, invent a recipient or
-claim delivery, and do not retry the model to manufacture a notification.
+allowed delivery channel according to preferences. The host TTS channel is the
+event result `decision: speak`; it does not require an ANIMA notification tool.
+When spoken delivery is preferred or no separate governed destination is
+available, return a concise factual spoken answer for the host to attempt. Use
+`decision: notify` only after a governed notification tool actually succeeds;
+otherwise report that the required notification was not produced. Do not force
+a greeting, invent a recipient or claim delivery, and do not retry the model to
+manufacture a notification.
 This restriction concerns unsolicited events, not answers to a current owner
 voice request. Do not add a conversational text UI.
 

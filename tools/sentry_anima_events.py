@@ -32,6 +32,54 @@ _RESULT_STATUSES = frozenset({
     "UNAVAILABLE", "UNKNOWN_RESULT",
 })
 
+_TRIAL_FIELDS = (
+    "recorded_at",
+    "request_id",
+    "status",
+    "result_status",
+    "model_status",
+    "decision",
+    "initiative_reason",
+    "notification_allowed",
+    "notification_required",
+    "notification_delivery_status",
+    "delivery_status",
+    "stage",
+    "exception_type",
+)
+
+
+def _record_operational_trial(request_id: str, receipt: dict[str, Any]) -> str:
+    """Append a private, content-free event/TTS outcome when explicitly enabled."""
+    configured = os.environ.get("SENTRY_ANIMA_TRIAL_LEDGER", "").strip()
+    if not configured:
+        return "DISABLED"
+    target = Path(configured).expanduser()
+    target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if target.parent.is_symlink() or stat.S_IMODE(target.parent.stat().st_mode) != 0o700:
+        raise ValueError("TRIAL_LEDGER_PARENT_NOT_PRIVATE")
+    record = {
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+        "request_id": request_id,
+        **{key: receipt[key] for key in _TRIAL_FIELDS if key in receipt},
+    }
+    flags = os.O_APPEND | os.O_CREAT | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(target, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "a", encoding="utf-8") as stream:
+            stream.write(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+    except BaseException:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+        raise
+    if stat.S_IMODE(target.stat().st_mode) != 0o600:
+        raise ValueError("TRIAL_LEDGER_NOT_PRIVATE")
+    return "RECORDED"
+
 
 def _initiative_notification(context: Any, request_id: str, *, now: datetime | None = None) -> dict[str, Any]:
     """Validate only a host-fetched, request-bound Core disposition.
@@ -223,14 +271,18 @@ class AttentionQueueSource:
         UUID(value["request_id"])
 
     def __call__(self, *, speaker: Any = None) -> dict[str, Any]:
-        idle = {"status": "NOT_READY", "delivery_status": "NOT_ATTEMPTED"}
+        not_ready = {"status": "NOT_READY", "delivery_status": "NOT_ATTEMPTED"}
         if not self._lock.acquire(blocking=False):
-            return {**idle, "gate": "EVENT_SOURCE_BUSY"}
+            return {**not_ready, "gate": "EVENT_SOURCE_BUSY"}
         try:
             if self._halted:
-                return {**idle, "gate": "EVENT_SOURCE_REVIEW_REQUIRED"}
+                return {**not_ready, "gate": "EVENT_SOURCE_REVIEW_REQUIRED"}
             if time.monotonic() < self._next_poll:
-                return {**idle, "gate": "EVENT_POLL_INTERVAL"}
+                return {
+                    "status": "EMPTY",
+                    "delivery_status": "NOT_ATTEMPTED",
+                    "gate": "EVENT_POLL_INTERVAL",
+                }
             self._next_poll = time.monotonic() + 15.0
             try:
                 result = run_resident_event(
@@ -578,7 +630,12 @@ def run_resident_event(
                 status = metadata.get("status")
                 if status in {"WAITING_CONFIRMATION", "WAITING_STRONGER_AUTH", "UNKNOWN_RESULT", "UNAVAILABLE", "FAILED", "PARTIAL"}:
                     return EventResult(status)
-                if status not in {"READY", "SUCCEEDED"} or final.get("status") != "completed":
+                model_status = final.get("status")
+                if model_status == "unavailable":
+                    return EventResult("UNAVAILABLE")
+                if model_status == "partial":
+                    return EventResult("PARTIAL")
+                if status not in {"READY", "SUCCEEDED"} or model_status != "completed":
                     return EventResult("PARTIAL")
                 # Fetch even for silence: a required notification cannot be
                 # reported as handled merely because the model chose no channel.
@@ -604,11 +661,15 @@ def run_resident_event(
 
             receipt = lease.run(execute)
             receipt["decision"] = final.get("decision")
+            if final.get("status") in {"completed", "partial", "unavailable"}:
+                receipt["model_status"] = final["status"]
             # Permission comes from the authenticated result response. Never
             # fall back to the snapshot read before submission/settings changes.
             returned_notification = receipt.pop("notification")
             if initiative:
                 receipt["initiative_reason"] = initiative["reason"]
+                receipt["notification_allowed"] = initiative["allowed"]
+                receipt["notification_required"] = initiative["required"]
                 if not initiative["allowed"]:
                     receipt["delivery_status"] = "BLOCKED_INITIATIVE"
             if final.get("decision") == "notify":
@@ -633,6 +694,7 @@ def run_resident_event(
                         receipt["delivery_status"] = "DELIVERED" if delivered else "FAILED"
                     except Exception as exc:  # noqa: BLE001 - delivery cannot turn into model replay
                         receipt.update(delivery_status="FAILED", stage="TTS", exception_type=type(exc).__name__)
+            receipt["trial_record_status"] = _record_operational_trial(request_id, receipt)
             return receipt
 
 

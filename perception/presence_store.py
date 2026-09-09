@@ -814,6 +814,18 @@ class PresenceStore:
             profiles.append(value)
         return profiles
 
+    def identity_profile_summaries(self) -> list[dict[str, Any]]:
+        """Return profile status without biometric prototypes or model checksums."""
+
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT p.person_id, p.display_name, p.enrollment_status, p.updated_at, "
+                "i.backend, i.model_version, i.sample_count, i.created_at AS profile_created_at "
+                "FROM persons p JOIN identity_profiles i ON i.person_id = p.person_id "
+                "WHERE p.enrollment_status = 'active' ORDER BY p.person_id"
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def identity_profile_revision(self) -> str:
         """Return a privacy-safe revision for the active enrollment catalog."""
 

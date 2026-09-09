@@ -7,6 +7,7 @@ import re
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -41,12 +42,18 @@ class EnrollmentSession:
     guided: bool = False
     embeddings: list[Any] = field(default_factory=list)
     accepted_poses: dict[str, int] = field(default_factory=dict)
+    samples: list[dict[str, Any]] = field(default_factory=list)
 
 
 class IdentityEnrollmentManager:
     """Own ephemeral enrollment samples and private profile persistence."""
 
-    def __init__(self, config_path: Path) -> None:
+    def __init__(
+        self,
+        config_path: Path,
+        *,
+        active_instance_provider: Callable[[], str] | None = None,
+    ) -> None:
         self.config_path = config_path.expanduser()
         self.config = load_config(self.config_path)
         self.identity = identity_config_from_mapping(self.config.get("identity"))
@@ -55,12 +62,23 @@ class IdentityEnrollmentManager:
         self.backend = OpenCVFaceBackend(self.identity)
         self._sessions: dict[str, EnrollmentSession] = {}
         self._lock = threading.Lock()
+        self.active_instance_provider = active_instance_provider
         voice = self.config.get("voice", {})
         self.remote_camera = (
             RemoteJpegCamera(str(voice["projection_camera_url"]), Path(str(voice["projection_token_file"])))
             if isinstance(voice, dict) and voice.get("projection_camera_url") and voice.get("projection_token_file")
             else None
         )
+
+    def _remote_camera_for_capture(self) -> RemoteJpegCamera | None:
+        if self.active_instance_provider is None:
+            return self.remote_camera
+        active_instance_id = self.active_instance_provider()
+        if active_instance_id == "living_room":
+            return self.remote_camera
+        if active_instance_id == "office":
+            return None
+        raise RuntimeError("ANIMA returned an unsupported active SENTRY instance")
 
     @property
     def storage(self) -> dict[str, Any]:
@@ -75,7 +93,7 @@ class IdentityEnrollmentManager:
 
     def profiles(self) -> list[dict[str, Any]]:
         with self._store() as store:
-            return store.persons()
+            return store.identity_profile_summaries()
 
     def _purge_expired(self) -> None:
         cutoff = time.monotonic() - SESSION_TTL_SECONDS
@@ -111,7 +129,7 @@ class IdentityEnrollmentManager:
         used = {str(profile["person_id"]) for profile in existing}
         person_id = base
         suffix = 2
-        while person_id in used and matching is None:
+        while not supplied_profile_id and person_id in used and matching is None:
             person_id = f"{base}-{suffix}"
             suffix += 1
         session = EnrollmentSession(
@@ -134,6 +152,10 @@ class IdentityEnrollmentManager:
             "ready_to_save": len(session.embeddings) >= MINIMUM_SAMPLES,
             "guided": session.guided,
             "accepted_poses": dict(session.accepted_poses),
+            "samples": [
+                {key: value for key, value in sample.items() if key != "embedding_index"}
+                for sample in session.samples
+            ],
         }
 
     def _session(self, session_id: str) -> EnrollmentSession:
@@ -154,8 +176,9 @@ class IdentityEnrollmentManager:
         source = camera.get("device_path") or int(camera.get("index", 0))
         backend_name = cv2.CAP_V4L2 if camera.get("backend") == "v4l2" else cv2.CAP_ANY
         with camera_activity_lock(timeout_seconds=5.0):
+            remote_camera = self._remote_camera_for_capture()
             capture = None
-            if self.remote_camera is None:
+            if remote_camera is None:
                 capture = cv2.VideoCapture(source, backend_name)
                 if not capture.isOpened():
                     capture.release()
@@ -168,9 +191,9 @@ class IdentityEnrollmentManager:
             last_pose: dict[str, Any] | None = None
             try:
                 while time.monotonic() < deadline:
-                    if self.remote_camera is not None:
+                    if remote_camera is not None:
                         try:
-                            candidate = self.remote_camera.read()
+                            candidate = remote_camera.read()
                         except RuntimeError:
                             continue
                         ok = candidate is not None
@@ -192,20 +215,32 @@ class IdentityEnrollmentManager:
                         if not last_pose["accepted"]:
                             continue
                     with self._lock:
+                        embedding_index = len(session.embeddings)
                         session.embeddings.append(embedding)
                         if pose is not None:
                             session.accepted_poses[pose] = session.accepted_poses.get(pose, 0) + 1
                     encoded, jpeg = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), 82])
                     preview = base64.b64encode(jpeg.tobytes()).decode("ascii") if encoded else None
-                    return {
-                        **self._session_payload(session),
-                        "accepted": True,
+                    sample = {
+                        "sample_id": str(uuid.uuid4()),
+                        "pose": pose,
                         "quality": {
                             key: round(value, 2) if isinstance(value, float) else value
                             for key, value in quality.items()
                         },
-                        "pose": last_pose,
                         "preview_jpeg_base64": preview,
+                        "embedding_index": embedding_index,
+                    }
+                    with self._lock:
+                        session.samples.append(sample)
+                    return {
+                        **self._session_payload(session),
+                        "accepted": True,
+                        "sample": {
+                            key: value for key, value in sample.items() if key != "embedding_index"
+                        },
+                        "preview_jpeg_base64": preview,
+                        "pose": last_pose,
                         "frame_persisted": False,
                     }
                 face_count = len(self.backend.detect_faces(image)) if image is not None else 0
@@ -224,6 +259,34 @@ class IdentityEnrollmentManager:
             finally:
                 if capture is not None:
                     capture.release()
+
+    def remove_sample(self, session_id: str, sample_id: str) -> dict[str, Any]:
+        """Remove one operator-rejected capture from an in-memory enrollment set."""
+
+        session = self._session(session_id)
+        with self._lock:
+            index = next(
+                (
+                    position
+                    for position, sample in enumerate(session.samples)
+                    if sample.get("sample_id") == sample_id
+                ),
+                None,
+            )
+            if index is None:
+                raise ValueError("enrollment sample was not found")
+            sample = session.samples.pop(index)
+            embedding_index = int(sample["embedding_index"])
+            session.embeddings.pop(embedding_index)
+            for remaining in session.samples:
+                if int(remaining["embedding_index"]) > embedding_index:
+                    remaining["embedding_index"] = int(remaining["embedding_index"]) - 1
+            session.accepted_poses = {}
+            for remaining in session.samples:
+                pose = remaining.get("pose")
+                if isinstance(pose, str):
+                    session.accepted_poses[pose] = session.accepted_poses.get(pose, 0) + 1
+        return {**self._session_payload(session), "removed_sample_id": sample_id}
 
     def commit(self, session_id: str) -> dict[str, Any]:
         session = self._session(session_id)

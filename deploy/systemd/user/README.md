@@ -12,10 +12,11 @@ services:
   minutes, with an initial five-minute delay after the user manager starts.
 - `sentry-voice.service` — optional always-available local microphone listener.
   It is installed but remains disabled unless the local mode-0600 config sets
-  `voice.always_on_enabled` to `true`. Starting it also starts the independent
-  `sentry-ui.service`, which keeps the native SENTRY voice, identity, and
-  personal-continuity surface working, speaking, and follow-up state on the
-  operator desktop. Restarting the listener does not close or recreate the UI.
+  `voice.always_on_enabled` to `true`. The voice supervisor starts the
+  independent `sentry-ui.service` only while the ANIMA-selected SENTRY location
+  is the office PC; the living-room selection keeps that local window closed
+  and uses the Raspberry Pi projection instead. Changing locations restarts the
+  voice edge without restarting SENTRY's persistent intelligence session.
   Its GPU orb renderer requires Ubuntu's `gir1.2-gtk-4.0` and
   `python3-opengl` packages plus an OpenGL 3.3-capable graphics driver.
 - `sentry-alarms.timer` — lightweight 15-second delivery check for durable

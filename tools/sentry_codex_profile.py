@@ -91,6 +91,15 @@ def autonomous_turn_overrides(profile_data: dict) -> list[str]:
         "auth_elicitation", "goals", "sleep_tool",
     }
     overrides.update({f"features.{name}": False for name in features})
+    # Current Codex exposes request-bound MCP calls through its code-mode host.
+    # Both halves are required: code_mode presents the dispatcher to the model
+    # and code_mode_host executes its calls.  Enabling only the host produces a
+    # misleading state where ``mcp list`` is healthy but the live turn has no
+    # callable ANIMA channel.  code_mode_only keeps this as the sole model-facing
+    # dispatcher while every native execution/egress feature stays disabled.
+    overrides["features.code_mode"] = True
+    overrides["features.code_mode_host"] = True
+    overrides["features.code_mode_only"] = True
     def read_only(value):
         if isinstance(value, dict):
             return {key: read_only(access) for key, access in value.items()}

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
+import stat
 import sys
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -16,9 +18,21 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from perception.presence_store import PresenceStore
+from tools.sentry_anima import AnimaConfig
+from tools.sentry_identity_enrollment import IdentityEnrollmentManager
 
 
 PERCEPTION_RUNTIME_STATUSES = {"fresh", "stopped", "stale", "missing", "malformed"}
+
+
+def _active_sentry_instance() -> str:
+    config = AnimaConfig.load()
+    if config is None:
+        raise RuntimeError("ANIMA SENTRY settings are unavailable")
+    value = config.client().voice_settings().get("active_instance_id", "living_room")
+    if value not in {"living_room", "office"}:
+        raise RuntimeError("ANIMA returned an unsupported active SENTRY instance")
+    return str(value)
 
 
 def _public_alert_id(value: object) -> str | None:
@@ -134,6 +148,47 @@ class _Handler(BaseHTTPRequestHandler):
             raise ValueError("request body must be a JSON object")
         return value
 
+    def _identity_manager(self) -> IdentityEnrollmentManager | None:
+        return getattr(self.server, "identity_manager", None)
+
+    def _identity_authorized(self) -> bool:
+        expected = getattr(self.server, "identity_token", None)
+        supplied = self.headers.get("Authorization", "")
+        prefix = "Bearer "
+        return (
+            isinstance(expected, str)
+            and bool(expected)
+            and supplied.startswith(prefix)
+            and hmac.compare_digest(supplied[len(prefix):], expected)
+        )
+
+    def _require_identity(self) -> IdentityEnrollmentManager | None:
+        manager = self._identity_manager()
+        if manager is None:
+            self._send(503, {"error": "identity enrollment is unavailable"})
+            return None
+        if not self._identity_authorized():
+            self._send(401, {"error": "identity authorization is required"})
+            return None
+        return manager
+
+    @staticmethod
+    def _identity_session(
+        manager: IdentityEnrollmentManager, body: dict, *, require_sample: bool = False
+    ) -> tuple[str, str, str | None]:
+        person_id = body.get("person_id")
+        session_id = body.get("session_id")
+        sample_id = body.get("sample_id") if require_sample else None
+        if not isinstance(person_id, str) or not person_id:
+            raise ValueError("person_id is required")
+        if not isinstance(session_id, str) or not session_id:
+            raise ValueError("session_id is required")
+        if require_sample and (not isinstance(sample_id, str) or not sample_id):
+            raise ValueError("sample_id is required")
+        if manager._session(session_id).person_id != person_id:
+            raise ValueError("enrollment session does not belong to this person")
+        return person_id, session_id, sample_id
+
     def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
@@ -145,7 +200,11 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": "limit must be a positive integer"})
             return
         store: PresenceStore = self.server.store  # type: ignore[attr-defined]
-        if parsed.path == "/health":
+        if parsed.path == "/v1/identity/profiles":
+            manager = self._require_identity()
+            if manager is not None:
+                self._send(200, {"profiles": manager.profiles()})
+        elif parsed.path == "/health":
             health = store.health()
             perception = perception_runtime_health(
                 getattr(self.server, "perception_heartbeat", None),
@@ -250,6 +309,46 @@ class _Handler(BaseHTTPRequestHandler):
         store: PresenceStore = self.server.store  # type: ignore[attr-defined]
         try:
             body = self._read_json()
+            path = self.path.split("?", 1)[0]
+            if path.startswith("/v1/identity/"):
+                manager = self._require_identity()
+                if manager is None:
+                    return
+                if path == "/v1/identity/enrollment/start":
+                    person_id = body.get("person_id")
+                    if not isinstance(person_id, str) or not person_id:
+                        raise ValueError("person_id is required")
+                    result = manager.start(
+                        body.get("display_name"),
+                        body.get("target_samples", 8),
+                        profile_id=person_id,
+                        guided=body.get("guided") is True,
+                    )
+                elif path == "/v1/identity/enrollment/capture":
+                    _, session_id, _ = self._identity_session(manager, body)
+                    result = manager.capture(session_id, body.get("pose"))
+                elif path == "/v1/identity/enrollment/remove-sample":
+                    _, session_id, sample_id = self._identity_session(
+                        manager, body, require_sample=True
+                    )
+                    assert sample_id is not None
+                    result = manager.remove_sample(session_id, sample_id)
+                elif path == "/v1/identity/enrollment/commit":
+                    _, session_id, _ = self._identity_session(manager, body)
+                    result = manager.commit(session_id)
+                elif path == "/v1/identity/enrollment/cancel":
+                    _, session_id, _ = self._identity_session(manager, body)
+                    result = manager.cancel(session_id)
+                elif path == "/v1/identity/profiles/delete":
+                    person_id = body.get("person_id")
+                    if not isinstance(person_id, str) or not person_id:
+                        raise ValueError("person_id is required")
+                    result = manager.delete(person_id)
+                else:
+                    self._send(404, {"error": "not_found"})
+                    return
+                self._send(200, result)
+                return
             if self.path.split("?", 1)[0] == "/v1/preferences":
                 person_id = body.get("person_id", "primary_user")
                 operation = body.get("operation")
@@ -304,7 +403,6 @@ class _Handler(BaseHTTPRequestHandler):
                 )
                 self._send(200, {"ok": True, "alarm": result})
                 return
-            path = self.path.split("?", 1)[0]
             if path.startswith("/v1/reminders/") and path.endswith("/cancel"):
                 reminder_id = path[len("/v1/reminders/"):-len("/cancel")]
                 source_surface = body.get("source_surface", "api")
@@ -342,6 +440,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": str(exc)})
         except KeyError as exc:
             self._send(404, {"error": str(exc)})
+        except RuntimeError as exc:
+            self._send(503, {"error": str(exc)})
 
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -356,6 +456,8 @@ def serve(
     perception_heartbeat: Path | None = None,
     perception_freshness_seconds: float = 75.0,
     display_timezone: str = "America/New_York",
+    identity_config: Path | None = None,
+    identity_token_file: Path | None = None,
 ) -> None:
     if perception_freshness_seconds <= 0:
         raise ValueError("perception freshness seconds must be positive")
@@ -363,12 +465,34 @@ def serve(
         ZoneInfo(display_timezone)
     except ZoneInfoNotFoundError as exc:
         raise ValueError("display timezone must be a valid IANA timezone") from exc
+    if (identity_config is None) != (identity_token_file is None):
+        raise ValueError("identity config and token file must be configured together")
+    identity_manager = None
+    identity_token = None
+    if identity_config is not None and identity_token_file is not None:
+        token_path = identity_token_file.expanduser()
+        if token_path.is_symlink():
+            raise ValueError("identity token file must not be a symlink")
+        metadata = token_path.stat()
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o027:
+            raise ValueError("identity token file permissions are unsafe")
+        identity_token = token_path.read_text(encoding="utf-8").strip()
+        if len(identity_token) < 32 or len(identity_token) > 256 or any(
+            character.isspace() for character in identity_token
+        ):
+            raise ValueError("identity token is invalid")
+        identity_manager = IdentityEnrollmentManager(
+            identity_config,
+            active_instance_provider=_active_sentry_instance,
+        )
     with PresenceStore(database_path, atlas_mirror_path=atlas_mirror_path) as store:
         server = ThreadingHTTPServer((host, port), _Handler)
         server.store = store  # type: ignore[attr-defined]
         server.perception_heartbeat = perception_heartbeat  # type: ignore[attr-defined]
         server.perception_freshness_seconds = perception_freshness_seconds  # type: ignore[attr-defined]
         server.display_timezone = display_timezone  # type: ignore[attr-defined]
+        server.identity_manager = identity_manager  # type: ignore[attr-defined]
+        server.identity_token = identity_token  # type: ignore[attr-defined]
         try:
             server.serve_forever()
         finally:
@@ -384,6 +508,8 @@ def main() -> int:
     parser.add_argument("--perception-heartbeat", type=Path)
     parser.add_argument("--perception-freshness-seconds", type=float, default=75.0)
     parser.add_argument("--display-timezone", default="America/New_York")
+    parser.add_argument("--identity-config", type=Path)
+    parser.add_argument("--identity-token-file", type=Path)
     args = parser.parse_args()
     if args.host not in {"127.0.0.1", "localhost", "::1"}:
         parser.error("the state API must remain localhost-only")
@@ -396,6 +522,8 @@ def main() -> int:
             perception_heartbeat=args.perception_heartbeat,
             perception_freshness_seconds=args.perception_freshness_seconds,
             display_timezone=args.display_timezone,
+            identity_config=args.identity_config,
+            identity_token_file=args.identity_token_file,
         )
     except ValueError as exc:
         parser.error(str(exc))

@@ -1,13 +1,18 @@
 import json
 import tempfile
+import threading
 import unittest
 from contextlib import contextmanager
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 import numpy as np
 
 from tools.sentry_identity_enrollment import IdentityEnrollmentManager, MINIMUM_SAMPLES
+from tools.sentry_state_api import _Handler
 
 
 class FakeFaceBackend:
@@ -107,6 +112,62 @@ class IdentityUiTests(unittest.TestCase):
             self.assertEqual(result["preview_jpeg_base64"], "AQID")
             self.assertFalse(result["frame_persisted"])
             self.assertFalse(any(path.suffix.lower() in {".jpg", ".jpeg", ".png"} for path in Path(directory).iterdir()))
+
+    def test_operator_can_review_and_remove_bad_ephemeral_capture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manager = self.manager(directory)
+            started = manager.start("Camera User", MINIMUM_SAMPLES)
+            with (
+                patch("tools.sentry_identity_enrollment.cv2.VideoCapture", FakeCapture),
+                patch("tools.sentry_identity_enrollment.camera_activity_lock", unlocked),
+                patch("tools.sentry_identity_enrollment.cv2.imencode", return_value=(True, np.array([1, 2, 3], dtype=np.uint8))),
+            ):
+                captured = manager.capture(started["session_id"], "straight")
+            sample = captured["samples"][0]
+            self.assertEqual(sample["preview_jpeg_base64"], "AQID")
+            removed = manager.remove_sample(started["session_id"], sample["sample_id"])
+            self.assertEqual(removed["accepted_samples"], 0)
+            self.assertEqual(removed["samples"], [])
+            self.assertEqual(removed["accepted_poses"], {})
+
+    def test_private_state_api_requires_token_for_identity_workflow(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manager = self.manager(directory)
+            store = manager._store()
+            server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+            server.store = store
+            server.identity_manager = manager
+            server.identity_token = "t" * 64
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            url = f"http://127.0.0.1:{server.server_port}/v1/identity/enrollment/start"
+            payload = json.dumps(
+                {"person_id": "person-123", "display_name": "Test User", "guided": True}
+            ).encode()
+            try:
+                with self.assertRaises(HTTPError) as denied:
+                    urlopen(Request(url, data=payload, method="POST", headers={"Content-Type": "application/json"}), timeout=2)
+                self.assertEqual(denied.exception.code, 401)
+                response = urlopen(
+                    Request(
+                        url,
+                        data=payload,
+                        method="POST",
+                        headers={
+                            "Authorization": f"Bearer {'t' * 64}",
+                            "Content-Type": "application/json",
+                        },
+                    ),
+                    timeout=2,
+                )
+                started = json.loads(response.read())
+                self.assertEqual(started["person_id"], "person-123")
+                self.assertTrue(started["guided"])
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+                store.close()
 
     def test_cancel_discards_ephemeral_samples_and_validation_is_bounded(self):
         with tempfile.TemporaryDirectory() as directory:

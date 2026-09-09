@@ -42,6 +42,9 @@ from tools.sentry_ask import (  # noqa: E402
 )
 from tools.sentry_anima import AnimaConfig  # noqa: E402
 
+SENTRY_INSTANCE_IDS = {"living_room", "office"}
+DEFAULT_ACTIVE_INSTANCE_ID = "living_room"
+
 
 def _load_anima_voice_settings() -> dict[str, object]:
     """Read household voice presentation settings through ANIMA only."""
@@ -53,9 +56,12 @@ def _load_anima_voice_settings() -> dict[str, object]:
         voice = value.get("voice_id")
         speed = value.get("speech_speed")
         sleep_enabled = value.get("sleep_enabled")
+        active_instance_id = value.get("active_instance_id", DEFAULT_ACTIVE_INSTANCE_ID)
         settings: dict[str, object] = {
             "sleep_enabled": sleep_enabled if isinstance(sleep_enabled, bool) else False,
         }
+        if isinstance(active_instance_id, str) and active_instance_id in SENTRY_INSTANCE_IDS:
+            settings["active_instance_id"] = active_instance_id
         if isinstance(voice, str) and isinstance(speed, (int, float)):
             settings.update({"kokoro_voice": voice, "kokoro_speed": float(speed)})
         return settings
@@ -64,6 +70,37 @@ def _load_anima_voice_settings() -> dict[str, object]:
         # A configured but unreachable ANIMA bridge fails closed for wake
         # availability. The local config is not a second sleep authority.
         return {"sleep_enabled": True}
+
+
+def effective_voice_mapping(
+    configured: dict[str, object], settings: dict[str, object]
+) -> tuple[dict[str, object], str]:
+    """Select one complete I/O edge without changing the persistent intelligence."""
+
+    active_instance_id = settings.get("active_instance_id", DEFAULT_ACTIVE_INSTANCE_ID)
+    if not isinstance(active_instance_id, str) or active_instance_id not in SENTRY_INSTANCE_IDS:
+        raise ValueError("unsupported active SENTRY instance")
+    effective = dict(configured)
+    effective.update({key: value for key, value in settings.items() if key != "active_instance_id"})
+    if active_instance_id == "office":
+        for key in (
+            "projection_microphone_url",
+            "projection_playback_url",
+            "projection_camera_url",
+            "projection_token_file",
+        ):
+            effective.pop(key, None)
+    elif not all(
+        effective.get(key)
+        for key in (
+            "projection_microphone_url",
+            "projection_playback_url",
+            "projection_camera_url",
+            "projection_token_file",
+        )
+    ):
+        raise ValueError("living-room SENTRY projection transport is incomplete")
+    return effective, active_instance_id
 
 
 def main(argv: list[str] | None = None, *, anima_event_fn=None) -> int:
@@ -76,13 +113,20 @@ def main(argv: list[str] | None = None, *, anima_event_fn=None) -> int:
     try:
         config = load_config(args.config.expanduser())
         configured_voice = dict(config.get("voice") or {})
-        configured_voice.update(_load_anima_voice_settings())
+        configured_voice, active_instance_id = effective_voice_mapping(
+            configured_voice, _load_anima_voice_settings()
+        )
         config["voice"] = configured_voice
         voice = AlwaysOnVoiceConfig.from_mapping(configured_voice)
         if not voice.always_on_enabled and not args.allow_disabled:
             print(json.dumps({"ok": False, "status": "disabled", "error": "always-on voice is disabled in local config"}, sort_keys=True))
             return 2
         diagnostics = VoiceDiagnostics()
+        diagnostics.update(
+            active_instance_id=active_instance_id,
+            voice_id=voice.kokoro_voice,
+            speech_speed=voice.kokoro_speed,
+        )
         if voice.sleep_enabled:
             diagnostics.update(
                 state=VoiceState.SLEEPING.value,
@@ -122,7 +166,10 @@ def main(argv: list[str] | None = None, *, anima_event_fn=None) -> int:
             shared_vosk,
             sample_rate=voice.sample_rate,
         )
-        vision_inspector = OfficeVisionInspector(args.config.expanduser())
+        vision_inspector = OfficeVisionInspector(
+            args.config.expanduser(),
+            use_projection_camera=active_instance_id == "living_room",
+        )
 
         def inspect_wake_identity(duration: float) -> dict[str, object]:
             metadata, image = vision_inspector.inspect(

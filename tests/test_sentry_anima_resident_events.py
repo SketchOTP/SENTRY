@@ -18,6 +18,7 @@ from tools.sentry_anima_events import (
     AttentionQueueSource,
     _event_process,
     _initiative_notification,
+    _record_operational_trial,
     configured_attention_source,
     verify_autonomous_cli,
 )
@@ -95,6 +96,7 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         self.speaker.is_speaking = False
         self.speaker.speak.return_value = True
         self.decision = "speak"
+        self.model_status = "completed"
         self.tool_status = "SUCCEEDED"
         self.runner = Mock(side_effect=self.model)
         self.enable_epoch = datetime.now(timezone.utc) - timedelta(seconds=60)
@@ -132,11 +134,13 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         self.assertNotIn("SENTRY_AUTHORITY_EPOCH", kwargs["env"])
         self.assertNotIn("synthetic-private-binding", kwargs["input"])
         self.assertIn("not an operator request", kwargs["input"])
+        self.assertIn(self.request_id, kwargs["input"])
+        self.assertIn("Call anima_health first", kwargs["input"])
         self.assertLessEqual(kwargs["timeout"], 255)
         path = Path(kwargs["env"]["ANIMA_PREBOUND_FILE"])
         self.assertEqual(path.stat().st_mode & 0o777, 0o600)
         path.with_name("metadata.json").write_text(json.dumps({"version": 1, "status": self.tool_status, "calls": 1}))
-        final = {"decision": self.decision, "answer": "Synthetic current result.", "status": "completed", "local_fact_ids": [], "limitations": []}
+        final = {"decision": self.decision, "answer": "Synthetic current result.", "status": self.model_status, "local_fact_ids": [], "limitations": []}
         stdout = "\n".join([
             json.dumps({"type": "thread.started", "thread_id": self.thread_id}),
             json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps(final)}}),
@@ -204,6 +208,44 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         self.assertEqual(self.run_event()["result_status"], "NO_ACTION")
         self.speaker.speak.assert_not_called()
         self.client.context.assert_called_once_with(self.request_id, "synthetic-private-binding")
+
+    def test_model_unavailable_is_not_misreported_as_reasoned_silence(self):
+        self.decision = "silent"
+        self.model_status = "unavailable"
+        result = self.run_event()
+        self.assertEqual(result["result_status"], "UNAVAILABLE")
+        self.assertEqual(result["model_status"], "unavailable")
+        self.client.context.assert_not_called()
+        self.speaker.speak.assert_not_called()
+
+    def test_model_partial_remains_distinct_from_reasoned_silence(self):
+        self.decision = "silent"
+        self.model_status = "partial"
+        result = self.run_event()
+        self.assertEqual(result["result_status"], "PARTIAL")
+        self.assertEqual(result["model_status"], "partial")
+        self.client.context.assert_not_called()
+        self.speaker.speak.assert_not_called()
+
+    def test_operational_trial_ledger_is_private_and_content_free(self):
+        ledger = self.root / "private-trial" / "events.jsonl"
+        with patch.dict(os.environ, {"SENTRY_ANIMA_TRIAL_LEDGER": str(ledger)}):
+            status = _record_operational_trial(self.request_id, {
+                "status": "RECORDED",
+                "result_status": "RESPONSE",
+                "decision": "speak",
+                "delivery_status": "DELIVERED",
+                "notification_required": True,
+                "answer": "private spoken content must never be retained",
+            })
+        self.assertEqual(status, "RECORDED")
+        self.assertEqual(ledger.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(ledger.parent.stat().st_mode & 0o777, 0o700)
+        payload = json.loads(ledger.read_text())
+        self.assertEqual(payload["request_id"], self.request_id)
+        self.assertEqual(payload["delivery_status"], "DELIVERED")
+        self.assertNotIn("answer", payload)
+        self.assertNotIn("private spoken content", ledger.read_text())
 
     def test_required_notification_silence_is_partial_evidence_without_forced_tts_or_retry(self):
         self.decision = "silent"
@@ -436,6 +478,11 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         overlay = self.overlay_values(args)
         self.assertIs(overlay["mcp_servers"]["unrelated"]["enabled"], False)
         self.assertEqual(overlay["permissions.sentry-resident.filesystem"][":workspace_roots"]["."], "read")
+        self.assertIs(overlay["features.code_mode_host"], True)
+        self.assertIs(overlay["features.code_mode"], True)
+        self.assertIs(overlay["features.code_mode_only"], True)
+        self.assertIs(overlay["features.shell_tool"], False)
+        self.assertIs(overlay["features.unified_exec"], False)
         self.assertEqual(json.dumps(profile, sort_keys=True), before)
 
     @staticmethod
@@ -444,19 +491,21 @@ class ResidentEventIntegrationTests(unittest.TestCase):
                 for i in range(len(args) - 1) if args[i] == "-c"}
 
     def test_guidance_is_bounded_provenance_aware_not_authority(self):
-        for prompt in (_prompt("Synthetic request", [], "medium"), _event_prompt()):
+        for prompt in (_prompt("Synthetic request", [], "medium"), _event_prompt(self.request_id)):
             for text in ("household_context", "authority NONE", "personal preferences", "family routines", "knowledge.search_notes", "never dump all memory", "EPHEMERAL_RESTRICTED", "Never store transcripts"):
                 self.assertIn(text, prompt)
 
     def test_initiative_and_review_guidance_preserves_manual_voice_and_no_auto_code(self):
         instructions = Path("integrations/codex/SENTRY_AGENT_INSTRUCTIONS.md").read_text()
-        for prompt in (_prompt("Synthetic request", [], "medium"), _event_prompt(), instructions):
+        for prompt in (_prompt("Synthetic request", [], "medium"), _event_prompt(self.request_id), instructions):
             for text in ("ALWAYS_NOTIFY", "LEARNED_PROACTIVE", "request_id", "evaluated_at",
                          "observed days", "inferred routines", "versioned", "reviewable", "Ring"):
                 self.assertIn(text, prompt)
         self.assertIn("does not silence an ordinary current owner voice request", _event_prompt())
         self.assertIn("not arbitrary auto-created code execution", _event_prompt())
         self.assertIn("required true, do not call silence handled", _event_prompt())
+        self.assertIn("host-owned TTS path is represented by decision speak", _event_prompt())
+        self.assertIn("Use notify only after a governed notification tool actually succeeds", _event_prompt())
         self.assertIn("do not retry the model", _event_prompt())
 
     def queue_source(self, **gates):
@@ -514,7 +563,9 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         source = self.queue_source()
         with patch("tools.sentry_anima_events.time.monotonic", return_value=100.0):
             self.assertEqual(source()["status"], "EMPTY")
-            self.assertEqual(source()["gate"], "EVENT_POLL_INTERVAL")
+            throttled = source()
+            self.assertEqual(throttled["status"], "EMPTY")
+            self.assertEqual(throttled["gate"], "EVENT_POLL_INTERVAL")
         with patch("tools.sentry_anima_events.time.monotonic", return_value=115.0):
             self.assertEqual(source()["status"], "EMPTY")
         self.assertEqual(self.client.call.call_count, 2)
@@ -630,10 +681,13 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         states = {line.split()[0]: line.split()[-1] for line in result.stdout.splitlines()}
         for name in (
             "shell_tool", "apps", "plugins", "browser_use", "computer_use", "image_generation",
-            "view_image", "workspace_dependencies", "multi_agent", "code_mode_host", "hooks",
+            "view_image", "workspace_dependencies", "multi_agent", "hooks",
             "in_app_browser", "skill_mcp_dependency_install", "remote_plugin", "shell_snapshot",
         ):
             self.assertEqual(states.get(name), "false", name)
+        self.assertEqual(states.get("code_mode_host"), "true")
+        self.assertEqual(states.get("code_mode"), "true")
+        self.assertEqual(states.get("code_mode_only"), "true")
 
     def test_profile_has_no_filesystem_writes_or_network_and_no_native_search(self):
         profile = tomllib.loads(self.profile)
