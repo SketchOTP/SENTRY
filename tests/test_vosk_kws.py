@@ -136,12 +136,25 @@ class VoskKwsTests(unittest.TestCase):
         detections = evaluator.feed(np.zeros(512, dtype=np.int16))
         self.assertEqual(1, len(detections))
 
-    def test_literal_century_from_restricted_decoder_never_wakes(self) -> None:
+    def test_corroboration_may_arrive_after_restricted_candidate(self) -> None:
+        evaluator = self._evaluator(partial_confirmation_frames=2)
+        self.recognizer.payload = {"partial": "sentry"}
+        self.confirmation_recognizer.payload = {"partial": "ordinary conversation"}
+
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.recognizer.payload = {"partial": "[unk]"}
+        self.confirmation_recognizer.payload = {"partial": "century please help"}
+        detections = evaluator.feed(np.zeros(512, dtype=np.int16))
+        self.assertEqual(1, len(detections))
+
+    def test_owner_approved_century_alias_wakes(self) -> None:
         evaluator = self._evaluator()
         self.recognizer.payload = {"partial": "century"}
         self.confirmation_recognizer.payload = {"partial": "century"}
-        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
-        self.assertEqual("nonwake", evaluator.last_result_class)
+        detections = evaluator.feed(np.zeros(512, dtype=np.int16))
+        self.assertEqual(1, len(detections))
+        self.assertEqual("sentry", detections[0].wake_token)
 
     def test_later_homophone_does_not_confirm_restricted_candidate(self) -> None:
         evaluator = self._evaluator()

@@ -98,9 +98,9 @@ class AlwaysOnVoiceConfig:
     vosk_model_path: str | None = None
     vosk_grammar: tuple[str, ...] = ("sentry", "century", "[unk]")
     # Vosk partial hypotheses can briefly mistake ambient speech for the wake
-    # token. At 512 samples per 16 kHz frame, six consecutive exact frames add
-    # only 192 ms while filtering transient one-frame guesses.
-    wake_partial_confirmation_frames: int = 6
+    # token. At 512 samples per 16 kHz frame, two consecutive exact frames
+    # add only 64 ms while still filtering a transient one-frame guess.
+    wake_partial_confirmation_frames: int = 2
     wake_debounce_ms: int = 1000
     vad_backend: str = "silero_vad"
     # Live office qualification showed that 0.50 can classify a natural
@@ -226,7 +226,7 @@ class AlwaysOnVoiceConfig:
             wake_token=str(values.get("wake_token", "sentry")),
             vosk_model_path=(str(values["vosk_model_path"]) if values.get("vosk_model_path") is not None else None),
             vosk_grammar=tuple(grammar),
-            wake_partial_confirmation_frames=int(values.get("wake_partial_confirmation_frames", 6)),
+            wake_partial_confirmation_frames=int(values.get("wake_partial_confirmation_frames", 2)),
             wake_debounce_ms=int(values.get("wake_debounce_ms", 1000)),
             vad_backend=str(values.get("vad_backend", "silero_vad")),
             vad_threshold=float(values.get("vad_threshold", 0.35)),
@@ -1001,7 +1001,7 @@ class AlwaysOnVoiceLoop:
     @staticmethod
     def _strip_optional_wake_token(transcript: str) -> str:
         """A repeated wake token inside focus remains one follow-up request."""
-        return re.sub(r"^\s*sentry\b[\s,;:!?.-]*", "", transcript, flags=re.IGNORECASE).strip()
+        return re.sub(r"^\s*(?:sentry|century)\b[\s,;:!?.-]*", "", transcript, flags=re.IGNORECASE).strip()
 
     def _handle_wake_segment(self, frozen: FrozenUtterance) -> None:
         """Extract one command from one immutable Vosk-authorized capture."""

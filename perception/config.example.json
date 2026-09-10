@@ -106,7 +106,7 @@
     "wake_token": "sentry",
     "vosk_model_path": "/home/USER/.local/share/sentry/models/vosk-model-small-en-us-0.15",
     "vosk_grammar": ["sentry", "century", "[unk]"],
-    "wake_partial_confirmation_frames": 6,
+    "wake_partial_confirmation_frames": 2,
     "wake_debounce_ms": 1000,
     "vad_backend": "silero_vad",
     "vad_threshold": 0.35,

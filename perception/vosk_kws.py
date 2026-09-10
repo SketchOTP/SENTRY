@@ -1,8 +1,9 @@
 """Local Vosk restricted-vocabulary wake detection for the resident listener.
 
-The adapter consumes only incremental in-memory PCM.  It decides whether the
-single ``sentry`` token occurred and never transcribes or persists ambient
-speech.  Whisper remains downstream command STT after this adapter wakes.
+The adapter consumes only incremental in-memory PCM. It accepts the owner-
+approved spoken wake aliases and never transcribes or persists ambient speech.
+The canonical internal wake token remains ``sentry``. Whisper remains
+downstream command STT after this adapter wakes.
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ import uuid
 import numpy as np
 
 SAMPLE_RATE = 16_000
+WAKE_CONFIRMATION_WINDOW_SAMPLES = int(0.320 * SAMPLE_RATE)
+WAKE_LEXICAL_ALIASES = frozenset(("sentry", "century"))
 
 
 class VoskRuntimeUnavailable(RuntimeError):
@@ -250,16 +253,14 @@ class VoskKwsEvaluator:
         else:
             self._model = model_factory(str(self.model_path))
             self._owns_model = True
-        # Keep the common homophone in the restricted vocabulary so the
-        # acoustic decoder can distinguish it from the authorized wake token.
-        # A literal ``century`` must never authorize wake merely because the
-        # general recognizer lexicalizes both pronunciations alike.
+        # Keep the owner-approved spoken alias in the restricted vocabulary.
+        # The canonical telemetry/request token remains ``sentry``.
         grammar = json.dumps(["sentry", "century", "[unk]"])
         self._recognizer = recognizer_factory(self._model, SAMPLE_RATE, grammar)
         set_words = getattr(self._recognizer, "SetWords", None)
         if callable(set_words):
             set_words(True)
-        # The restricted decoder must itself emit the exact authorized token.
+        # The restricted decoder must itself emit an owner-approved wake token.
         # A second recognizer using the same local model provides corroboration,
         # but its lexicalization may be less precise for the Sentry/century
         # homophone. Only the boolean agreement survives this method; ambient
@@ -278,6 +279,8 @@ class VoskKwsEvaluator:
         self._debounce_samples = int(debounce_seconds * SAMPLE_RATE)
         self.confirmation_suppressions = 0
         self._confirmation_suppression_recorded = False
+        self._last_full_confirmation_sample: int | None = None
+        self._pending_restricted_sample: int | None = None
         self.last_result_class = "none"
 
     @staticmethod
@@ -285,11 +288,10 @@ class VoskKwsEvaluator:
         tokens = " ".join(text.casefold().split()).split()
         # The full-vocabulary recognizer can lexicalize the spoken proper name
         # as its homophone ``century``. It is corroborative only: the restricted
-        # decoder below must independently emit exact ``sentry`` before wake
-        # authorization. A literal ``century`` therefore cannot wake on its
-        # own, while a genuine Sentry wake is not rejected by this secondary
-        # recognizer's spelling choice.
-        return bool(tokens and tokens[0] in {"sentry", "century"})
+        # decoder below must independently emit an owner-approved alias before
+        # wake authorization. A later ``century`` in a phrase cannot authorize
+        # a wake because only the first recognized token is considered.
+        return bool(tokens and tokens[0] in WAKE_LEXICAL_ALIASES)
 
     def _full_vocabulary_confirms(self, pcm: bytes) -> bool | None:
         """Return token agreement without retaining or exposing decoded text."""
@@ -333,6 +335,8 @@ class VoskKwsEvaluator:
         self._sample_count += contiguous.size
         pcm_bytes = contiguous.tobytes()
         full_vocabulary_confirmation = self._full_vocabulary_confirms(pcm_bytes)
+        if full_vocabulary_confirmation is True:
+            self._last_full_confirmation_sample = self._sample_count
         final_available = bool(self._recognizer.AcceptWaveform(pcm_bytes))
         payload = self._recognizer.Result() if final_available else self._recognizer.PartialResult()
         try:
@@ -346,22 +350,37 @@ class VoskKwsEvaluator:
         if not self.detect_partial and not final_available:
             self.last_result_class = "partial"
             return []
-        if not final_available and decoded == "sentry":
+        restricted_wake = decoded in WAKE_LEXICAL_ALIASES
+        if not final_available and restricted_wake:
             self._partial_wake_hits += 1
             if self._partial_wake_hits < self._partial_confirmation_frames:
                 self.last_result_class = "partial_candidate"
                 return []
         else:
             self._partial_wake_hits = 0
+        restricted_candidate_ready = restricted_wake and (
+            final_available or self._partial_wake_hits >= self._partial_confirmation_frames
+        )
+        if restricted_candidate_ready:
+            self._pending_restricted_sample = self._sample_count
+        if (
+            self._pending_restricted_sample is not None
+            and self._sample_count - self._pending_restricted_sample > WAKE_CONFIRMATION_WINDOW_SAMPLES
+        ):
+            self._pending_restricted_sample = None
+        full_confirmation_recent = (
+            self._last_full_confirmation_sample is not None
+            and self._sample_count - self._last_full_confirmation_sample <= WAKE_CONFIRMATION_WINDOW_SAMPLES
+        )
         is_debounced = (
             self._last_detection_sample is not None
             and self._sample_count - self._last_detection_sample < self._debounce_samples
         )
-        if decoded != "sentry":
+        if self._pending_restricted_sample is None:
             self._confirmation_suppression_recorded = False
             self.last_result_class = "nonwake" if decoded else "empty"
             return []
-        if full_vocabulary_confirmation is not True:
+        if not full_confirmation_recent:
             if not self._confirmation_suppression_recorded:
                 self.confirmation_suppressions += 1
                 self._confirmation_suppression_recorded = True
@@ -372,6 +391,7 @@ class VoskKwsEvaluator:
             )
             return []
         self._confirmation_suppression_recorded = False
+        self._pending_restricted_sample = None
         if is_debounced:
             self.last_result_class = "debounced"
             return []
@@ -411,6 +431,8 @@ class VoskKwsEvaluator:
         self._last_detection_sample = None
         self._partial_wake_hits = 0
         self._confirmation_suppression_recorded = False
+        self._last_full_confirmation_sample = None
+        self._pending_restricted_sample = None
         self.last_result_class = "reset"
 
     def close(self) -> None:

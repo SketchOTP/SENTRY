@@ -861,7 +861,7 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         self.assertEqual(AlwaysOnVoiceConfig.from_mapping({}).wake_token, "sentry")
         self.assertEqual(
             AlwaysOnVoiceConfig.from_mapping({}).wake_partial_confirmation_frames,
-            6,
+            2,
         )
         with self.assertRaises(ValueError):
             AlwaysOnVoiceConfig.from_mapping({"always_on_enabled": True})
