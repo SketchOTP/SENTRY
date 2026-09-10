@@ -2003,3 +2003,51 @@ The Architect accepted the substantive conversational-orchestration result at im
   active. A real low-stakes model turn used cinematic phrasing. Implementation
   `7b67c9f77333558c3849562a3ec7fad1854b087b` passed exact-head hosted CI
   `34378126483` in both deterministic and security-focused jobs.
+
+## OUTCOME-SENTRY-WAKE-CORROBORATION-009 — Implemented; live observation ongoing
+
+- Date: 2026-09-09
+- Status: IMPLEMENTED / E4 regression / bounded E5 service observation
+- The active office listener had accumulated false-wake evidence from a stable
+  restricted-grammar partial despite six-frame confirmation. The latest live
+  activation source was `partial`, establishing that the earlier debounce did
+  not close the forced-vocabulary failure mode.
+- A second full-vocabulary Vosk recognizer now has to contain the exact
+  `sentry` token before the restricted recognizer can authorize the chime or
+  state transition. Recognition text remains ephemeral; diagnostics retain
+  only suppression counts and result classes.
+- Disagreement and malformed confirmation fail closed. Focused wake/voice
+  regression passes 80/80, full unittest discovery passes 540/540, compilation
+  and `git diff --check` pass. The actual installed model accepts one synthetic
+  `Sentry, what time is it?` wake and rejects a later incidental homophone.
+- The live `sentry-voice.service` restarted active with Kokoro warm. A bounded
+  50-second observation recorded zero wake detections. Longer normal-use and
+  spoken-wake sensitivity evidence remain operational follow-up, not inferred
+  from the quiet sample.
+
+## OUTCOME-SENTRY-FACE-ENROLLMENT-COMPLETION-010 — eight reviewed captures no longer stall
+
+- Date: 2026-09-09
+- Status: IMPLEMENTED / locally E4 regression protected / deployed service observed
+- A clear single-face frame that passes the existing quality gate can now be
+  retained for operator review when YuNet's five-landmark pose estimate remains
+  uncertain for the full bounded capture window. The sample records
+  `pose_verified=false`; the owner can inspect and remove it before commit.
+- Regression evidence completes all eight captures across straight, left,
+  right, up and down even when the up estimate rejects every frame.
+- PASSED: focused identity/routing tests 12/12, full SENTRY unittest discovery
+  541/541, Python compilation through the suite and `git diff --check`.
+- No commit, push or hosted CI is claimed.
+
+## OUTCOME-SENTRY-FACE-PREVIEW-BOUNDING-011 — final capture transport remains bounded
+
+- Date: 2026-09-09
+- Status: IMPLEMENTED / locally E4 regression protected / physical retry pending
+- Review previews are generated as bounded thumbnails after embedding and
+  quality extraction from the original frame. This reduces accumulated capture
+  response size without changing recognition data or persisting raw images.
+- A noisy 1280x720 eight-image session completed all captures and remained
+  below the existing 2 MB client response boundary.
+- PASSED: identity tests 8/8, complete SENTRY regression 542/542, compilation,
+  `git diff --check`, and live service restart. No commit, push or hosted CI is
+  claimed.

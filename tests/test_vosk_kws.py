@@ -58,9 +58,13 @@ class VoskKwsTests(unittest.TestCase):
     def _evaluator(self, **kwargs) -> VoskKwsEvaluator:
         model = Path(tempfile.mkdtemp())
         self.recognizer = _Recognizer(None, 16_000, "")
+        self.confirmation_recognizer = _Recognizer(None, 16_000, None)
+        self.confirmation_recognizer.payload = {"partial": "sentry"}
         self.grammar = None
 
-        def recognizer_factory(_model, _sample_rate, grammar):
+        def recognizer_factory(_model, _sample_rate, grammar=None):
+            if grammar is None:
+                return self.confirmation_recognizer
             self.grammar = grammar
             return self.recognizer
 
@@ -115,6 +119,39 @@ class VoskKwsTests(unittest.TestCase):
         self.assertEqual(1, len(detections))
         self.assertEqual("partial", detections[0].detection_source)
 
+    def test_restricted_partial_requires_full_vocabulary_exact_token(self) -> None:
+        evaluator = self._evaluator(partial_confirmation_frames=2)
+        self.recognizer.payload = {"partial": "sentry"}
+        self.confirmation_recognizer.payload = {"partial": "ordinary conversation"}
+
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.assertEqual("unconfirmed_wake", evaluator.last_result_class)
+        self.assertEqual(1, evaluator.confirmation_suppressions)
+
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.assertEqual(1, evaluator.confirmation_suppressions)
+
+        self.confirmation_recognizer.payload = {"partial": "century please help"}
+        detections = evaluator.feed(np.zeros(512, dtype=np.int16))
+        self.assertEqual(1, len(detections))
+
+    def test_later_homophone_does_not_confirm_restricted_candidate(self) -> None:
+        evaluator = self._evaluator()
+        self.recognizer.payload = {"partial": "sentry"}
+        self.confirmation_recognizer.payload = {"partial": "twentieth century"}
+
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.assertEqual("unconfirmed_wake", evaluator.last_result_class)
+
+    def test_malformed_full_vocabulary_confirmation_fails_closed(self) -> None:
+        evaluator = self._evaluator()
+        self.recognizer.payload = {"partial": "sentry"}
+        self.confirmation_recognizer.PartialResult = lambda: "not-json"
+
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.assertEqual("confirmation_unavailable", evaluator.last_result_class)
+
     def test_nonwake_resets_partial_confirmation_run(self) -> None:
         evaluator = self._evaluator(partial_confirmation_frames=3)
         self.recognizer.payload = {"partial": "sentry"}
@@ -151,11 +188,13 @@ class VoskKwsTests(unittest.TestCase):
         command = VoskStreamingCommandRecognizer(shared)
 
         self.assertEqual(len(model_loads), 1)
-        self.assertEqual(len(factory.instances), 2)
+        self.assertEqual(len(factory.instances), 3)
         self.assertIsNot(factory.instances[0], factory.instances[1])
         self.assertEqual(factory.instances[0].grammar, '["sentry", "[unk]"]')
         self.assertIsNone(factory.instances[1].grammar)
-        self.assertTrue(factory.instances[1].partial_words)
+        self.assertFalse(hasattr(factory.instances[1], "partial_words"))
+        self.assertIsNone(factory.instances[2].grammar)
+        self.assertTrue(factory.instances[2].partial_words)
         wake.close()
         command.close()
 

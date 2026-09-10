@@ -25,6 +25,8 @@ MINIMUM_SAMPLES = 5
 TARGET_SAMPLES = 8
 MAXIMUM_SAMPLES = 16
 SESSION_TTL_SECONDS = 20 * 60
+PREVIEW_MAX_EDGE = 320
+PREVIEW_JPEG_QUALITY = 76
 
 
 def _person_slug(display_name: str) -> str:
@@ -166,6 +168,67 @@ class IdentityEnrollmentManager:
             raise ValueError("enrollment session is missing or expired")
         return session
 
+    def _record_sample(
+        self,
+        session: EnrollmentSession,
+        image: Any,
+        embedding: Any,
+        quality: dict[str, Any],
+        pose: str | None,
+        pose_metrics: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """Record one reviewed-quality frame; pose estimation remains guidance.
+
+        YuNet's five landmarks are a useful prompt for head placement but are
+        not a reliable liveness or pitch authority. A clear single-face frame
+        therefore remains usable when the bounded pose estimate is uncertain;
+        the operator sees that uncertainty in the preview and can remove it.
+        """
+        pose_verified = pose_metrics is None or pose_metrics.get("accepted") is True
+        with self._lock:
+            embedding_index = len(session.embeddings)
+            session.embeddings.append(embedding)
+            if pose is not None:
+                session.accepted_poses[pose] = session.accepted_poses.get(pose, 0) + 1
+        preview_image = image
+        height, width = image.shape[:2]
+        longest_edge = max(height, width)
+        if longest_edge > PREVIEW_MAX_EDGE:
+            scale = PREVIEW_MAX_EDGE / longest_edge
+            preview_image = cv2.resize(
+                image,
+                (max(1, round(width * scale)), max(1, round(height * scale))),
+                interpolation=cv2.INTER_AREA,
+            )
+        encoded, jpeg = cv2.imencode(
+            ".jpg",
+            preview_image,
+            [int(cv2.IMWRITE_JPEG_QUALITY), PREVIEW_JPEG_QUALITY],
+        )
+        preview = base64.b64encode(jpeg.tobytes()).decode("ascii") if encoded else None
+        sample_quality = {
+            key: round(value, 2) if isinstance(value, float) else value
+            for key, value in quality.items()
+        }
+        sample_quality["pose_verified"] = pose_verified
+        sample = {
+            "sample_id": str(uuid.uuid4()),
+            "pose": pose,
+            "quality": sample_quality,
+            "preview_jpeg_base64": preview,
+            "embedding_index": embedding_index,
+        }
+        with self._lock:
+            session.samples.append(sample)
+        return {
+            **self._session_payload(session),
+            "accepted": True,
+            "sample": {key: value for key, value in sample.items() if key != "embedding_index"},
+            "preview_jpeg_base64": preview,
+            "pose": pose_metrics,
+            "frame_persisted": False,
+        }
+
     def capture(self, session_id: str, pose: str | None = None) -> dict[str, Any]:
         session = self._session(session_id)
         if len(session.embeddings) >= session.target_samples:
@@ -189,6 +252,7 @@ class IdentityEnrollmentManager:
             deadline = time.monotonic() + 2.5
             image = None
             last_pose: dict[str, Any] | None = None
+            pose_fallback: tuple[Any, Any, dict[str, Any], dict[str, Any]] | None = None
             try:
                 while time.monotonic() < deadline:
                     if remote_camera is not None:
@@ -213,36 +277,24 @@ class IdentityEnrollmentManager:
                     if pose is not None:
                         last_pose = self.backend.pose_metrics(faces[0], pose)
                         if not last_pose["accepted"]:
+                            # Keep the latest clear frame as an operator-reviewable
+                            # fallback while giving the pose estimator the full
+                            # capture window to observe the requested movement.
+                            pose_fallback = (image.copy(), embedding, quality, last_pose)
                             continue
-                    with self._lock:
-                        embedding_index = len(session.embeddings)
-                        session.embeddings.append(embedding)
-                        if pose is not None:
-                            session.accepted_poses[pose] = session.accepted_poses.get(pose, 0) + 1
-                    encoded, jpeg = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), 82])
-                    preview = base64.b64encode(jpeg.tobytes()).decode("ascii") if encoded else None
-                    sample = {
-                        "sample_id": str(uuid.uuid4()),
-                        "pose": pose,
-                        "quality": {
-                            key: round(value, 2) if isinstance(value, float) else value
-                            for key, value in quality.items()
-                        },
-                        "preview_jpeg_base64": preview,
-                        "embedding_index": embedding_index,
-                    }
-                    with self._lock:
-                        session.samples.append(sample)
-                    return {
-                        **self._session_payload(session),
-                        "accepted": True,
-                        "sample": {
-                            key: value for key, value in sample.items() if key != "embedding_index"
-                        },
-                        "preview_jpeg_base64": preview,
-                        "pose": last_pose,
-                        "frame_persisted": False,
-                    }
+                    return self._record_sample(
+                        session, image, embedding, quality, pose, last_pose
+                    )
+                if pose_fallback is not None:
+                    fallback_image, embedding, quality, pose_metrics = pose_fallback
+                    return self._record_sample(
+                        session,
+                        fallback_image,
+                        embedding,
+                        quality,
+                        pose,
+                        pose_metrics,
+                    )
                 face_count = len(self.backend.detect_faces(image)) if image is not None else 0
                 return {
                     **self._session_payload(session),

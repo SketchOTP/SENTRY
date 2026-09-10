@@ -1317,7 +1317,12 @@ class AlwaysOnVoiceLoop:
         for detection in detections:
             self._handle_wake_detection(detection, audio_chunk)
             break
-        self.diagnostics.update(last_vosk_result_class=vosk_result_class)
+        self.diagnostics.update(
+            last_vosk_result_class=vosk_result_class,
+            wake_confirmation_suppressions=int(
+                getattr(self.wake_detector, "confirmation_suppressions", 0)
+            ),
+        )
         if self._active_capture is None and speaking:
             mode: str | None = None
             if self._action_response_active():

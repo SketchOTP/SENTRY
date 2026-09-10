@@ -2,6 +2,28 @@
 
 Last updated: 2026-09-09
 
+## Active wake-word corroboration correction — 2026-09-09
+
+The live office listener reproduced the false-wake class after the prior
+six-frame partial-hypothesis hardening: the restricted Vosk grammar emitted a
+stable `sentry` partial and SENTRY left standby without a finalized or
+independently corroborated token. Restricted-grammar confirmation alone was
+therefore insufficient.
+
+The wake evaluator now requires agreement from a second full-vocabulary Vosk
+recognizer before a restricted candidate can chime or transition the voice
+loop. Only a boolean exact-token result is retained; ambient decoded text is
+neither returned nor persisted. Failures and disagreement fail closed and a
+metadata-only suppression count is exposed for operational diagnosis.
+
+Focused wake/voice regression passes 80 tests and complete unittest discovery
+passes 540 tests. The actual installed Vosk model accepts a synthetic
+`Sentry, what time is it?` exactly once while rejecting a later incidental
+homophone. The live office voice service restarted successfully with Kokoro
+warm. A 50-second post-restart observation recorded zero wake detections;
+ordinary wake-word sensitivity still requires owner observation over normal
+use. No orb/UI implementation was changed.
+
 ## Active ANIMA personality precedence correction — 2026-09-09
 
 ANIMA was correctly returning the active owner profile, but the resident's
@@ -897,3 +919,26 @@ This file is a mutable snapshot. Do not use it to erase historical outcomes or d
   Pi route now returns `audio_output=hdmi`, and a bounded silent WAV playback
   through `/v1/tts` returned `played=true`. The projection I/O service and
   PipeWire remain active.
+
+## Face enrollment completion repair — 2026-09-09
+
+- Status: IMPLEMENTED / locally E4 regression protected / live service restarted.
+- The enrollment camera still requires exactly one clear, quality-qualified
+  face. YuNet pose estimation now remains operator guidance rather than a hard
+  liveness/authentication gate: after the full capture window, a clear frame
+  with an uncertain pose estimate can be reviewed and removed instead of
+  permanently blocking up/down captures.
+- Eight-capture coverage including straight, left, right, up and down is
+  regression protected. Raw frames remain transient; only the derived profile
+  is persisted on commit. Existing wake-word work remains preserved.
+- Full SENTRY unittest discovery passes 541/541. No commit, push or hosted CI
+  is claimed for this repair.
+
+## Final face-capture transport correction — 2026-09-09
+
+- Enrollment review previews are now bounded to a 320-pixel longest edge at
+  JPEG quality 76. Face embeddings and quality decisions still use the original
+  frame, and raw camera images remain transient.
+- A noisy 1280x720 eight-capture regression proves the complete final response
+  remains below ANIMA's 2 MB loopback limit. Full regression passes 542/542;
+  the live identity service has restarted. Owner physical retry remains open.

@@ -1,3 +1,4 @@
+import base64
 import json
 import tempfile
 import threading
@@ -10,6 +11,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 import numpy as np
+import cv2
 
 from tools.sentry_identity_enrollment import IdentityEnrollmentManager, MINIMUM_SAMPLES
 from tools.sentry_state_api import _Handler
@@ -53,6 +55,14 @@ class FakeCapture:
 
     def release(self):
         self.released = True
+
+
+class LargeFakeCapture(FakeCapture):
+    image = np.random.default_rng(7).integers(0, 256, size=(720, 1280, 3), dtype=np.uint8)
+
+    @classmethod
+    def read(cls):
+        return True, cls.image.copy()
 
 
 @contextmanager
@@ -130,6 +140,24 @@ class IdentityUiTests(unittest.TestCase):
             self.assertEqual(removed["samples"], [])
             self.assertEqual(removed["accepted_poses"], {})
 
+    def test_eight_capture_response_uses_bounded_previews(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manager = self.manager(directory)
+            started = manager.start("Camera User", 8)
+            with (
+                patch("tools.sentry_identity_enrollment.cv2.VideoCapture", LargeFakeCapture),
+                patch("tools.sentry_identity_enrollment.camera_activity_lock", unlocked),
+            ):
+                for pose in ("straight", "left", "right", "up", "down", "left", "right", "straight"):
+                    result = manager.capture(started["session_id"], pose)
+            preview = cv2.imdecode(
+                np.frombuffer(base64.b64decode(result["preview_jpeg_base64"]), dtype=np.uint8),
+                cv2.IMREAD_COLOR,
+            )
+            self.assertLessEqual(max(preview.shape[:2]), 320)
+            self.assertLess(len(json.dumps(result).encode("utf-8")), 2_000_000)
+            self.assertEqual(result["accepted_samples"], 8)
+
     def test_private_state_api_requires_token_for_identity_workflow(self):
         with tempfile.TemporaryDirectory() as directory:
             manager = self.manager(directory)
@@ -199,6 +227,39 @@ class IdentityUiTests(unittest.TestCase):
             result = manager.commit(started["session_id"])
             self.assertEqual(result["person_id"], "person-123")
             self.assertEqual(set(result["accepted_poses"]), {"straight", "left", "right", "up", "down"})
+
+    def test_uncertain_pose_estimate_does_not_stall_eight_reviewed_captures(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manager = self.manager(directory)
+            started = manager.start("Guided User", 8, profile_id="person-123", guided=True)
+            manager.backend.pose_metrics = lambda _face, pose: {
+                "pose": pose,
+                "accepted": pose != "up",
+                "reason": None if pose != "up" else "please adjust to the requested head position",
+            }
+            common = (
+                patch("tools.sentry_identity_enrollment.cv2.VideoCapture", FakeCapture),
+                patch("tools.sentry_identity_enrollment.camera_activity_lock", unlocked),
+                patch(
+                    "tools.sentry_identity_enrollment.cv2.imencode",
+                    return_value=(True, np.array([1, 2, 3], dtype=np.uint8)),
+                ),
+            )
+            with common[0], common[1], common[2]:
+                with patch(
+                    "tools.sentry_identity_enrollment.time.monotonic",
+                    side_effect=[0.0, 0.0, 0.0, 3.0],
+                ):
+                    uncertain = manager.capture(started["session_id"], "up")
+                self.assertTrue(uncertain["accepted"])
+                self.assertFalse(uncertain["sample"]["quality"]["pose_verified"])
+                for pose in ("straight", "left", "right", "down", "straight", "left", "right"):
+                    captured = manager.capture(started["session_id"], pose)
+                    self.assertTrue(captured["accepted"])
+            self.assertEqual(captured["accepted_samples"], 8)
+            saved = manager.commit(started["session_id"])
+            self.assertEqual(saved["accepted_samples"], 8)
+            self.assertEqual(set(saved["accepted_poses"]), {"straight", "left", "right", "up", "down"})
 
 if __name__ == "__main__":
     unittest.main()
