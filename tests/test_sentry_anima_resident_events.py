@@ -572,9 +572,9 @@ class ResidentEventIntegrationTests(unittest.TestCase):
 
     def test_initiative_and_review_guidance_preserves_manual_voice_and_no_auto_code(self):
         instructions = Path("integrations/codex/SENTRY_AGENT_INSTRUCTIONS.md").read_text()
-        self.assertIn("active owner-authored personality profile", instructions)
-        self.assertIn("replaces", instructions)
-        self.assertIn("presentation only", instructions)
+        self.assertIn("never receive the contents", instructions)
+        self.assertIn("presentation-only pass", instructions)
+        self.assertIn("no household or host tools", instructions)
         for prompt in (_prompt("Synthetic request", [], "medium"), _event_prompt(self.request_id), instructions):
             for text in ("ALWAYS_NOTIFY", "LEARNED_PROACTIVE", "request_id", "evaluated_at",
                          "observed days", "inferred routines", "versioned", "reviewable", "Ring"):
