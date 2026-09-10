@@ -2051,3 +2051,15 @@ The Architect accepted the substantive conversational-orchestration result at im
 - PASSED: identity tests 8/8, complete SENTRY regression 542/542, compilation,
   `git diff --check`, and live service restart. No commit, push or hosted CI is
   claimed.
+
+## OUTCOME-SENTRY-WAKE-FACE-PUBLICATION-012 — exact-head hosted qualification
+
+- Date: 2026-09-09
+- Status: PUBLISHED / exact-head hosted CI passed
+- Implementation head:
+  `a1771c3618c1ce711756e7e032aceab613e01ba3`.
+- Hosted CI `34423831214` passed on that exact SHA in both deterministic and
+  security-focused jobs.
+- This validates the committed wake corroboration and bounded face-enrollment
+  transport changes. It does not replace longer ambient wake observation or an
+  owner physical enrollment retry.

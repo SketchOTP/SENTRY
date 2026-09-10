@@ -2,6 +2,14 @@
 
 Last updated: 2026-09-09
 
+## Published wake/face correction — 2026-09-09
+
+The wake corroboration and eight-capture face-enrollment/preview repairs are
+published at `a1771c3618c1ce711756e7e032aceab613e01ba3`. Exact-head hosted
+CI `34423831214` passed both deterministic and security-focused jobs. Longer
+ambient wake sensitivity and an owner physical face-enrollment retry remain
+operational follow-up; they are not inferred from CI.
+
 ## Active wake-word corroboration correction — 2026-09-09
 
 The live office listener reproduced the false-wake class after the prior
