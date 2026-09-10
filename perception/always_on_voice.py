@@ -977,10 +977,26 @@ class AlwaysOnVoiceLoop:
 
     @staticmethod
     def _command_after_wake(transcript: str) -> str:
-        match = re.search(r"\bsentry\b(?P<command>.*)$", transcript, flags=re.IGNORECASE)
+        # The restricted/full Vosk pair intentionally accepts the stable
+        # English homophone ``century`` for the spoken proper name.  Whisper
+        # can return that same spelling, so the post-wake parser must apply
+        # the identical bounded alias or a wake-only utterance can be sent to
+        # the model as a command.
+        match = re.search(r"\b(?:sentry|century)\b(?P<command>.*)$", transcript, flags=re.IGNORECASE)
         if not match:
             return ""
         return re.sub(r"^[\s,;:!?.-]+", "", match.group("command")).strip()
+
+    @staticmethod
+    def _is_wake_only_transcript(transcript: str) -> bool:
+        """Recognize only the bounded wake spellings, without authorizing work."""
+        return bool(
+            re.fullmatch(
+                r"\s*(?:sentry|century)[\s,;:!?.-]*",
+                transcript,
+                flags=re.IGNORECASE,
+            )
+        )
 
     @staticmethod
     def _strip_optional_wake_token(transcript: str) -> str:
@@ -1013,7 +1029,7 @@ class AlwaysOnVoiceLoop:
         command = self._command_after_wake(transcript)
         if command:
             self.diagnostics.update(command_extraction_mode="full_transcript_after_wake_token")
-        elif re.fullmatch(r"\s*sentry[\s,;:!?.-]*", transcript, flags=re.IGNORECASE):
+        elif self._is_wake_only_transcript(transcript):
             self._enter_armed("wake_only_or_command_unavailable")
             return
         elif transcript and frozen.command_speech_seen:

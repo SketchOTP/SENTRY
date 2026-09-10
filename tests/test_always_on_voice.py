@@ -769,6 +769,26 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         self.assertEqual(self.run_loop(loop), 0)
         self.assertEqual(self.ask_calls, [])
 
+    def test_bare_wake_homophone_arms_without_dispatch(self):
+        class Detection:
+            samples_after_token = 512
+
+        loop, _ = self.make_loop([0.0], ["Century"], detections=[Detection()])
+        self.assertEqual(self.run_loop(loop), 0)
+        self.assertEqual(self.ask_calls, [])
+
+    def test_wake_homophone_is_stripped_from_command(self):
+        class Detection:
+            samples_after_token = 512
+
+        loop, _ = self.make_loop(
+            [0.9, 0.0, 0.0],
+            ["Century, status"],
+            detections=[Detection(), False, False],
+        )
+        self.assertEqual(self.run_loop(loop), 0)
+        self.assertEqual([call[0] for call in self.ask_calls], ["status"])
+
     def test_wake_only_arms_then_followup_dispatches_without_second_wake(self):
         loop, _ = self.make_loop(
             [0.9, 0.0, 0.0, 0.0, 0.9, 0.0, 0.0],
