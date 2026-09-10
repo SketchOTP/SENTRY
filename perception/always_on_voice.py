@@ -96,7 +96,7 @@ class AlwaysOnVoiceConfig:
     wake_engine: str = "vosk"
     wake_token: str = "sentry"
     vosk_model_path: str | None = None
-    vosk_grammar: tuple[str, ...] = ("sentry", "[unk]")
+    vosk_grammar: tuple[str, ...] = ("sentry", "century", "[unk]")
     # Vosk partial hypotheses can briefly mistake ambient speech for the wake
     # token. At 512 samples per 16 kHz frame, six consecutive exact frames add
     # only 192 ms while filtering transient one-frame guesses.
@@ -160,8 +160,8 @@ class AlwaysOnVoiceConfig:
             raise ValueError("voice.wake_engine must be vosk")
         if _normalize_phrase(self.wake_token) != "sentry":
             raise ValueError("voice.wake_token must be the exact token sentry")
-        if self.vosk_grammar != ("sentry", "[unk]"):
-            raise ValueError("voice.vosk_grammar must be [sentry, [unk]]")
+        if self.vosk_grammar != ("sentry", "century", "[unk]"):
+            raise ValueError("voice.vosk_grammar must be [sentry, century, [unk]]")
         if not 2 <= self.wake_partial_confirmation_frames <= 30:
             raise ValueError("voice.wake_partial_confirmation_frames must be from 2 through 30")
         if self.wake_debounce_ms < 0:
@@ -211,7 +211,7 @@ class AlwaysOnVoiceConfig:
         values = values or {}
         if not isinstance(values, dict):
             raise ValueError("voice must be an object")
-        grammar = values.get("vosk_grammar", ["sentry", "[unk]"])
+        grammar = values.get("vosk_grammar", ["sentry", "century", "[unk]"])
         if not isinstance(grammar, list) or any(not isinstance(item, str) for item in grammar):
             raise ValueError("voice.vosk_grammar must be a string list")
         source = values.get("microphone_source")

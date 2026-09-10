@@ -77,7 +77,7 @@ class VoskKwsTests(unittest.TestCase):
 
     def test_vocab_retains_unknown_token_and_exact_wake_is_emitted_once(self) -> None:
         evaluator = self._evaluator()
-        self.assertEqual('["sentry", "[unk]"]', self.grammar)
+        self.assertEqual('["sentry", "century", "[unk]"]', self.grammar)
         self.recognizer.payload = {"partial": "sentry"}
         detections = evaluator.feed(np.zeros(1_280, dtype=np.int16))
         self.assertEqual(1, len(detections))
@@ -119,7 +119,7 @@ class VoskKwsTests(unittest.TestCase):
         self.assertEqual(1, len(detections))
         self.assertEqual("partial", detections[0].detection_source)
 
-    def test_restricted_partial_requires_full_vocabulary_exact_token(self) -> None:
+    def test_restricted_exact_token_allows_full_vocabulary_homophone(self) -> None:
         evaluator = self._evaluator(partial_confirmation_frames=2)
         self.recognizer.payload = {"partial": "sentry"}
         self.confirmation_recognizer.payload = {"partial": "ordinary conversation"}
@@ -135,6 +135,13 @@ class VoskKwsTests(unittest.TestCase):
         self.confirmation_recognizer.payload = {"partial": "century please help"}
         detections = evaluator.feed(np.zeros(512, dtype=np.int16))
         self.assertEqual(1, len(detections))
+
+    def test_literal_century_from_restricted_decoder_never_wakes(self) -> None:
+        evaluator = self._evaluator()
+        self.recognizer.payload = {"partial": "century"}
+        self.confirmation_recognizer.payload = {"partial": "century"}
+        self.assertEqual([], evaluator.feed(np.zeros(512, dtype=np.int16)))
+        self.assertEqual("nonwake", evaluator.last_result_class)
 
     def test_later_homophone_does_not_confirm_restricted_candidate(self) -> None:
         evaluator = self._evaluator()
@@ -190,7 +197,7 @@ class VoskKwsTests(unittest.TestCase):
         self.assertEqual(len(model_loads), 1)
         self.assertEqual(len(factory.instances), 3)
         self.assertIsNot(factory.instances[0], factory.instances[1])
-        self.assertEqual(factory.instances[0].grammar, '["sentry", "[unk]"]')
+        self.assertEqual(factory.instances[0].grammar, '["sentry", "century", "[unk]"]')
         self.assertIsNone(factory.instances[1].grammar)
         self.assertFalse(hasattr(factory.instances[1], "partial_words"))
         self.assertIsNone(factory.instances[2].grammar)

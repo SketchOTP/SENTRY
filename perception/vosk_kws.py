@@ -250,17 +250,20 @@ class VoskKwsEvaluator:
         else:
             self._model = model_factory(str(self.model_path))
             self._owns_model = True
-        grammar = json.dumps(["sentry", "[unk]"])
+        # Keep the common homophone in the restricted vocabulary so the
+        # acoustic decoder can distinguish it from the authorized wake token.
+        # A literal ``century`` must never authorize wake merely because the
+        # general recognizer lexicalizes both pronunciations alike.
+        grammar = json.dumps(["sentry", "century", "[unk]"])
         self._recognizer = recognizer_factory(self._model, SAMPLE_RATE, grammar)
         set_words = getattr(self._recognizer, "SetWords", None)
         if callable(set_words):
             set_words(True)
-        # A restricted grammar is intentionally biased toward its only known
-        # word.  It can therefore hold a stable ``sentry`` partial for ordinary
-        # ambient speech.  A second recognizer using the same local model but
-        # the full vocabulary must independently contain the exact token before
-        # the restricted candidate can authorize a wake.  Only the boolean
-        # agreement survives this method; ambient text is never retained.
+        # The restricted decoder must itself emit the exact authorized token.
+        # A second recognizer using the same local model provides corroboration,
+        # but its lexicalization may be less precise for the Sentry/century
+        # homophone. Only the boolean agreement survives this method; ambient
+        # text is never retained.
         self._confirmation_recognizer = recognizer_factory(self._model, SAMPLE_RATE)
         confirmation_words = getattr(self._confirmation_recognizer, "SetWords", None)
         if callable(confirmation_words):
@@ -280,10 +283,12 @@ class VoskKwsEvaluator:
     @staticmethod
     def _wake_token_present(text: str) -> bool:
         tokens = " ".join(text.casefold().split()).split()
-        # The general English Vosk model deterministically lexicalizes the
-        # spoken proper name "Sentry" as its homophone "century".  Require that
-        # acoustic confirmation at the start of the utterance; a later use such
-        # as "twentieth century" must not corroborate the restricted decoder.
+        # The full-vocabulary recognizer can lexicalize the spoken proper name
+        # as its homophone ``century``. It is corroborative only: the restricted
+        # decoder below must independently emit exact ``sentry`` before wake
+        # authorization. A literal ``century`` therefore cannot wake on its
+        # own, while a genuine Sentry wake is not rejected by this secondary
+        # recognizer's spelling choice.
         return bool(tokens and tokens[0] in {"sentry", "century"})
 
     def _full_vocabulary_confirms(self, pcm: bytes) -> bool | None:
