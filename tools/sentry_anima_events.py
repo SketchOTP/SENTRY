@@ -31,6 +31,12 @@ _RESULT_STATUSES = frozenset({
     "WAITING_CONFIRMATION", "WAITING_STRONGER_AUTH", "FAILED",
     "UNAVAILABLE", "UNKNOWN_RESULT",
 })
+_SENTRY_EVENT_PATHS = frozenset({
+    "IMMEDIATE_ANNOUNCEMENT_ONLY",
+    "ANNOUNCEMENT_AND_CONTEXTUAL_REASONING",
+    "AGGREGATED_REASONING",
+    "NO_SENTRY_REASONING",
+})
 _PREFLIGHT_LOCK = threading.Lock()
 _VERIFIED_PREFLIGHTS: set[str] = set()
 
@@ -44,6 +50,7 @@ _TRIAL_FIELDS = (
     "initiative_reason",
     "notification_allowed",
     "notification_required",
+    "sentry_event_path",
     "notification_delivery_status",
     "delivery_status",
     "stage",
@@ -121,6 +128,8 @@ def _initiative_notification(context: Any, request_id: str, *, now: datetime | N
                 "ALWAYS_NOTIFY", "LEARNING_REQUIRED", "PROACTIVE_DISABLED",
                 "LEARNED_PROACTIVE", "REVIEW_SILENT", "UNAVAILABLE",
             }
+            or notification.get("sentry_event_path", "ANNOUNCEMENT_AND_CONTEXTUAL_REASONING")
+            not in _SENTRY_EVENT_PATHS
             or not isinstance(notification["evaluated_at"], str)
         ):
             return denied
@@ -139,6 +148,9 @@ def _initiative_notification(context: Any, request_id: str, *, now: datetime | N
         result = {key: notification[key] for key in (
             "allowed", "required", "reason", "request_id", "evaluated_at",
         )}
+        result["sentry_event_path"] = notification.get(
+            "sentry_event_path", "ANNOUNCEMENT_AND_CONTEXTUAL_REASONING"
+        )
         announcement = notification.get("announcement")
         if announcement is not None:
             required_fields = {
@@ -799,6 +811,9 @@ def run_resident_event(
                 }
             initiative = _initiative_notification(context, request_id)
             announcement = initiative.get("announcement")
+            event_path = initiative.get(
+                "sentry_event_path", "ANNOUNCEMENT_AND_CONTEXTUAL_REASONING"
+            )
             if isinstance(announcement, dict):
                 telemetry["event_occurred_at"] = announcement["occurred_at"]
             for target, payload in (
@@ -823,7 +838,11 @@ def run_resident_event(
 
             def deliver_immediate() -> None:
                 if (
-                    not isinstance(announcement, dict)
+                    event_path not in {
+                        "IMMEDIATE_ANNOUNCEMENT_ONLY",
+                        "ANNOUNCEMENT_AND_CONTEXTUAL_REASONING",
+                    }
+                    or not isinstance(announcement, dict)
                     or initiative.get("allowed") is not True
                     or initiative.get("required") is not True
                     or initiative.get("reason") != "ALWAYS_NOTIFY"
@@ -865,6 +884,19 @@ def run_resident_event(
                 immediate["thread"].start()
 
             def execute(active: QueuedEventLease) -> EventResult:
+                if event_path == "NO_SENTRY_REASONING":
+                    return EventResult("NO_ACTION")
+                if event_path == "IMMEDIATE_ANNOUNCEMENT_ONLY":
+                    immediate_thread = immediate.get("thread")
+                    if isinstance(immediate_thread, threading.Thread):
+                        immediate_thread.join(timeout=30)
+                    if immediate["delivered"] and isinstance(announcement, dict):
+                        return EventResult("RESPONSE", announcement["text"])
+                    if initiative["required"]:
+                        return EventResult(
+                            "PARTIAL", detail="REQUIRED_NOTIFICATION_NOT_PRODUCED"
+                        )
+                    return EventResult("NO_ACTION")
                 if on_work_started is not None:
                     on_work_started()
                 telemetry["model_started_at"] = datetime.now(timezone.utc).isoformat()
@@ -988,6 +1020,7 @@ def run_resident_event(
             receipt["initiative_reason"] = initiative["reason"]
             receipt["notification_allowed"] = initiative["allowed"]
             receipt["notification_required"] = initiative["required"]
+            receipt["sentry_event_path"] = event_path
             if not initiative["allowed"]:
                 receipt["delivery_status"] = "BLOCKED_INITIATIVE"
             if final.get("decision") == "notify":

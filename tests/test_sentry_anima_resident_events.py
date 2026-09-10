@@ -236,6 +236,41 @@ class ResidentEventIntegrationTests(unittest.TestCase):
             provider_ambiguous=False,
         )
 
+    def test_immediate_announcement_only_skips_codex_model(self):
+        context = self.mandatory_announcement_context()
+        context["household_context"]["initiative"]["notification"][
+            "sentry_event_path"
+        ] = "IMMEDIATE_ANNOUNCEMENT_ONLY"
+        self.client.context.side_effect = lambda *_: context
+        result = self.run_event()
+        self.assertEqual((result["status"], result["result_status"]), ("RECORDED", "RESPONSE"))
+        self.assertEqual(result["delivery_status"], "DELIVERED")
+        self.assertTrue(result["immediate_delivery"])
+        self.runner.assert_not_called()
+        self.speaker.speak.assert_called_once_with("Front Door Lock was unlocked.")
+        self.client.submit_result.assert_called_once_with(
+            self.request_id,
+            "synthetic-private-binding",
+            status="RESPONSE",
+            response="Front Door Lock was unlocked.",
+            provider_ambiguous=False,
+        )
+
+    def test_no_sentry_reasoning_skips_model_and_speech(self):
+        context = self.initiative_context(sentry_event_path="NO_SENTRY_REASONING")
+        self.client.context.side_effect = lambda *_: context
+        result = self.run_event()
+        self.assertEqual((result["status"], result["result_status"]), ("RECORDED", "NO_ACTION"))
+        self.runner.assert_not_called()
+        self.speaker.speak.assert_not_called()
+        self.client.submit_result.assert_called_once_with(
+            self.request_id,
+            "synthetic-private-binding",
+            status="NO_ACTION",
+            response=None,
+            provider_ambiguous=False,
+        )
+
     def test_push_wait_does_not_call_model_or_claim_until_work_is_available(self):
         source = self.queue_source()
         stop = threading.Event()
