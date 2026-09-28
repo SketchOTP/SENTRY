@@ -83,6 +83,7 @@ class ResidentEventIntegrationTests(unittest.TestCase):
                 "submit_result",
                 "call",
                 "context",
+                "notification",
                 "tools",
                 "wait_eligible",
                 "worker_id",
@@ -255,6 +256,35 @@ class ResidentEventIntegrationTests(unittest.TestCase):
             response="Front Door Lock was unlocked.",
             provider_ambiguous=False,
         )
+
+    def test_immediate_route_skips_full_context_and_tool_catalogue(self):
+        self.claim = Mock(
+            side_effect=lambda request_id, source_surface: {
+                **self.exact_claim(request_id, source_surface),
+                "sentry_event_path": "IMMEDIATE_ANNOUNCEMENT_ONLY",
+            }
+        )
+        def compact_notification(*_):
+            context = self.mandatory_announcement_context()
+            context["household_context"]["initiative"]["notification"][
+                "sentry_event_path"
+            ] = "IMMEDIATE_ANNOUNCEMENT_ONLY"
+            return context
+
+        self.client.notification.side_effect = compact_notification
+        self.client.context.side_effect = AssertionError("full context must not load")
+        self.client.tools.side_effect = AssertionError("tool catalogue must not load")
+
+        result = self.run_event()
+
+        self.assertEqual(result["delivery_status"], "DELIVERED")
+        self.client.notification.assert_called_once_with(
+            self.request_id, "synthetic-private-binding"
+        )
+        self.client.context.assert_not_called()
+        self.client.tools.assert_not_called()
+        self.runner.assert_not_called()
+        self.speaker.speak.assert_called_once_with("Front Door Lock was unlocked.")
 
     def test_no_sentry_reasoning_skips_model_and_speech(self):
         context = self.initiative_context(sentry_event_path="NO_SENTRY_REASONING")

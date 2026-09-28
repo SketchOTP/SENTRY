@@ -2,6 +2,16 @@
 
 Last updated: 2026-09-09
 
+## Resizable household signal drawer — 2026-09-11
+
+The desktop household-signal drawer now has a draggable left edge. Its width is
+clamped to a compact usable range, persisted in the local SENTRY UI
+configuration, and applied on the next launch. Signal rows expand with the
+drawer while keeping their icon, activity dot, and one-line local timestamp
+grouped and centered. The native `sentry-ui.service` was restarted on the
+updated source; focused UI validation passes 32/32. The existing dirty product
+worktree remains uncommitted and preserved.
+
 ## Published wake/face correction — 2026-09-09
 
 The wake corroboration and eight-capture face-enrollment/preview repairs are

@@ -1,5 +1,6 @@
 import inspect
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,11 +10,19 @@ from tools.sentry_ui import (
     ORB_STYLES,
     OrbStateController,
     load_voice_preferences,
+    load_sensor_order,
+    load_sensor_drawer_width,
     orb_canvas_size,
+    order_sensor_rows,
     read_voice_status,
     resolve_sleep_transition_status,
     save_voice_preferences,
+    save_sensor_order,
+    save_sensor_drawer_width,
+    sensor_drawer_width,
+    sensor_icon_spec,
     should_acknowledge_wake,
+    sensor_indicator_rows,
     voice_indicator_model,
     voice_status_summary,
 )
@@ -118,6 +127,108 @@ class SentryNativeUiTests(unittest.TestCase):
             self.assertEqual(read_voice_status(path)["state"], "UNAVAILABLE")
             path.write_text(json.dumps({"state": "CAPTURING"}), encoding="utf-8")
             self.assertEqual(read_voice_status(path)["state"], "CAPTURING")
+
+    def test_sensor_indicator_rows_keep_only_the_display_contract(self):
+        rows = sensor_indicator_rows({
+            "status": "CURRENT",
+            "items": [
+                {
+                    "sensor_id": "resource-1",
+                    "label": "Tapo",
+                    "kind": "event",
+                    "status": "ACTIVE",
+                    "trigger": "unlocked",
+                    "active": True,
+                    "last_event": "Unlocked",
+                    "last_event_at": "2026-09-10T12:00:00+00:00",
+                    "private_payload": "must not cross the UI contract",
+                }
+            ],
+        })
+        self.assertEqual(rows[0]["label"], "Tapo")
+        self.assertTrue(rows[0]["active"])
+        self.assertNotIn("private_payload", rows[0])
+
+    def test_sensor_cards_use_the_requested_semantic_icons(self):
+        self.assertEqual(sensor_icon_spec({"key": "ring"}), (None, "🔔"))
+        self.assertEqual(sensor_icon_spec({"key": "tapo"}), ("system-lock-screen-symbolic", None))
+        self.assertEqual(
+            sensor_icon_spec({"key": "wansview_backyard"}),
+            ("camera-photo-symbolic", "2"),
+        )
+        self.assertEqual(
+            sensor_icon_spec({"key": "wansview_garage"}),
+            ("camera-photo-symbolic", "1"),
+        )
+        self.assertEqual(
+            sensor_icon_spec({"key": "senseguard_basement"}),
+            ("window-new-symbolic", None),
+        )
+        self.assertEqual(
+            sensor_icon_spec({"key": "senseguard_kitchen"}),
+            (None, "🚪"),
+        )
+
+    def test_sensor_signal_time_is_local_and_invalid_time_is_hidden(self):
+        from tools.sentry_ui import local_signal_timestamp
+
+        formatted = local_signal_timestamp("2026-09-10T12:00:00+00:00")
+        self.assertIsNotNone(formatted)
+        self.assertRegex(formatted or "", re.compile(
+            r"^\d{2}/\d{2} \d{1,2}:\d{2} [AP]M$"
+        ))
+        self.assertIsNone(local_signal_timestamp("not-a-timestamp"))
+
+    def test_sensor_cards_put_tym_then_other_people_after_devices_by_default(self):
+        rows = [
+            {"key": "person:zoe", "label": "Zoe", "kind": "presence"},
+            {"key": "ring", "label": "Ring", "kind": "event"},
+            {"key": "person:tym", "label": "Tym", "kind": "presence"},
+            {"key": "tapo", "label": "Tapo", "kind": "event"},
+        ]
+        ordered = order_sensor_rows(rows)
+        self.assertEqual(
+            [row["key"] for row in ordered],
+            ["ring", "tapo", "person:tym", "person:zoe"],
+        )
+        saved = order_sensor_rows(rows, ["person:zoe", "ring"])
+        self.assertEqual(
+            [row["key"] for row in saved],
+            ["person:zoe", "ring", "tapo", "person:tym"],
+        )
+
+    def test_sensor_order_persistence_preserves_other_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text(json.dumps({
+                "voice": {"kokoro_voice": "bm_george", "kokoro_speed": 0.9},
+                "household": {"preserved": True},
+            }), encoding="utf-8")
+            save_sensor_order(path, ["tapo", "ring"])
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["household"], {"preserved": True})
+            self.assertEqual(load_sensor_order(path), ["tapo", "ring"])
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_sensor_drawer_width_is_bounded_and_persistent(self):
+        self.assertEqual(sensor_drawer_width(None), 128)
+        self.assertEqual(sensor_drawer_width(1), 128)
+        self.assertEqual(sensor_drawer_width(9999), 480)
+        self.assertEqual(sensor_drawer_width("240"), 240)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text(json.dumps({
+                "voice": {"kokoro_voice": "bm_george"},
+                "ui": {"sensor_panel_order": ["tapo"]},
+                "household": {"preserved": True},
+            }), encoding="utf-8")
+            save_sensor_drawer_width(path, 260)
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(load_sensor_drawer_width(path), 260)
+            self.assertEqual(payload["ui"]["sensor_panel_order"], ["tapo"])
+            self.assertEqual(payload["household"], {"preserved": True})
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(list(path.parent.glob(".*.tmp")), [])
 
     def test_single_orb_makes_speaking_and_listening_boundaries_explicit(self):
         standby = voice_indicator_model({"state": "LISTENING"})
@@ -247,14 +358,35 @@ class SentryNativeUiTests(unittest.TestCase):
         self.assertIn("orb_stack.add_overlay(self.projection_fallback_orb)", source)
         self.assertLess(source.index("status.append(orb_stack)"), source.index("status.append(self.state_label)"))
 
-    def test_office_surface_returns_as_display_only_before_legacy_drawer_construction(self):
+    def test_office_surface_keeps_the_orb_and_adds_only_the_signal_drawer(self):
         from tools.sentry_ui import build_application
 
         source = inspect.getsource(build_application)
-        display_only = source.index("The office application is the same display-only")
-        legacy_drawer = source.index("scroll = Gtk.ScrolledWindow()")
-        self.assertLess(display_only, legacy_drawer)
-        self.assertIn("self.set_child(root)\n            return", source[display_only:legacy_drawer])
+        signal_drawer = source.index("self._build_sensor_drawer(root)")
+        office_return = source.index("self.set_child(root)\n            return", signal_drawer)
+        self.assertLess(signal_drawer, office_return)
+        self.assertIn('self.sensor_toggle', source)
+        self.assertNotIn('heading = Gtk.Label(label="Household signals"', source)
+        self.assertNotIn('0 active · 7 registered · refreshed now', source)
+        self.assertIn('self.sensor_drawer = drawer', source)
+        self.assertIn('class SignalIcon(Gtk.DrawingArea):', source)
+        self.assertIn('class SignalDot(Gtk.DrawingArea):', source)
+        self.assertIn('scroll.set_child(panel)', source)
+        self.assertIn('sensor-drawer-toggle', source)
+        self.assertIn('toggle.set_size_request(18, 24)', source)
+        self.assertNotIn('toggle.set_tooltip_text("Open household signals")', source)
+        self.assertNotIn('self.sensor_toggle.set_tooltip_text(', source)
+        self.assertIn('sensor-person-name', source)
+        self.assertIn('person_meta = Gtk.Box', source)
+        self.assertIn('wansview_garage', source)
+        self.assertIn('show_text("1" if key == "wansview_garage" else "2")', source)
+        self.assertIn('save_sensor_order(config_path, current)', source)
+        self.assertIn('save_sensor_drawer_width(config_path, width)', source)
+        self.assertIn('Gtk.GestureDrag()', source)
+        self.assertIn('sensor-resize-handle', source)
+        self.assertNotIn('Read-only live indicators from ANIMA', source)
+        self.assertNotIn('Waiting for " + row["trigger"]', source)
+        self.assertNotIn('Quiet · last qualifying event recorded', source)
 
     def test_native_window_uses_the_sentry_icon_theme_name(self):
         from tools.sentry_ui import build_application
@@ -270,7 +402,7 @@ class SentryNativeUiTests(unittest.TestCase):
         constructor = source[source.index("class SentryWindow"):source.index("def _build(self)")]
         self.assertNotIn("IdentityEnrollmentManager", constructor)
         self.assertNotIn("_load_profiles", constructor)
-        self.assertIn("both SENTRY faces are display-only", source)
+        self.assertIn("active-location, and identity enrollment remain ANIMA-owned", source)
 
     def test_projection_surface_has_no_pointer_audio_controls(self):
         from tools.sentry_ui import build_application

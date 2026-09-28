@@ -13,6 +13,7 @@ import time
 import urllib.parse
 import urllib.request
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,9 @@ if str(REPO_ROOT) not in sys.path:
 
 DESKTOP_ORB_SIZE = 600
 PROJECTION_ORB_SIZE = DESKTOP_ORB_SIZE * 2
+SENSOR_DRAWER_DEFAULT_WIDTH = 128
+SENSOR_DRAWER_MIN_WIDTH = 128
+SENSOR_DRAWER_MAX_WIDTH = 480
 
 from perception.remote_voice import authorization_header, read_private_token
 from perception.voice import (
@@ -30,6 +34,7 @@ from perception.voice import (
     KOKORO_MAX_SPEED,
     KOKORO_MIN_SPEED,
 )
+from tools.sentry_anima import AnimaConfig
 
 
 def orb_canvas_size(*, projection_mode: bool) -> int:
@@ -66,6 +71,110 @@ def _persist_voice_settings(config_path: Path, updates: dict[str, Any]) -> None:
     if not isinstance(voice, dict):
         raise TypeError("SENTRY voice config must be an object")
     voice.update(updates)
+
+    temporary = config_path.with_name(f".{config_path.name}.{os.getpid()}.tmp")
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, config_path)
+        config_path.chmod(0o600)
+        directory_fd = os.open(config_path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def load_sensor_order(config_path: Path) -> list[str]:
+    """Load the local desktop drawer order without exposing household data."""
+
+    try:
+        payload = json.loads(config_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return []
+        ui = payload.get("ui", {})
+        if not isinstance(ui, dict) or not isinstance(ui.get("sensor_panel_order"), list):
+            return []
+        return [str(value)[:128] for value in ui["sensor_panel_order"] if value]
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return []
+
+
+def save_sensor_order(config_path: Path, order: list[str]) -> None:
+    """Atomically persist only the desktop drawer order, retaining other config."""
+
+    payload = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise TypeError("SENTRY config must be an object")
+    ui = payload.setdefault("ui", {})
+    if not isinstance(ui, dict):
+        raise TypeError("SENTRY UI config must be an object")
+    ui["sensor_panel_order"] = [str(value)[:128] for value in order]
+
+    temporary = config_path.with_name(f".{config_path.name}.{os.getpid()}.tmp")
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, config_path)
+        config_path.chmod(0o600)
+        directory_fd = os.open(config_path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def sensor_drawer_width(value: Any) -> int:
+    """Clamp a persisted drawer width to a usable, compact desktop range."""
+
+    if isinstance(value, bool):
+        return SENSOR_DRAWER_DEFAULT_WIDTH
+    try:
+        width = int(value)
+    except (TypeError, ValueError):
+        return SENSOR_DRAWER_DEFAULT_WIDTH
+    return max(SENSOR_DRAWER_MIN_WIDTH, min(SENSOR_DRAWER_MAX_WIDTH, width))
+
+
+def load_sensor_drawer_width(config_path: Path) -> int:
+    """Load the local desktop drawer width, failing closed to the compact default."""
+
+    try:
+        payload = json.loads(config_path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return SENSOR_DRAWER_DEFAULT_WIDTH
+        ui = payload.get("ui", {})
+        if not isinstance(ui, dict):
+            return SENSOR_DRAWER_DEFAULT_WIDTH
+        return sensor_drawer_width(ui.get("sensor_panel_width"))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return SENSOR_DRAWER_DEFAULT_WIDTH
+
+
+def save_sensor_drawer_width(config_path: Path, width: int) -> None:
+    """Atomically persist only the drawer width while retaining other config."""
+
+    payload = json.loads(config_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise TypeError("SENTRY config must be an object")
+    ui = payload.setdefault("ui", {})
+    if not isinstance(ui, dict):
+        raise TypeError("SENTRY UI config must be an object")
+    ui["sensor_panel_width"] = sensor_drawer_width(width)
 
     temporary = config_path.with_name(f".{config_path.name}.{os.getpid()}.tmp")
     descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -420,6 +529,138 @@ def read_voice_status(path: Path | None = None) -> dict[str, Any]:
     return value if isinstance(value, dict) else {"state": "UNAVAILABLE", "reason": "Invalid status payload."}
 
 
+def read_sensor_status() -> dict[str, Any]:
+    """Read the authenticated, sanitized household signal snapshot from ANIMA."""
+
+    try:
+        configuration = AnimaConfig.load()
+        if configuration is None:
+            return {"status": "UNAVAILABLE", "items": [], "reason": "ANIMA is not connected."}
+        payload = configuration.client().call("/v1/sentry/sensor-status", {})
+        if not isinstance(payload, dict):
+            raise TypeError("ANIMA sensor status must be an object")
+        return payload
+    except Exception:
+        # The display must remain useful when the household service is down;
+        # do not surface transport, credential, or database details here.
+        return {
+            "status": "UNAVAILABLE",
+            "items": [],
+            "reason": "Household signals are temporarily unavailable.",
+        }
+
+
+def sensor_indicator_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Keep only the small display contract returned by the ANIMA boundary."""
+
+    items = payload.get("items")
+    if not isinstance(items, list):
+        return []
+    rows: list[dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or "Signal")[:96]
+        kind = str(item.get("kind") or "event")[:32]
+        status = str(item.get("status") or "UNKNOWN").upper()[:32]
+        trigger = str(item.get("trigger") or "event")[:96]
+        last_event = item.get("last_event")
+        last_event_at = item.get("last_event_at")
+        rows.append(
+            {
+                "sensor_id": str(item.get("sensor_id") or "")[:128],
+                "key": str(item.get("key") or item.get("sensor_id") or label)[:128],
+                "label": label,
+                "kind": kind,
+                "status": status,
+                "trigger": trigger,
+                "active": bool(item.get("active")),
+                "last_event": str(last_event)[:96] if last_event is not None else None,
+                "last_event_at": str(last_event_at)[:64] if last_event_at is not None else None,
+            }
+        )
+    return rows
+
+
+SENSOR_ICON_SPECS: dict[str, tuple[str | None, str | None]] = {
+    "ring": (None, "🔔"),
+    "tapo": ("system-lock-screen-symbolic", None),
+    "wansview_backyard": ("camera-photo-symbolic", "2"),
+    "wansview_garage": ("camera-photo-symbolic", "1"),
+    "senseguard_basement": ("window-new-symbolic", None),
+    "senseguard_kitchen": (None, "🚪"),
+    "presence": ("avatar-default-symbolic", None),
+}
+
+
+def sensor_icon_spec(row: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Return the semantic icon and optional badge for one display row."""
+
+    key = str(row.get("key") or "")
+    if key.startswith("person:"):
+        return SENSOR_ICON_SPECS["presence"]
+    return SENSOR_ICON_SPECS.get(key, ("sensors-symbolic", None))
+
+
+SENSOR_ICON_FALLBACKS = {
+    "ring": "🔔",
+    "tapo": "🔒",
+    "wansview_backyard": "📷",
+    "wansview_garage": "📷",
+    "senseguard_basement": "🪟",
+    "senseguard_kitchen": "🚪",
+    "presence": "●",
+}
+
+
+def sensor_icon_fallback(row: dict[str, Any]) -> str:
+    """Return a visible glyph if a desktop icon theme lacks a symbol."""
+
+    key = str(row.get("key") or "")
+    if key.startswith("person:"):
+        return SENSOR_ICON_FALLBACKS["presence"]
+    return SENSOR_ICON_FALLBACKS.get(key, "•")
+
+
+def local_signal_timestamp(value: Any) -> str | None:
+    """Format a sanitized ISO timestamp in the operator's local timezone."""
+
+    if value is None:
+        return None
+    try:
+        timestamp = datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+    if timestamp.tzinfo is None:
+        return None
+    return timestamp.astimezone().strftime("%m/%d %-I:%M %p")
+
+
+def order_sensor_rows(
+    rows: list[dict[str, Any]], saved_order: list[str] | tuple[str, ...] = ()
+) -> list[dict[str, Any]]:
+    """Order cards deterministically, then apply the owner's saved arrangement."""
+
+    by_key = {str(row.get("key") or ""): row for row in rows}
+    devices = [row for row in rows if row.get("kind") != "presence"]
+    people = [row for row in rows if row.get("kind") == "presence"]
+    people.sort(
+        key=lambda row: (
+            str(row.get("label") or "").casefold() != "tym",
+            str(row.get("label") or "").casefold(),
+        )
+    )
+    default_rows = devices + people
+    default_keys = [str(row.get("key") or "") for row in default_rows]
+    ordered_keys: list[str] = []
+    for key in saved_order:
+        normalized = str(key)
+        if normalized in by_key and normalized not in ordered_keys:
+            ordered_keys.append(normalized)
+    ordered_keys.extend(key for key in default_keys if key not in ordered_keys)
+    return [by_key[key] for key in ordered_keys if key in by_key]
+
+
 def resolve_sleep_transition_status(
     runtime_payload: dict[str, Any],
     *,
@@ -481,7 +722,7 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
         gi.require_version("Gdk", "4.0")
         gi.require_version("GdkPixbuf", "2.0")
         import cairo
-        from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
+        from gi.repository import Gdk, GdkPixbuf, Gio, GLib, GObject, Gtk
         from OpenGL import GL
         from OpenGL.GL import shaders
     except (ImportError, ValueError) as exc:  # pragma: no cover - host dependency
@@ -1295,6 +1536,110 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             gl.glUseProgram(0)
             return True
 
+    class SignalIcon(Gtk.DrawingArea):
+        """Small, theme-independent line icon for one household signal."""
+
+        def __init__(self, row_key: str, *, active: bool):
+            super().__init__()
+            self.row_key = row_key
+            self.active = active
+            self.set_content_width(34)
+            self.set_content_height(30)
+            self.set_halign(Gtk.Align.CENTER)
+            self.set_valign(Gtk.Align.CENTER)
+            self.add_css_class("sensor-icon")
+            self.set_draw_func(self._draw)
+
+        def _draw(self, _area, context, _width: int, _height: int) -> None:
+            color = (0.32, 0.90, 0.54) if self.active else (0.51, 0.46, 0.56)
+            context.set_source_rgb(*color)
+            context.set_line_width(2.0)
+            context.set_line_cap(cairo.LineCap.ROUND)
+            context.set_line_join(cairo.LineJoin.ROUND)
+            key = self.row_key.removeprefix("person:")
+
+            if key == "ring":
+                context.move_to(7, 22)
+                context.line_to(27, 22)
+                context.move_to(10, 22)
+                context.line_to(10, 16)
+                context.curve_to(10, 10, 12, 7, 17, 7)
+                context.curve_to(22, 7, 24, 10, 24, 16)
+                context.line_to(24, 22)
+                context.move_to(14, 25)
+                context.curve_to(14, 28, 20, 28, 20, 25)
+                context.stroke()
+            elif key == "tapo":
+                context.move_to(11, 14)
+                context.line_to(11, 11)
+                context.curve_to(11, 4, 23, 4, 23, 11)
+                context.line_to(23, 14)
+                context.stroke()
+                context.rectangle(7, 13, 20, 14)
+                context.stroke()
+                context.arc(17, 20, 1.5, 0, math.tau)
+                context.stroke()
+            elif key.startswith("wansview_"):
+                context.rectangle(4, 11, 23, 15)
+                context.move_to(10, 11)
+                context.line_to(12, 8)
+                context.line_to(19, 8)
+                context.line_to(21, 11)
+                context.stroke()
+                context.arc(15.5, 18.5, 4.5, 0, math.tau)
+                context.stroke()
+                if key in {"wansview_garage", "wansview_backyard"}:
+                    context.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+                    context.set_font_size(9)
+                    context.move_to(27, 9)
+                    context.show_text("1" if key == "wansview_garage" else "2")
+            elif key == "senseguard_basement":
+                context.rectangle(6, 5, 20, 21)
+                context.move_to(16, 5)
+                context.line_to(16, 26)
+                context.move_to(6, 15.5)
+                context.line_to(26, 15.5)
+                context.stroke()
+            elif key == "senseguard_kitchen":
+                context.rectangle(8, 4, 18, 25)
+                context.move_to(11, 7)
+                context.line_to(21, 9)
+                context.line_to(21, 26)
+                context.stroke()
+                context.arc(18, 18, 1.2, 0, math.tau)
+                context.stroke()
+            elif self.row_key.startswith("person:"):
+                context.arc(16, 9, 4, 0, math.tau)
+                context.stroke()
+                context.move_to(8, 27)
+                context.curve_to(9, 19, 23, 19, 24, 27)
+                context.stroke()
+            else:
+                context.arc(16, 15, 7, 0, math.tau)
+                context.stroke()
+
+    class SignalDot(Gtk.DrawingArea):
+        """The empty/green event indicator kept beside every signal icon."""
+
+        def __init__(self, *, active: bool):
+            super().__init__()
+            self.set_content_width(14)
+            self.set_content_height(14)
+            self.set_halign(Gtk.Align.CENTER)
+            self.set_valign(Gtk.Align.CENTER)
+            self.set_draw_func(self._draw)
+            self.active = active
+
+        def _draw(self, _area, context, _width: int, _height: int) -> None:
+            context.arc(7, 7, 4.5, 0, math.tau)
+            if self.active:
+                context.set_source_rgb(0.32, 0.90, 0.54)
+                context.fill()
+            else:
+                context.set_source_rgb(0.34, 0.29, 0.39)
+                context.set_line_width(1.7)
+                context.stroke()
+
     class SentryWindow(Gtk.ApplicationWindow):
         def __init__(self, app, *, projection_mode: bool = False):
             super().__init__(application=app, title="SENTRY")
@@ -1312,6 +1657,17 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             # reflects the resident status and never writes a local mode.
             self.sleep_enabled = False
             self._sleep_transition_state: str | None = None
+            self.sensor_drawer = None
+            self.sensor_toggle = None
+            self.sensor_scroll = None
+            self.sensor_resize_handle = None
+            self.sensor_list = None
+            self._sensor_refresh_source_id: int | None = None
+            self._sensor_fetch_busy = False
+            self._sensor_order = load_sensor_order(config_path)
+            self._sensor_drawer_width = load_sensor_drawer_width(config_path)
+            self._sensor_resize_start_width: int | None = None
+            self._sensor_payload: dict[str, Any] | None = None
             self._build()
             self._refresh_status()
             GLib.timeout_add(40, self._refresh_status)
@@ -1333,6 +1689,22 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
                 .projection-canvas { background: #000000; }
                 .settings-drawer { background: #09080d; border-left: 1px solid #302040; }
                 .settings-panel { background: #09080d; padding: 24px; }
+                .sensor-drawer { background: #09080d; border-left: 1px solid #302040; }
+                .sensor-panel { background: #09080d; padding: 8px 6px; min-width: 0; }
+                .sensor-row { background: #100d17; border: 1px solid #2b2039; border-radius: 10px; padding: 6px; }
+                .sensor-visual { min-width: 0; }
+                .sensor-resize-handle { min-width: 10px; background: transparent; }
+                .sensor-resize-handle:hover { background: rgba(181, 108, 255, 0.24); }
+                .sensor-icon { color: #82768f; }
+                .sensor-icon.active { color: #52e58a; }
+                .sensor-dot { color: #554a63; }
+                .sensor-dot.active { color: #52e58a; }
+                .sensor-signal-time { color: #aaa2b9; font-size: 10px; line-height: 1.1; }
+                .sensor-person-name { color: #ffffff; font-size: 10px; font-weight: 700; line-height: 1.1; }
+                .sensor-drawer-toggle { min-width: 18px; min-height: 24px; padding: 0; margin: 0; background: transparent; border: 0; border-radius: 0; }
+                .sensor-drawer-toggle:hover { background: transparent; border: 0; }
+                .sensor-label { color: #ffffff; font-weight: 700; }
+                .sensor-summary { color: #c88cff; font-size: 12px; }
                 .card { background: #0d0b12; border: 1px solid #2f2240; border-radius: 16px; padding: 18px; }
                 .card-title { font-size: 16px; font-weight: 700; color: #ffffff; }
                 .state { font-family: Inter, Cantarell, sans-serif; font-size: 18px; font-weight: 650; letter-spacing: 1.4px; color: #f7f5fb; }
@@ -1403,9 +1775,9 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
                 self.fullscreen()
                 return
 
-            # Voice, wake/sleep, active-location, and identity enrollment now
-            # belong to ANIMA. The office application is the same display-only
-            # SENTRY face as the Pi projection, without a second settings UI.
+            # Household signal inspection is read-only. Voice, wake/sleep,
+            # active-location, and identity enrollment remain ANIMA-owned.
+            self._build_sensor_drawer(root)
             self.set_child(root)
             return
 
@@ -1576,6 +1948,254 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             self.settings_toggle = toggle
             self.set_child(root)
 
+        def _build_sensor_drawer(self, root) -> None:
+            """Add the desktop-only live signal drawer without touching the orb."""
+
+            scroll = Gtk.ScrolledWindow()
+            scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+            # Keep the signal drawer compact: the icon, dot, and one-line
+            # timestamp remain visible while avoiding a large empty panel.
+            scroll.set_size_request(self._sensor_drawer_width, -1)
+            scroll.set_hexpand(False)
+            scroll.set_vexpand(True)
+            scroll.add_css_class("sensor-drawer")
+
+            panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+            panel.add_css_class("sensor-panel")
+            panel.set_hexpand(True)
+            self.sensor_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            self.sensor_list.set_hexpand(True)
+            panel.append(self.sensor_list)
+            scroll.set_child(panel)
+
+            resize_handle = Gtk.Box()
+            resize_handle.add_css_class("sensor-resize-handle")
+            resize_handle.set_size_request(10, -1)
+            resize_handle.set_vexpand(True)
+            motion = Gtk.EventControllerMotion()
+            motion.connect("enter", self._sensor_resize_pointer_enter)
+            motion.connect("leave", self._sensor_resize_pointer_leave)
+            resize_handle.add_controller(motion)
+            gesture = Gtk.GestureDrag()
+            gesture.set_button(1)
+            gesture.connect("drag-begin", self._begin_sensor_resize)
+            gesture.connect("drag-update", self._update_sensor_resize)
+            gesture.connect("drag-end", self._end_sensor_resize)
+            resize_handle.add_controller(gesture)
+
+            drawer_body = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+            drawer_body.set_hexpand(False)
+            drawer_body.set_vexpand(True)
+            drawer_body.append(resize_handle)
+            drawer_body.append(scroll)
+
+            gtk_settings = Gtk.Settings.get_default()
+            animations_enabled = bool(
+                gtk_settings and gtk_settings.get_property("gtk-enable-animations")
+            )
+            drawer = Gtk.Revealer()
+            drawer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_LEFT)
+            drawer.set_transition_duration(260 if animations_enabled else 0)
+            drawer.set_reveal_child(False)
+            drawer.set_child(drawer_body)
+            toggle = Gtk.Button(icon_name="go-previous-symbolic")
+            toggle.add_css_class("sensor-drawer-toggle")
+            toggle.set_size_request(18, 24)
+            toggle.set_valign(Gtk.Align.START)
+            toggle.set_margin_top(8)
+            toggle.connect("clicked", self._toggle_sensor_drawer)
+            drawer_host = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+            drawer_host.set_halign(Gtk.Align.END)
+            drawer_host.set_valign(Gtk.Align.FILL)
+            drawer_host.set_vexpand(True)
+            drawer_host.append(toggle)
+            drawer_host.append(drawer)
+            root.add_overlay(drawer_host)
+            root.set_measure_overlay(drawer_host, False)
+            root.set_clip_overlay(drawer_host, True)
+            self.sensor_drawer = drawer
+            self.sensor_toggle = toggle
+            self.sensor_scroll = scroll
+            self.sensor_resize_handle = resize_handle
+
+        def _set_sensor_drawer_width(self, width: int, *, persist: bool) -> None:
+            width = sensor_drawer_width(width)
+            self._sensor_drawer_width = width
+            if self.sensor_scroll is not None:
+                self.sensor_scroll.set_size_request(width, -1)
+                self.sensor_scroll.queue_resize()
+            if persist:
+                try:
+                    save_sensor_drawer_width(config_path, width)
+                except (OSError, TypeError, ValueError, json.JSONDecodeError):
+                    # A local UI preference must never take down the voice display.
+                    pass
+
+        def _sensor_resize_pointer_enter(self, _controller, _x: float, _y: float) -> None:
+            if self.sensor_resize_handle is not None:
+                self.sensor_resize_handle.set_cursor(Gdk.Cursor.new_from_name("ew-resize", None))
+
+        def _sensor_resize_pointer_leave(self, _controller) -> None:
+            if self.sensor_resize_handle is not None:
+                self.sensor_resize_handle.set_cursor(None)
+
+        def _begin_sensor_resize(self, _gesture, _start_x: float, _start_y: float) -> None:
+            if self.projection_mode or self.sensor_drawer is None:
+                return
+            self._sensor_resize_start_width = self._sensor_drawer_width
+
+        def _update_sensor_resize(self, _gesture, offset_x: float, _offset_y: float) -> None:
+            if self._sensor_resize_start_width is None:
+                return
+            # The handle is the drawer's left edge: dragging left widens it;
+            # dragging right makes it more compact.
+            self._set_sensor_drawer_width(
+                self._sensor_resize_start_width - round(offset_x), persist=False
+            )
+
+        def _end_sensor_resize(self, _gesture, _offset_x: float, _offset_y: float) -> None:
+            if self._sensor_resize_start_width is None:
+                return
+            self._set_sensor_drawer_width(self._sensor_drawer_width, persist=True)
+            self._sensor_resize_start_width = None
+
+        def _toggle_sensor_drawer(self, _button) -> None:
+            if self.projection_mode or self.sensor_drawer is None:
+                return
+            opening = not self.sensor_drawer.get_reveal_child()
+            self.sensor_drawer.set_reveal_child(opening)
+            if self.sensor_toggle is not None:
+                self.sensor_toggle.set_icon_name(
+                    "go-next-symbolic" if opening else "go-previous-symbolic"
+                )
+            if opening:
+                if self._sensor_refresh_source_id is None:
+                    self._sensor_refresh_source_id = GLib.timeout_add_seconds(
+                        2, self._refresh_sensor_status
+                    )
+                self._refresh_sensor_status()
+            elif self._sensor_refresh_source_id is not None:
+                GLib.source_remove(self._sensor_refresh_source_id)
+                self._sensor_refresh_source_id = None
+
+        def _apply_sensor_status(self, payload: dict[str, Any]) -> bool:
+            self._sensor_fetch_busy = False
+            self._sensor_payload = payload
+            if self.sensor_drawer is None or not self.sensor_drawer.get_reveal_child():
+                return False
+            rows = order_sensor_rows(sensor_indicator_rows(payload), self._sensor_order)
+            if self.sensor_list is None:
+                return False
+            child = self.sensor_list.get_first_child()
+            while child is not None:
+                next_child = child.get_next_sibling()
+                self.sensor_list.remove(child)
+                child = next_child
+            if not rows:
+                empty = Gtk.Label(label="No registered signals are available.", xalign=0)
+                empty.add_css_class("muted")
+                self.sensor_list.append(empty)
+                return False
+            for row in rows:
+                sensor_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+                sensor_row.add_css_class("sensor-row")
+                sensor_row.set_hexpand(True)
+                sensor_row.set_name(row["key"])
+                sensor_row.set_tooltip_text("Drag to rearrange")
+                icon_cell = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+                icon_cell.set_halign(Gtk.Align.CENTER)
+                icon_cell.set_valign(Gtk.Align.CENTER)
+                icon_cell.add_css_class("sensor-visual")
+                icon = SignalIcon(row["key"], active=bool(row["active"]))
+                icon.set_tooltip_text(row["label"])
+                icon_cell.append(icon)
+                icon_cell.append(SignalDot(active=bool(row["active"])))
+                visual = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+                visual.set_halign(Gtk.Align.CENTER)
+                visual.set_hexpand(True)
+                visual.append(icon_cell)
+                signal_time = local_signal_timestamp(row["last_event_at"])
+                if row["kind"] == "presence":
+                    person_meta = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+                    person_meta.set_halign(Gtk.Align.CENTER)
+                    person_name = Gtk.Label(label=row["label"], xalign=0)
+                    person_name.set_size_request(34, -1)
+                    person_name.set_xalign(0.5)
+                    person_name.add_css_class("sensor-person-name")
+                    person_meta.append(person_name)
+                    time_label = Gtk.Label(label=signal_time or "—", xalign=0)
+                    time_label.add_css_class("sensor-signal-time")
+                    person_meta.append(time_label)
+                    visual.append(person_meta)
+                else:
+                    time_label = Gtk.Label(label=signal_time or "—", xalign=0.5)
+                    time_label.set_halign(Gtk.Align.CENTER)
+                    time_label.add_css_class("sensor-signal-time")
+                    visual.append(time_label)
+                sensor_row.append(visual)
+                self.sensor_list.append(sensor_row)
+
+                drag_source = Gtk.DragSource()
+                drag_source.set_actions(Gdk.DragAction.MOVE)
+                drag_source.connect("prepare", self._prepare_sensor_drag, row["key"])
+                sensor_row.add_controller(drag_source)
+                drop_target = Gtk.DropTarget.new(GObject.TYPE_STRING, Gdk.DragAction.MOVE)
+                drop_target.connect("drop", self._drop_sensor_row, row["key"])
+                sensor_row.add_controller(drop_target)
+            return False
+
+        def _prepare_sensor_drag(self, _source, _x: float, _y: float, key: str):
+            return Gdk.ContentProvider.new_for_value(key)
+
+        def _drop_sensor_row(
+            self, _target, value: object, _x: float, _y: float, target_key: str
+        ) -> bool:
+            if not isinstance(value, str):
+                return False
+            self._reorder_sensor_rows(value, target_key)
+            return True
+
+        def _reorder_sensor_rows(self, dragged_key: str, target_key: str) -> None:
+            if dragged_key == target_key or self.sensor_list is None:
+                return
+            current: list[str] = []
+            child = self.sensor_list.get_first_child()
+            while child is not None:
+                key = child.get_name()
+                if key:
+                    current.append(key)
+                child = child.get_next_sibling()
+            if dragged_key not in current or target_key not in current:
+                return
+            current.remove(dragged_key)
+            current.insert(current.index(target_key), dragged_key)
+            self._sensor_order = current
+            try:
+                save_sensor_order(config_path, current)
+            except (OSError, TypeError, ValueError, json.JSONDecodeError):
+                # A drawer preference must never take down the voice display.
+                pass
+            if self._sensor_payload is not None:
+                self._apply_sensor_status(self._sensor_payload)
+
+        def _refresh_sensor_status(self) -> bool:
+            if (
+                self.projection_mode
+                or self.sensor_drawer is None
+                or not self.sensor_drawer.get_reveal_child()
+            ):
+                return False
+            if self._sensor_fetch_busy:
+                return True
+            self._sensor_fetch_busy = True
+
+            def fetch() -> None:
+                payload = read_sensor_status()
+                GLib.idle_add(self._apply_sensor_status, payload)
+
+            threading.Thread(target=fetch, name="sentry-sensor-status", daemon=True).start()
+            return True
+
         def _show_projection_fallback(self) -> bool:
             if not self.projection_mode:
                 return False
@@ -1700,17 +2320,19 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
                 context.stroke()
 
         def _toggle_settings(self, _button) -> None:
-            opening = not self.settings_drawer.get_reveal_child()
-            self.settings_drawer.set_reveal_child(opening)
-            self.settings_toggle.set_icon_name(
-                "go-next-symbolic" if opening else "go-previous-symbolic"
-            )
-            self.settings_toggle.set_tooltip_text(
-                "Close SENTRY settings" if opening else "Open SENTRY settings and people"
-            )
+            """Compatibility alias for the removed local-settings drawer."""
+            self._toggle_sensor_drawer(_button)
 
         def close_settings(self) -> None:
-            """Compatibility no-op: both SENTRY faces are display-only."""
+            """Close the optional read-only drawer when the app is activated."""
+            if self.sensor_drawer is None:
+                return
+            self.sensor_drawer.set_reveal_child(False)
+            if self.sensor_toggle is not None:
+                self.sensor_toggle.set_icon_name("go-previous-symbolic")
+            if self._sensor_refresh_source_id is not None:
+                GLib.source_remove(self._sensor_refresh_source_id)
+                self._sensor_refresh_source_id = None
 
         def _refresh_status(self) -> bool:
             runtime_payload = read_voice_status()

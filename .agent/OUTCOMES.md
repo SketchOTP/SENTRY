@@ -2,6 +2,20 @@
 
 ---
 
+## OUTCOME-SENTRY-RESIZABLE-SIGNAL-DRAWER-001 — 2026-09-11
+
+- `PASSED` (`E4_REGRESSION_PROTECTED`): the native signal drawer has a
+  draggable left-edge resize handle, bounded width persistence, and responsive
+  row layout that preserves the icon/status/timestamp grouping.
+- `PASSED` (`E4_REGRESSION_PROTECTED`): the focused SENTRY UI suite passes
+  `32/32`; Python compilation and `git diff --check` pass.
+- `PASSED` (`E1_OBSERVED`): `sentry-ui.service` restarted successfully on the
+  updated working-tree source and remained active.
+- No commit or push was performed; the pre-existing dirty SENTRY worktree was
+  preserved.
+
+---
+
 ## OUTCOME-SENTRY-ANIMA-IDLE-POLL-STATE-026B — 2026-09-09
 
 - `PASSED` (`E4_REGRESSION_PROTECTED`): 116 focused voice/event tests and all

@@ -801,8 +801,20 @@ def run_resident_event(
                 pass
             try:
                 health = client.call("/v1/health")
-                context = client.context(request_id, claim["binding"])
-                tools = client.tools(request_id, claim["binding"])
+                compact_notification = claim.get("sentry_event_path") in {
+                    "IMMEDIATE_ANNOUNCEMENT_ONLY",
+                    "ANNOUNCEMENT_AND_CONTEXTUAL_REASONING",
+                }
+                if compact_notification:
+                    # Mandatory speech is a Core decision plus a canonical
+                    # sentence. Do not fetch the large household context or
+                    # tool catalogue on this path; learning/routine context
+                    # belongs only to the later reasoning-capable path.
+                    context = client.notification(request_id, claim["binding"])
+                    tools = {"tools": []}
+                else:
+                    context = client.context(request_id, claim["binding"])
+                    tools = client.tools(request_id, claim["binding"])
             except Exception as exc:  # noqa: BLE001 - provider has not started; reclaim stays safe
                 return {
                     **blocked,
