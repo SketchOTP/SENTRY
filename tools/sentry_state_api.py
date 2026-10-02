@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hmac
 import json
+import math
 import stat
 import sys
 from datetime import datetime, timezone
@@ -23,6 +24,47 @@ from tools.sentry_identity_enrollment import IdentityEnrollmentManager
 
 
 PERCEPTION_RUNTIME_STATUSES = {"fresh", "stopped", "stale", "missing", "malformed"}
+
+
+def execute_audio(operation: str, arguments: dict, config_path: Path) -> dict:
+    """Fixed Core-authenticated adapter, never a generic host command."""
+    from tools import sentry_desktop
+    from tools.sentry_ui import projection_io_request
+
+    fields = {
+        "get_system_volume": set(), "set_system_volume": {"percent"},
+        "adjust_system_volume": {"delta_percent"}, "set_system_muted": {"muted"},
+        "get_projection_audio_output": set(), "set_projection_audio_output": {"output"},
+    }
+    if operation not in fields or set(arguments) != fields[operation]:
+        raise ValueError("unsupported audio operation or arguments")
+    for field, low, high in (("percent", 0, 150), ("delta_percent", -100, 100)):
+        if field in arguments:
+            value = arguments[field]
+            if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high or (field == "delta_percent" and value == 0):
+                raise ValueError("invalid bounded audio number")
+    if "muted" in arguments and type(arguments["muted"]) is not bool:
+        raise ValueError("muted must be boolean")
+    if "output" in arguments and arguments["output"] not in ("usb", "hdmi"):
+        raise ValueError("output must be usb or hdmi")
+    if operation == "get_system_volume":
+        result = sentry_desktop.get_volume()
+    elif operation == "set_system_volume":
+        result = sentry_desktop.set_volume(arguments["percent"])
+    elif operation == "adjust_system_volume":
+        result = sentry_desktop.adjust_volume(arguments["delta_percent"])
+    elif operation == "set_system_muted":
+        result = sentry_desktop.set_muted(arguments["muted"])
+    else:
+        method = "GET" if operation.startswith("get_") else "POST"
+        payload = None if method == "GET" else {"audio_output": arguments["output"]}
+        result = projection_io_request(method, "/v1/output", payload=payload, config_path=config_path)
+        if result.get("audio_output") not in ("usb", "hdmi"):
+            raise RuntimeError("projection output result is unavailable")
+        return {"audio_output": result["audio_output"]}
+    if type(result.get("percent")) not in (int, float) or not math.isfinite(result["percent"]) or not 0 <= result["percent"] <= 150 or type(result.get("muted")) is not bool:
+        raise RuntimeError("audio observation is unavailable")
+    return {"percent": result["percent"], "muted": result["muted"]}
 
 
 def _active_sentry_instance() -> str:
@@ -310,6 +352,17 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             body = self._read_json()
             path = self.path.split("?", 1)[0]
+            if path.startswith("/v1/audio/"):
+                if not self._identity_authorized():
+                    self._send(401, {"error": "Core audio authorization is required"})
+                    return
+                manager = self._identity_manager()
+                if manager is None:
+                    self._send(503, {"error": "Core audio transport is unavailable"})
+                    return
+                result = execute_audio(path.rsplit("/", 1)[-1], body, manager.config_path)
+                self._send(200, result)
+                return
             if path.startswith("/v1/identity/"):
                 manager = self._require_identity()
                 if manager is None:

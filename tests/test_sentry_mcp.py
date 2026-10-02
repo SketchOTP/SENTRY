@@ -203,7 +203,7 @@ class SentryMCPTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("memories = false", text)
         self.assertIn("image_generation = true", text)
         self.assertIn("[mcp_servers.sentry_office]", text)
-        self.assertIn('env_vars = ["SENTRY_REQUEST_ID", "SENTRY_THREAD_ID", "SENTRY_OPERATOR_REQUEST", "SENTRY_AUTHORITY_EPOCH"]', text)
+        self.assertIn('env_vars = ["SENTRY_REQUEST_ID", "SENTRY_THREAD_ID", "SENTRY_OPERATOR_REQUEST", "SENTRY_AUTHORITY_EPOCH", "SENTRY_HOST_SCOPE"]', text)
         self.assertIn(f'{json.dumps(str(memory_vault.resolve()))} = "deny"', text)
         self.assertIn(f'{json.dumps(str(Path(tmp, "codex-home").resolve()))} = "deny"', text)
         parsed = tomllib.loads(text)

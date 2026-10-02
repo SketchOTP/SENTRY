@@ -2222,3 +2222,30 @@ Publication/exactCI/matched deployment pending; Graft stays unstaged. E4 not
 owner audio/physical delivery/fullGoal. Private resident model/profile/persona/
 orb/voice unchanged, current live4909 baseline. Stage9 household/Office effective
 authority gap remains prepared until compatible issuance, no competing Coder.
+
+## 2026-10-02T20:08Z — Exact paired hosted and controlled live source
+
+SENTRY6eafe70/CI37055182830 and ANIMA8396c7e/CI37055256859 PASS. Primary
+downloaded native artifact11249596490, currentPG70/browser2 and retained targets
+PASS0targetskip. Controlled ANIMA imageb841/source112/47packages/installed11
+matches accepted pair; Core/voice/helper/supervisor reload preserves private
+resident profile/persona/model/Graft and all recorded durable/infra state.
+Exact evidence ANIMA027A/STAGE8-DEPLOYMENT. Actual authenticated service recovery
+observed, not owner audible/physical/current full Goal acceptance. Same Stage9
+Coder finite authority correction ongoing in separate roots; primary choices
+issued, read-only reviewer closed after independent static check. Both Notion
+authorities current full-section readback MATCH20:13Z, prior history retained.
+
+## 2026-10-02T21:03Z — Stage9 bounded source acceptance and frozen closeout
+
+Actual native final collected20:56Z, Coder closed; primary independently checked
+20 integrated source hashes and503 frozen entries. Final ANIMA1531PASS81SKIP
+including60worker; SENTRY596PASS7SKIP; primary restrictedPG/currentOPA7PASS0SKIP.
+Bounded scope/current authority/audio-relative durable reservation source accepted
+for one paired publication, not effective installed sandbox/live rollout/fullGoal.
+Installed legitimate-read timeout retained; voice AUTHENTICATED gate remains.
+Earlier six-helper-PASS assignment statement corrected in acceptance record.
+Current live matched Stage8 remains; no media/model/physical test or historical
+work reset. Graft excluded, owner-root Binder unanswered. Exact acceptance,
+counts/digests/negatives/remaining permanent boundaries in ANIMA027A
+STAGE9-ARCHITECT-ACCEPTANCE. No further speculative stage/feature assignment.

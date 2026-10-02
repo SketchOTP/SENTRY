@@ -70,8 +70,11 @@ META_DISCUSSION = re.compile(
 PROTECTED_PARTS = {
     ".ssh", ".gnupg", ".aws", ".azure", ".kube", ".git-credentials",
     ".local/share/keyrings", ".config/gh", ".config/gcloud",
+    ".codex", ".agents", ".agent", ".git", ".config/systemd",
+    ".local/share/systemd", "Projects", "policy", "policies",
+    ".config", ".local/bin", ".local/lib", ".local/state", "src", "tools",
 }
-PROTECTED_SUFFIXES = {".pem", ".key", ".p12", ".pfx", ".env"}
+PROTECTED_SUFFIXES = {".pem", ".key", ".p12", ".pfx", ".env", ".py", ".sh", ".rego", ".service", ".socket", ".desktop", ".ts", ".tsx"}
 
 
 RISK_TIERS: dict[str, int] = {
@@ -182,6 +185,7 @@ class RequestContext:
     thread_id: str
     operator_request: str
     restart_epoch: str
+    host_scope: str = "STANDALONE"
 
     @classmethod
     def from_environment(cls) -> "RequestContext":
@@ -190,11 +194,17 @@ class RequestContext:
             thread_id=os.environ.get("SENTRY_THREAD_ID", "new-thread"),
             operator_request=os.environ.get("SENTRY_OPERATOR_REQUEST", ""),
             restart_epoch=os.environ.get("SENTRY_AUTHORITY_EPOCH", ""),
+            host_scope=os.environ.get("SENTRY_HOST_SCOPE", "UNAVAILABLE"),
         )
 
     def validate(self) -> None:
         if not self.request_id or not self.thread_id or not self.operator_request.strip() or not self.restart_epoch:
             raise PermissionError("trusted SENTRY request context is unavailable")
+
+    def require_office(self) -> None:
+        self.validate()
+        if self.host_scope != "STANDALONE":
+            raise PermissionError("Office execution requires trusted standalone scope")
 
 
 class DialogueAct(StrEnum):
@@ -563,6 +573,7 @@ class ExecutionAuthority:
         started = time.monotonic()
         action_id = str(uuid.uuid4())
         try:
+            context.require_office()
             if RISK_TIERS.get(capability) != 1 or not self.direct_request_allows(capability, context):
                 raise PermissionError("Tier-1 action was not directly requested in the current operator turn")
             _canonical(arguments)
@@ -594,7 +605,7 @@ class ExecutionAuthority:
         risk_tier: int, context: RequestContext, target_summary: str,
     ) -> tuple[str, str]:
         context = context or RequestContext.from_environment()
-        context.validate()
+        context.require_office()
         capability = "propose_file_move" if action_type == "move_file" else action_type
         if not self.direct_request_allows(capability, context):
             self._append_audit({
@@ -723,6 +734,7 @@ class ExecutionAuthority:
         risk_tier: int, context: RequestContext, authority_source: str,
         authorization_id: str | None = None,
     ) -> dict[str, Any]:
+        context.require_office()
         action_id = str(uuid.uuid4())
         started = time.monotonic()
         self._append_audit({
@@ -1020,11 +1032,12 @@ class ExecutionAuthority:
 
     def confirm(self, *, context: RequestContext | None = None) -> dict[str, Any]:
         context = context or RequestContext.from_environment()
-        context.validate()
+        context.require_office()
         pending = self.claim_response(context=context)
         return self.approve_claimed(str(pending["authorization_id"]), context=context)
 
     def approve_claimed(self, authorization_id: str, *, context: RequestContext) -> dict[str, Any]:
+        context.require_office()
         with self.locked():
             pending = self._load_pending_unlocked()
             if not pending or pending.get("authorization_id") != authorization_id or pending.get("status") != "PRESENTING":
@@ -1075,13 +1088,15 @@ class ExecutionAuthority:
                 raise FileNotFoundError("authorized source is not a regular file")
             if destination.exists():
                 raise FileExistsError("authorized destination already exists")
-            destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-            return {"source": str(source), "destination": str(shutil.move(str(source), str(destination)))}
+            self._move_no_replace(source, destination)
+            return {"source": str(source), "destination": str(destination)}
         from tools import sentry_desktop
         if action_type in {"press_keys", "type_into_active_window", "click_desktop"}:
             current = sentry_desktop.active_window()
             if current.get("status") != "available" or current.get("window_id") != arguments.get("expected_window_id"):
                 raise PermissionError("the active desktop window changed after authorization was proposed")
+            if re.search(r"terminal|console|shell|code|editor|chrome|chromium|firefox|browser", str(current.get("window_class", "")) + " " + str(current.get("title", "")), re.I):
+                raise PermissionError("engineering or browser input is not authorizable")
         if action_type == "press_keys":
             return sentry_desktop.send_key_combo(str(arguments["keys"]))
         if action_type == "type_into_active_window":
@@ -1089,6 +1104,58 @@ class ExecutionAuthority:
         if action_type == "click_desktop":
             return sentry_desktop.click_pointer(int(arguments["x"]), int(arguments["y"]), int(arguments.get("button", 1)))
         raise PermissionError("unsupported authorized action")
+
+    @staticmethod
+    def _open_directory(path: Path, *, create: bool = False) -> int:
+        descriptor = os.open("/", os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            for part in path.parts[1:]:
+                if create:
+                    try:
+                        os.mkdir(part, mode=0o700, dir_fd=descriptor)
+                    except FileExistsError:
+                        pass
+                child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor)
+                os.close(descriptor)
+                descriptor = child
+            return descriptor
+        except BaseException:
+            os.close(descriptor)
+            raise
+
+    @classmethod
+    def _move_no_replace(cls, source: Path, destination: Path) -> None:
+        """Pinned directories/source and exclusive destination, including cross-FS.
+
+        No rename/shutil.move check-then-overwrite race. Never unlink a source
+        replaced during the copy, and never follow a switched ancestor symlink.
+        """
+        srcdir = cls._open_directory(source.parent)
+        try:
+            destdir = cls._open_directory(destination.parent, create=True)
+            try:
+                src = os.open(source.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=srcdir)
+                try:
+                    info = os.fstat(src)
+                    if not stat.S_ISREG(info.st_mode):
+                        raise PermissionError("source is not a regular file")
+                    dest = os.open(destination.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=destdir)
+                    try:
+                        with os.fdopen(os.dup(src), "rb") as reader, os.fdopen(os.dup(dest), "wb") as writer:
+                            shutil.copyfileobj(reader, writer)
+                        os.fsync(dest)
+                        current = os.stat(source.name, dir_fd=srcdir, follow_symlinks=False)
+                        if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
+                            raise PermissionError("source changed during authorized move; retained copied artifact")
+                        os.unlink(source.name, dir_fd=srcdir)
+                    finally:
+                        os.close(dest)
+                finally:
+                    os.close(src)
+            finally:
+                os.close(destdir)
+        finally:
+            os.close(srcdir)
 
     def _safe_path(self, raw: str, *, require_workspace: bool) -> Path:
         if not raw or "\x00" in raw:
@@ -1108,8 +1175,12 @@ class ExecutionAuthority:
             path.relative_to(self.workspace if require_workspace else home)
         except ValueError as exc:
             raise PermissionError("path is outside the authorized root") from exc
-        relative_home = str(path.relative_to(home)) if path.is_relative_to(home) else str(path)
-        if any(part in relative_home for part in PROTECTED_PARTS) or path.suffix.casefold() in PROTECTED_SUFFIXES or SECRET_KEY.search(path.name):
+        relative_parts = path.relative_to(home).parts if path.is_relative_to(home) else path.parts
+        protected = any(
+            tuple(relative_parts[index:index + len(Path(root).parts)]) == Path(root).parts
+            for root in PROTECTED_PARTS for index in range(len(relative_parts))
+        )
+        if protected or path.name.casefold() == ".env" or path.suffix.casefold() in PROTECTED_SUFFIXES or SECRET_KEY.search(path.name):
             raise PermissionError("protected path is not authorizable")
         return path
 

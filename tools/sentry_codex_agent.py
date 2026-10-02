@@ -565,9 +565,15 @@ def invoke_sentry_agent(
     authority_epoch: str | None = None,
     speaker_context: dict[str, Any] | None = None,
     autonomous_binding: Path | None = None,
+    host_scope: str | None = None,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, Any]:
     """Start or resume SENTRY's dedicated tool-using Codex session."""
+
+    from tools.sentry_anima import VOICE_SURFACE, intended_scope
+    scope = host_scope or intended_scope(VOICE_SURFACE.get() or "sentry_ask")
+    if scope not in {"HOUSEHOLD", "STANDALONE"}:
+        return {"ok": False, "error": {"code": "scope_unavailable", "message": "Trusted host scope is unavailable"}}
 
     launcher = _launcher_args()
     if launcher is None:
@@ -588,6 +594,7 @@ def invoke_sentry_agent(
         workspace=cwd.resolve(),
         codex_home=codex_home.resolve(),
     )
+    child_env["SENTRY_HOST_SCOPE"] = "HOUSEHOLD" if autonomous_binding else scope
     # Profile contents are host configuration; never discover a server from
     # model arguments or inherit a previous process's binding environment.
     try:
@@ -603,6 +610,22 @@ def invoke_sentry_agent(
         return {"ok": False, "error": {"code": "credential_isolation_not_ready", "message": "Resident private-path restrictions cannot be qualified"}}
     event_overrides: list[str] = []
     event_request_id: str | None = None
+    if scope == "HOUSEHOLD" and autonomous_binding is None:
+        from tools.sentry_codex_profile import autonomous_turn_overrides
+        try:
+            event_overrides = autonomous_turn_overrides(profile_data)
+        except (OSError, ValueError, TypeError, KeyError):
+            return {"ok": False, "error": {"code": "household_not_ready", "message": "Household permissions/profile are unavailable"}}
+    elif autonomous_binding is None:
+        # Existing installed profiles need no mutation to forward the new
+        # trusted scope marker to their Office broker.
+        from tools.sentry_codex_profile import _inline
+        servers = profile_data.get("mcp_servers", {})
+        office = servers.get("sentry_office")
+        if isinstance(office, dict):
+            office = {**office, "env_vars": list(dict.fromkeys([*office.get("env_vars", []), "SENTRY_HOST_SCOPE"]))}
+            office["env"] = {**office.get("env", {}), "SENTRY_HOST_SCOPE": "STANDALONE"}
+            event_overrides = ["-c", f"mcp_servers={_inline({**servers, 'sentry_office': office})}"]
     if autonomous_binding is not None:
         from tools.sentry_anima_events import validate_event_binding
         from tools.sentry_codex_profile import autonomous_turn_overrides
@@ -622,7 +645,7 @@ def invoke_sentry_agent(
         shutil.copyfile(repo_root / "tools" / schema_name, schema_path)
         args = [
             *launcher,
-            *([] if autonomous_binding else ["--search"]),
+            *([] if autonomous_binding or scope == "HOUSEHOLD" else ["--search"]),
             *privacy_overrides,
             *event_overrides,
             "--profile",
@@ -654,6 +677,8 @@ def invoke_sentry_agent(
                     profile_data=profile_data,
                     speaker_context=speaker_context,
                 )
+                if scope == "HOUSEHOLD" and anima.path is None:
+                    return {"ok": False, "error": {"code": "household_unavailable", "message": "Household binding is unavailable; no Office fallback or model turn ran"}, "anima": anima.diagnostics}
             if isinstance(anima_profile, dict) and autonomous_binding is None:
                 args[len(launcher):len(launcher)] = ["-c", f"mcp_servers.anima_household.enabled={'true' if anima.path else 'false'}"]
             if anima.path is not None:
@@ -970,11 +995,23 @@ class CodexNativeAgent:
             existing_thread_id = session.get("thread_id")
             thread_binding = str(session.get("authority_scope_id") or existing_thread_id or uuid.uuid4())
             session.setdefault("authority_scope_id", thread_binding)
+            from tools.sentry_anima import intended_scope
+            scope = intended_scope(source_surface)
+            if scope == "STANDALONE" and existing_thread_id and session.get("host_scope") != "STANDALONE":
+                return self._security_response(
+                    query_id=query_id, conversation_id=conversation_id,
+                    answer="This existing conversation is not qualified for broad Office access. Its history is preserved; use the household interface.",
+                    status="standalone_history_not_eligible",
+                )
+            if scope == "HOUSEHOLD":
+                # Monotonic narrowing before a possibly ambiguous launch.
+                session["host_scope"] = "HOUSEHOLD"
+                self.session_store.save(session)
             normalized = " ".join(question.casefold().strip().split())
-            context = RequestContext(query_id, thread_binding, question, self.authority_epoch)
+            context = RequestContext(query_id, thread_binding, question, self.authority_epoch, scope)
             pending_before = self.authority.pending_status(
                 context=context, include_arguments=True,
-            )
+            ) if scope == "STANDALONE" else {}
             agent_question = question
             authority_request = question
             resume_pending_after_response = False
@@ -1001,7 +1038,7 @@ class CodexNativeAgent:
                             f"automatic compaction is configured at {status['compaction_threshold']} tokens and is {status['compaction_status']}."),
                     status="conversation_status", details={"session_status": status},
                 )
-            if normalized in {"execution authority status", "get execution authority status", "what is your execution authority status"}:
+            if scope == "STANDALONE" and normalized in {"execution authority status", "get execution authority status", "what is your execution authority status"}:
                 status = self.authority.status()
                 return self._security_response(
                     query_id=query_id, conversation_id=conversation_id,
@@ -1009,7 +1046,7 @@ class CodexNativeAgent:
                             f"Command networking is {status['command_network']}; browser automation, computer use, plugins, and Codex memories are disabled."),
                     status="execution_authority_status", details={"execution_authority": status},
                 )
-            if normalized in {"start a new conversation", "rotate conversation", "reset active conversation pointer"}:
+            if scope == "STANDALONE" and normalized in {"start a new conversation", "rotate conversation", "reset active conversation pointer"}:
                 previous = existing_thread_id
                 history = list(session.get("rotated_threads", []))
                 if previous:
@@ -1060,6 +1097,7 @@ class CodexNativeAgent:
                     operator_request=authority_request,
                     authority_epoch=self.authority_epoch,
                     speaker_context=speaker_context or {"status": "unavailable"},
+                    host_scope=scope,
                 )
             usage = invocation.get("usage") if isinstance(invocation.get("usage"), dict) else {}
             input_tokens = int(invocation.get("context_input_tokens", usage.get("input_tokens", 0)) or 0)
@@ -1069,6 +1107,7 @@ class CodexNativeAgent:
             if thread_id:
                 self.session_store.save({
                     "thread_id": thread_id,
+                    "host_scope": scope,
                     "authority_scope_id": thread_binding,
                     "model": MODEL,
                     "model_context_window_tokens": MODEL_CONTEXT_WINDOW_TOKENS,
@@ -1086,7 +1125,7 @@ class CodexNativeAgent:
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                     "last_status": "completed" if invocation.get("ok") else "failed",
                 })
-            pending = self.authority.pending_status(context=context)
+            pending = self.authority.pending_status(context=context) if scope == "STANDALONE" else {}
             for capability in invocation.get("observed_tools", []):
                 if any(marker in capability for marker in ("command_execution", "file_change", "image_generation")):
                     self.authority.audit_external_action(

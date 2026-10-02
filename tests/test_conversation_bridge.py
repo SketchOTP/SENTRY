@@ -88,6 +88,7 @@ class ConversationBridgeTests(unittest.TestCase):
             "stderr": "",
         })()
         environment = {
+            "HOME": str(self.root),
             "CODEX_HOME": "/isolated-auth-location", "LANG": "C.UTF-8", "PATH": "/usr/bin:/bin",
             "OPENAI_API_KEY": "TEST_ONLY", "OPENAI_ADMIN_KEY": "TEST_ONLY",
             "ANIMA_HA_ACCESS_TOKEN": "TEST_ONLY", "ANIMA_DB_PASSWORD": "TEST_ONLY",

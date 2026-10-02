@@ -33,6 +33,9 @@ class CodexNativeAgentTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="sentry-agent-test-")
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
+        disabled = root / "disabled-anima.json"
+        disabled.write_text(json.dumps({"enabled": False}))
+        disabled.chmod(0o600)
         environment = patch.dict(os.environ, {
             "SENTRY_AUTHORITY_ROOT": str(root / "authority"),
             "SENTRY_AGENT_WORKSPACE": str(root / "workspace"),
@@ -404,6 +407,7 @@ class CodexNativeAgentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store = CodexSessionStore(Path(tmp, "session.json"))
             store.save({
+                "host_scope": "STANDALONE",
                 "thread_id": "f8b4e0b6-ae62-4d75-99fb-a69a935b9baf", "authority_scope_id": "scope-1",
                 "turn_count": 4, "last_context_utilization": 0.25, "compaction_count": 0,
             })
@@ -525,7 +529,7 @@ class CodexNativeAgentTests(unittest.TestCase):
             destination = root / "outside" / "fixture.txt"
             authority = ExecutionAuthority(root / "authority", workspace=workspace)
             store = CodexSessionStore(root / "session.json")
-            store.save({"thread_id": "f8b4e0b6-ae62-4d75-99fb-a69a935b9baf", "authority_scope_id": "scope-1"})
+            store.save({"thread_id": "f8b4e0b6-ae62-4d75-99fb-a69a935b9baf", "authority_scope_id": "scope-1", "host_scope": "STANDALONE"})
             proposal = authority.propose(
                 "move_file", {"source": str(source), "destination": str(destination)}, "move fixture.txt into outside",
                 context=RequestContext("original", "scope-1", "Move the fixture file but wait for my confirmation", "epoch-1"),
@@ -554,7 +558,7 @@ class CodexNativeAgentTests(unittest.TestCase):
             destination = root / "outside" / "fixture.txt"
             authority = ExecutionAuthority(root / "authority", workspace=workspace)
             store = CodexSessionStore(root / "session.json")
-            store.save({"thread_id": "f8b4e0b6-ae62-4d75-99fb-a69a935b9baf", "authority_scope_id": "scope-1"})
+            store.save({"thread_id": "f8b4e0b6-ae62-4d75-99fb-a69a935b9baf", "authority_scope_id": "scope-1", "host_scope": "STANDALONE"})
             proposal = authority.propose(
                 "move_file", {"source": str(source), "destination": str(destination)}, "move fixture.txt into outside",
                 context=RequestContext("original", "scope-1", "Move the fixture file but wait for my confirmation", "epoch-1"),
@@ -594,7 +598,7 @@ class CodexNativeAgentTests(unittest.TestCase):
             revised_destination = root / "outside" / "revised.txt"
             authority = ExecutionAuthority(root / "authority", workspace=workspace)
             store = CodexSessionStore(root / "session.json")
-            store.save({"thread_id": "f8b4e0b6-ae62-4d75-99fb-a69a935b9baf", "authority_scope_id": "scope-1"})
+            store.save({"thread_id": "f8b4e0b6-ae62-4d75-99fb-a69a935b9baf", "authority_scope_id": "scope-1", "host_scope": "STANDALONE"})
             proposal = authority.propose(
                 "move_file", {"source": str(source), "destination": str(original_destination)}, "move fixture as original.txt",
                 context=RequestContext("original", "scope-1", "Move the file but wait for confirmation", "epoch-1"),

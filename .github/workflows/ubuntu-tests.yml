@@ -16,7 +16,12 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -r requirements.txt
       - run: python tools/bootstrap_ci_models.py
-      - run: python -m unittest discover -s tests -p "test_*.py"
+      - run: |
+          test_home="$(mktemp -d /tmp/sentry-ci-tests.XXXXXX)"
+          env HOME="$test_home" SENTRY_AUTHORITY_ROOT="$test_home/authority" \
+            SENTRY_AGENT_WORKSPACE="$test_home/workspace" XDG_STATE_HOME="$test_home/state" \
+            CODEX_HOME="$test_home/codex" SENTRY_HOST_SCOPE=STANDALONE \
+            python -m unittest discover -s tests -p "test_*.py"
 
   security-focused:
     runs-on: ubuntu-latest
@@ -28,4 +33,9 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -r requirements.txt
-      - run: python -m unittest tests.test_execution_authority tests.test_codex_native_agent tests.test_sentry_mcp
+      - run: |
+          test_home="$(mktemp -d /tmp/sentry-ci-security.XXXXXX)"
+          env HOME="$test_home" SENTRY_AUTHORITY_ROOT="$test_home/authority" \
+            SENTRY_AGENT_WORKSPACE="$test_home/workspace" XDG_STATE_HOME="$test_home/state" \
+            CODEX_HOME="$test_home/codex" SENTRY_HOST_SCOPE=STANDALONE \
+            python -m unittest tests.test_execution_authority tests.test_codex_native_agent tests.test_sentry_mcp tests.test_stage9_scope

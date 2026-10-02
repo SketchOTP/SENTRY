@@ -955,6 +955,8 @@ def run_resident_event(
         thread_id = session.get("thread_id")
         if not thread_id:
             return {**blocked, "gate": "RESIDENT_THREAD_UNAVAILABLE"}
+        session["host_scope"] = "HOUSEHOLD"
+        agent.session_store.save(session)
         with tempfile.TemporaryDirectory(prefix="event-", dir=root) as temporary:
             path = Path(temporary) / "binding.json"
             # Allocate both private files before claiming (permissions/disk failure).

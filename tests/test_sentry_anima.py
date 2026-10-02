@@ -166,6 +166,9 @@ class ResidentAnimaTests(unittest.TestCase):
             self.assertNotIn("ANIMA_SENTRY_CLIENT_TOKEN_FILE", kwargs["env"])
             self.assertIn("dedicated-existing-thread", args)
             self.assertIn("resume", args)
+            self.assertNotIn("--search", args)
+            self.assertIn('permissions.sentry-resident.extends=":read-only"', args)
+            self.assertEqual(kwargs["env"]["SENTRY_HOST_SCOPE"], "HOUSEHOLD")
             self.assertNotIn("--ephemeral", args)
             self.assertLessEqual(kwargs["timeout"], 255)
             path.with_name("metadata.json").write_text(
@@ -192,7 +195,8 @@ class ResidentAnimaTests(unittest.TestCase):
             return self.completed()
 
         result = self.invoke(runner)
-        self.assertTrue(result["ok"])
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["error"]["code"], "household_unavailable")
         self.assertEqual([x[0] for x in self.client.events], ["open"])
         self.assertNotIn("PRIVATE CONTENT", json.dumps(result))
 
@@ -228,10 +232,10 @@ class ResidentAnimaTests(unittest.TestCase):
     def test_sensor_and_default_origins_never_open_direct_interaction(self):
         for surface in ("autonomous", "sensor", "sentry_ask"):
             with self.subTest(surface=surface):
-                self.assertTrue(
+                self.assertEqual(
                     self.invoke(lambda *a, **kw: self.completed(), surface=surface)[
                         "ok"
-                    ]
+                    ], surface == "sentry_ask"
                 )
         self.assertEqual(self.client.events, [])
 

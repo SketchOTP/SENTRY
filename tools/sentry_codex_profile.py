@@ -134,6 +134,9 @@ def autonomous_turn_overrides(profile_data: dict) -> list[str]:
         "web_search": "disabled",
         "allow_login_shell": False,
         "skills.config": [],
+        # Downgrading explicit grants is insufficient with :workspace's
+        # inherited /tmp and TMPDIR writes. Replace the parent as well.
+        "permissions.sentry-resident.extends": ":read-only",
     }
     features = set(profile_data.get("features", {})) | {
         "apps", "browser_use", "browser_use_external", "browser_use_full_cdp_access",
@@ -304,7 +307,7 @@ cwd = "{REPO_ROOT}"
 enabled = true
 startup_timeout_sec = 30
 tool_timeout_sec = 180
-env_vars = ["SENTRY_REQUEST_ID", "SENTRY_THREAD_ID", "SENTRY_OPERATOR_REQUEST", "SENTRY_AUTHORITY_EPOCH"]
+env_vars = ["SENTRY_REQUEST_ID", "SENTRY_THREAD_ID", "SENTRY_OPERATOR_REQUEST", "SENTRY_AUTHORITY_EPOCH", "SENTRY_HOST_SCOPE"]
 
 [mcp_servers.sentry_office.env]
 SENTRY_BASE_URL = "http://127.0.0.1:48174"

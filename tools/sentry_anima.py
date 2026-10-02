@@ -31,9 +31,7 @@ FINAL_RESERVE_SECONDS = 15
 @contextmanager
 def voice_origin(source_surface: str) -> Iterator[None]:
     """Do not infer authority from request text, model output, or sensor events."""
-    token = VOICE_SURFACE.set(
-        source_surface if source_surface == "always_on_voice" else None
-    )
+    token = VOICE_SURFACE.set(source_surface)
     try:
         yield
     finally:
@@ -46,6 +44,21 @@ def config_path() -> Path:
         .expanduser()
         .absolute()
     )
+
+
+def intended_scope(source_surface: str) -> str:
+    """Trusted caller/configuration selection; absence is never Office consent."""
+    if source_surface in {"sentry_ask", "push_to_talk"}:
+        return "STANDALONE"
+    if source_surface != "always_on_voice":
+        return "HOUSEHOLD"
+    try:
+        # Only an explicit host-owned opt-out selects standalone voice.
+        if private_json(config_path()).get("enabled") is False:
+            return "STANDALONE"
+    except (OSError, ValueError, TypeError):
+        pass
+    return "HOUSEHOLD"
 
 
 def binding_root() -> Path:

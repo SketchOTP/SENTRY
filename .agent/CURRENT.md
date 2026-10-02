@@ -1,5 +1,41 @@
 # Current Project State
 
+## Stage9 final source release / runtime gates — 2026-10-02T21:03Z
+
+Actual Coder final collected and agent closed. Twenty files independently hash-
+matched and integrated; bounded source ACCEPTED FOR PUBLICATION, not deployed.
+Final ANIMA1531PASS81SKIP incl60worker; SENTRY596PASS7SKIP; primary realPG/current
+OPA7PASS0SKIP. Full custody/negatives and exact remaining boundary:
+027A/STAGE9-ARCHITECT-ACCEPTANCE.md and STAGE9-CODER-RESULT.md.
+Relative audio duplicate/unknown/restart fencing fixed using existing ledger.
+Installed effective sandbox readiness timed out: NOT QUALIFIED, so live Stage9
+rollout is withheld pending bounded readiness resolution. Voice enrollment needs
+genuine authenticated authority; UI remains preserved. Earlier assignment's
+six-sandbox-PASS claim is corrected, not retained as acceptance.
+Live stays matched Stage8b841/8396c7e/6eafe70; Android owner-root step unanswered.
+No new features/phase/agents; one coherent source release/exact paired CI pending.
+Owner/vendor/playback/prospective/full MO01–15/A–O outcomes remain explicit.
+Graft unstaged. Permanent Goal ACTIVE, not complete.
+
+## Stage8 exact hosted and live matched pair — 2026-10-02T20:08Z
+
+SENTRY6eafe70dcf0674ca66a8df866105965705dff841/CI37055182830 PASS and
+ANIMA8396c7eb261c6c0ee51c96d24b4012966d216768/CI37055256859 PASS.
+Actual artifact11249596490 PG70/browser2 and retained required inputs no target
+skips. Controlled ANIMA imageb841/source112/assets3/packages47/installed11 matches
+accepted source; compatible host Core/voice/helper reloaded with supervisor LAST.
+Core/voice/helper/supervisor/UI/actual vendor relay active; private resident
+profile/model/persona and local Graft unchanged. No orb/UI design change.
+ANIMA027A/STAGE8-DEPLOYMENT is full exact private/durable/46ambiguity/infrastructure
+preservation and honest natural queue-accounting evidence. Bounded live/source
+correspondence accepted, not genuine owner/audio/physical or full Goal proof.
+Same sole Coder Stage9 finishes known household/native/Office authority defect
+under primary dispositions in separate compatible roots. Owner wants wrap-up:
+no exploratory scope, new framework, extra qualification phase or Phase15.
+Android Binder owner action/vendor/playback/full actual owner/future usefulness
+remain open. Both Notion authority full current sections refetched MATCH20:13Z.
+
+
 Stage8 source acceptance2026-10-02T19:34Z: primary collected actual native
 Leibniz final and independently accepted bounded paired33-file bundle. SENTRY
 three files integrated exactly; full final594run/587PASS/7explicitSKIP, focused
