@@ -15,13 +15,16 @@
   and bounded controlled recovery are independently ACCEPTED, not whole Stage1
   or physical/full-goal acceptance. Both published-head CI runs passed.
   Stage2 accountable delivery/presence SOURCE is independently ACCEPTED FOR
-  PUBLICATION / CONTROLLED DEPLOYMENT; hosted CI/deployment pending. See ANIMA 027A
+  PUBLICATION / CONTROLLED DEPLOYMENT; both exact-head CI PASS. Controlled Stage2
+  deployment PARTIAL/REVIEW_PENDING: UI/Core/idle voice/Wi-Fi restored, relay
+  stopped after startup fault, Core handoff NOT_CONFIGURED, Android root gate
+  retained. Current runtime negatives/preservation evidence in ANIMA 027A
   `NATIVE-ARCHITECT-REVIEWS.md`, `STAGE1-CODER-RESULT.md` and
   `STAGE2-CODER-RESULT.md`. Parent owns reviews/coverage/publication.
 - Canonical packet: ANIMA `.agent/tasks/active/ANIMA-HA-GOAL-PHYSICAL-LATENCY-AND-RESIDUAL-CLOSURE-027A/`.
-- ANIMA local/published: `main` / `949804dc9f07487868664d2b1508eceb9f44cc6c`.
+- ANIMA local/published/loaded: `main` / `081f1198d47bfcf920af52e2782970c59ef2d387`.
 - SENTRY local: `feature/v0.4-personal-continuity` /
-  `23fb216250d646451c47e8d3ea8c63cd7f289d18` (parent-published).
+  `380422df61cf90a517347b719f60c073430f8663` (parent-published, relaunched).
 - Parent owns ANIMA execution lock/state, generation/fence 4; Coder is delegate.
 - Integration goal authority: ANIMA `.agent/PROJECT_GOAL.md` adopted 2026-08-28,
   [completion contract](https://app.notion.com/p/3d2833cb27ff8154a7b2dd259b4d5250),

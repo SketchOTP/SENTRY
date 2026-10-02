@@ -1,5 +1,48 @@
 # Current Project State
 
+## Native Architect checkpoint — 2026-10-02T07:34Z
+
+Actual sole-Coder Stage3 final collected and source accepted independently.
+Local product checkpoint3e521a10c64344a834d0a72786216fb8ad1337ef, compatible ANIMA
+f44e99caa067f29ff798edc693ab8ce3c950f02f. Not yet published/deployed; loaded
+pair380422df/081f1198 remains. Exact6-file manifest1b72cc4d and qualified
+privacy/bridge/context regressions in ANIMA027A STAGE3-CODER-RESULT/reviews.
+Private installed profile/thread/persona/model unchanged; per-turn source
+restrictions are not a claim changed runtime. Canonical speech remains model
+independent; contextual incident/mode source is not physical qualification.
+
+SAME sole Coder has Stage4 in /tmp/sentry-stage4-development.cXfgZb and ANIMA
+/tmp/anima-stage4-development.TzlWpj, same027A/R5F. Learning outcomes/replay/
+complete model-cost accounting; parent owns publication/runtime/custody/Notion.
+Existing source worktree is frozen. See canonical STAGE4-ASSIGNMENT in ANIMA.
+No new agent/framework or full Goal completion; root/vendor/physical gates remain.
+
+## Stage2 controlled deployment — 2026-10-02T05:15Z — PARTIAL / REVIEW_PENDING
+
+Published/loaded ANIMA081f1198d47bfcf920af52e2782970c59ef2d387 /
+SENTRY380422df61cf90a517347b719f60c073430f8663; exact-head CI36965605349 /
+36965606205 independently completed/success. Approved imagef20a28974ccb...
+UI-only replaced/healthy/external owner,104 source files/46 dependencies exact.
+Single-owner authenticated Core, worker/native UI/voice/supervisor running;
+idle voice fresh beyond60s awake/office. Wi-Fi restored:4 retained bindings/
+history,3 HOME/1 UNKNOWN,352 presence events unchanged/no fabricated transition.
+Relay FAILED at hardened outbox os.open("/") PermissionError; contained stopped
+after109 retries/no outbox. Core health Journal handoff NOT_CONFIGURED: actual
+installed connection/secret and vendor binding absent; no frozen-source/private
+repair improvised. Two exact rootless Android guard units installed/stopped,
+passive BINDER_PERMISSION/root gate retained;8247 mounts. Diagnostic Wi-Fi
+precheck sequencing negative preserved, subsequent actual binding/Journal checks
+pass. Historical134 pending/46 ambiguity, private11+session/relay extras and
+DB/OPA/searxng identities/mounts intact. Zero active/managedspeech/newrequests/
+newactions; Journal58062->58200 normal composition growth, memory254 unchanged.
+Canonical result/commands/manifests/gates in ANIMA027A STAGE2-CODER-RESULT.md.
+Parent independent deployment review pending; earlier source-only/held-Wi-Fi
+entries below are historical. Parent owns generation/fence4, coverage/reviews/
+publication; no source edits, root/model/physical turn, cache write, Stage3/4 or
+whole-goal acceptance.
+
+
+
 ## Stage2 independent source acceptance — 2026-10-02T04:41Z
 
 Primary Architect collected the sole native Coder's final corrected result and
