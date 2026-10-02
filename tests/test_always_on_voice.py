@@ -3,8 +3,9 @@ import tempfile
 import threading
 import unittest
 from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import numpy as np
 
@@ -16,6 +17,7 @@ from perception.always_on_voice import (
 )
 from perception.speaker_context import WakeIdentityCoordinator
 from perception.vosk_kws import CommandStreamProgress
+from perception.voice_status import fresh_status
 
 CHUNK = np.ones(512, dtype=np.float32)
 
@@ -135,6 +137,29 @@ class Gate:
 
 
 class AlwaysOnVoiceTests(unittest.TestCase):
+    def test_silent_standby_chunks_keep_voice_status_fresh_over_multiple_ttls(self):
+        loop, clock = self.make_loop([0.0] * 6)
+        start = datetime(2026, 10, 1, tzinfo=timezone.utc)
+        ask = Mock()
+        loop.ask_fn = ask
+        loop.state = VoiceState.LISTENING
+        loop.diagnostics.update(state=VoiceState.LISTENING.value)
+        timestamps = []
+        with patch("perception.always_on_voice.datetime") as wall_clock:
+            for seconds in (0, 30, 61, 121, 181, 241):
+                now = start + timedelta(seconds=seconds)
+                wall_clock.now.return_value = now
+                clock.value = seconds
+                loop.process_chunk(np.zeros(512, dtype=np.float32))
+                payload = json.loads(loop.diagnostics.path.read_text(encoding="utf-8"))
+                self.assertEqual(fresh_status(payload, now=now)["state"], "LISTENING")
+                self.assertEqual(payload["vad_probability"], 0.0)
+                self.assertEqual(payload["updated_at"], now.isoformat())
+                timestamps.append(payload["updated_at"])
+        self.assertEqual(len(set(timestamps)), 6)
+        self.assertEqual(fresh_status(payload, now=now + timedelta(seconds=61))["state"], "UNAVAILABLE")
+        ask.assert_not_called()
+
     def test_anima_idle_hook_is_optin_and_reuses_existing_speaker(self):
         loop, _ = self.make_loop([])
         loop.state = VoiceState.LISTENING

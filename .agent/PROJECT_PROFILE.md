@@ -1,5 +1,35 @@
 # Project Profile
 
+## Current companion integration and development checkpoint — 2026-10-01
+
+Actual local root: `/home/sketch/Projects/SENTRY`, preserved branch
+`feature/v0.4-personal-continuity` at
+`e2ab3b75781ec293f8830d910cb7622f34bd82cb`. The old Atlas root below is history.
+
+Preserve this repository's standalone one-office-room PROJECT_GOAL and protected
+V0.4 continuity/orb/persona/voice/memory work. For the companion ANIMA integration,
+the owner's 2026-09-06 amendment (CURRENT) and 2026-10-01 takeover explicitly
+supersede the older standalone scope's prohibition on ANIMA household integration
+only for those authorized component responsibilities. This does not broadly
+replace the office goal, create a second integration goal, or expand perception
+hardware. SENTRY is the sole integrated production intelligence and interaction
+layer; ANIMA owns canonical household Truth/Graph/Journal/operational memory,
+settings, identity/OPA, typed execution/verification, tasks, audit and recovery.
+
+Shared goal revision: ANIMA `.agent/PROJECT_GOAL.md`, ADOPTED 2026-08-28,
+completion marker `ANIMA_HA_PROTOTYPE_GOAL_COMPLETE`; completion contract
+https://app.notion.com/p/3d2833cb27ff8154a7b2dd259b4d5250 and integration authority
+https://app.notion.com/p/3d1833cb27ff81629fdcdd8997323f7e. Shared continuation/evidence
+is in ANIMA's existing 027A / R5F packet; parent owns its full coverage map.
+ANIMA local main is `c8ea05efe8c5a6ae5def4a1c75834910aa519d44`.
+
+Development role transfer is primary Codex Architect plus one native Coder,
+independent review and owner material decisions; RECORD holds provenance.
+It does not alter resident thread/model/profile, installed services, private
+configuration or runtime powers. Historical integration/model snapshots below
+retain their evidence boundaries and do not authorize changes by themselves.
+
+
 ## Repository
 - Name: SENTRY
 - Root: `/srv/ATLAS/100_ACTIVE/Projects/SENTRY` on the canonical Atlas share

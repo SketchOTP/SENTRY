@@ -1,6 +1,5 @@
 [Unit]
 Description=SENTRY NWS weather context refresh
-After=default.target
 
 [Service]
 Type=oneshot

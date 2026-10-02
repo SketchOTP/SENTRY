@@ -1,6 +1,6 @@
 [Unit]
 Description=Deliver due one-shot SENTRY alarms
-After=default.target pipewire.service
+After=pipewire.service
 
 [Service]
 Type=oneshot

@@ -519,14 +519,15 @@ def projection_io_request(
 
 
 def read_voice_status(path: Path | None = None) -> dict[str, Any]:
-    target = path or voice_status_path()
-    if not target.is_file():
-        return {"state": "UNAVAILABLE", "reason": "Voice listener has not published status."}
-    try:
-        value = json.loads(target.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return {"state": "UNAVAILABLE", "reason": type(exc).__name__}
-    return value if isinstance(value, dict) else {"state": "UNAVAILABLE", "reason": "Invalid status payload."}
+    from perception.voice_status import read_runtime_voice
+
+    return read_runtime_voice(path or voice_status_path())
+
+
+def sensor_status_message(payload: dict[str, Any]) -> str:
+    if payload.get("status") != "CURRENT":
+        return "Household signals are temporarily unavailable."
+    return "No signals are registered."
 
 
 def read_sensor_status() -> dict[str, Any]:
@@ -552,6 +553,9 @@ def read_sensor_status() -> dict[str, Any]:
 
 def sensor_indicator_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Keep only the small display contract returned by the ANIMA boundary."""
+
+    if payload.get("status") != "CURRENT":
+        return []
 
     items = payload.get("items")
     if not isinstance(items, list):
@@ -670,6 +674,8 @@ def resolve_sleep_transition_status(
     """Prevent a stale sleeping record from masking listener startup."""
 
     runtime_state = str(runtime_payload.get("state") or "UNAVAILABLE").upper()
+    if runtime_state == "UNAVAILABLE":
+        return runtime_payload, None
     listener_ready = (
         runtime_state == "LISTENING"
         and runtime_payload.get("sleep_enabled") is False
@@ -697,6 +703,9 @@ def resolve_sleep_transition_status(
 def voice_status_summary(payload: dict[str, Any]) -> tuple[str, str, str]:
     state = str(payload.get("state") or payload.get("status") or "UNAVAILABLE").upper()
     guidance = VOICE_GUIDANCE.get(state, str(payload.get("reason") or "Voice status is unavailable."))
+    if state == "UNAVAILABLE" and isinstance(payload.get("desired_sleep_enabled"), bool):
+        intent = "Sleep requested" if payload["desired_sleep_enabled"] else "Awake requested"
+        guidance = f"{intent} · {guidance}"
     if state == "SLEEPING":
         identity = "Speaker context is inactive while sleeping"
     elif payload.get("speaker_context_preflight_active"):
@@ -2092,7 +2101,7 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
                 self.sensor_list.remove(child)
                 child = next_child
             if not rows:
-                empty = Gtk.Label(label="No registered signals are available.", xalign=0)
+                empty = Gtk.Label(label=sensor_status_message(payload), xalign=0)
                 empty.add_css_class("muted")
                 self.sensor_list.append(empty)
                 return False
@@ -2338,13 +2347,10 @@ def build_application(config_path: Path, *, projection_mode: bool = False):
             runtime_payload = read_voice_status()
             if self.projection_mode:
                 runtime_payload = projection_instance_payload(runtime_payload)
-            if isinstance(runtime_payload.get("sleep_enabled"), bool):
-                self.sleep_enabled = bool(runtime_payload["sleep_enabled"])
-            payload, self._sleep_transition_state = resolve_sleep_transition_status(
-                runtime_payload,
-                sleep_enabled=self.sleep_enabled,
-                transition_state=self._sleep_transition_state,
-            )
+            if isinstance(runtime_payload.get("desired_sleep_enabled"), bool):
+                self.sleep_enabled = runtime_payload["desired_sleep_enabled"]
+            # Observed state is never fabricated from desired sleep/instance.
+            payload = runtime_payload
             state, guidance, _identity = voice_status_summary(payload)
             wake_at = str(payload.get("last_wake_at") or "") or None
             acknowledge = should_acknowledge_wake(self._last_wake_at, wake_at) if self._status_initialized else False

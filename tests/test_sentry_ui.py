@@ -3,6 +3,7 @@ import json
 import re
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from tools.sentry_ui import (
@@ -23,6 +24,7 @@ from tools.sentry_ui import (
     sensor_icon_spec,
     should_acknowledge_wake,
     sensor_indicator_rows,
+    sensor_status_message,
     voice_indicator_model,
     voice_status_summary,
 )
@@ -125,8 +127,25 @@ class SentryNativeUiTests(unittest.TestCase):
             self.assertEqual(read_voice_status(path)["state"], "UNAVAILABLE")
             path.write_text("not-json", encoding="utf-8")
             self.assertEqual(read_voice_status(path)["state"], "UNAVAILABLE")
-            path.write_text(json.dumps({"state": "CAPTURING"}), encoding="utf-8")
+            path.write_text(json.dumps({"state": "CAPTURING", "updated_at": datetime.now(timezone.utc).isoformat()}), encoding="utf-8")
             self.assertEqual(read_voice_status(path)["state"], "CAPTURING")
+
+    def test_unavailable_voice_never_becomes_desired_sleep_or_waking(self):
+        for sleeping in (True, False):
+            payload = {"state": "UNAVAILABLE", "desired_sleep_enabled": sleeping}
+            observed, transition = resolve_sleep_transition_status(
+                payload, sleep_enabled=sleeping, transition_state="STARTING",
+            )
+            self.assertEqual(observed["state"], "UNAVAILABLE")
+            self.assertIsNone(transition)
+            self.assertIn("requested", voice_status_summary(observed)[1])
+
+    def test_missing_sensor_service_is_not_an_empty_registry(self):
+        self.assertIn("unavailable", sensor_status_message({"status": "UNAVAILABLE", "items": []}))
+        self.assertEqual(sensor_status_message({"status": "CURRENT", "items": []}), "No signals are registered.")
+        self.assertEqual(sensor_indicator_rows({"status": "UNAVAILABLE", "items": [
+            {"sensor_id": "old", "active": True, "label": "old"}
+        ]}), [])
 
     def test_sensor_indicator_rows_keep_only_the_display_contract(self):
         rows = sensor_indicator_rows({

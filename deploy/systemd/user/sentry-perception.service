@@ -1,6 +1,5 @@
 [Unit]
 Description=SENTRY local perception service
-After=default.target
 StartLimitIntervalSec=300
 StartLimitBurst=5
 

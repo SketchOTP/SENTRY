@@ -1,6 +1,6 @@
 [Unit]
 Description=SENTRY voice supervisor (ANIMA-owned wake availability)
-After=default.target
+After=sentry-state-api.service
 Wants=sentry-voice.service
 StartLimitIntervalSec=300
 StartLimitBurst=5

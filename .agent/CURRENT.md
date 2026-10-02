@@ -1,6 +1,99 @@
 # Current Project State
 
-Last updated: 2026-09-09
+Last updated: 2026-10-01
+
+## Current owner takeover checkpoint — 027A / R5F — 2026-10-01
+
+BASELINE/GOVERNANCE: `ACCEPTED` by primary Architect; exact bounded disposition
+and next Stage1 scope are linked in ANIMA 027A `NATIVE-ARCHITECT-REVIEWS.md`.
+Primary Codex `01a052d8-2511-7382-a1ef-b0a080514788` independently reviews one native
+development Coder. Parent holds ANIMA execution lock/state generation/fence 4;
+Coder is delegated and does not acquire/release it. Result detail is in ANIMA
+027A EVIDENCE and HANDOFF; older current-stage statements below are historical.
+
+Local pair independently read: ANIMA main
+`c8ea05efe8c5a6ae5def4a1c75834910aa519d44`; SENTRY preserved
+feature/v0.4-personal-continuity
+`e2ab3b75781ec293f8830d910cb7622f34bd82cb`. Both heads and initial dirty
+assessment/tooling state are preserved. No accepted/reviewed deployed pair is
+established by this assignment. Source/deployed drift remains open assessment
+evidence. ANIMA's adopted full goal/success measures and SENTRY's standalone
+office goal are unchanged; companion integration responsibilities are in PROFILE.
+
+Coder independently observed installed stack/default.target cycle and the boot
+journal's deleted Core/Wi-Fi jobs; Core, Wi-Fi, household worker and voice were
+inactive. No startup repair or runtime recovery is claimed. Parent reports
+awake/office settings, 134 PENDING, no CLAIMED/PROVIDER_RUNNING, and 33
+RECOVERY_REQUIRED + 13 UNKNOWN_RESULT; these are parent-observed aggregates,
+not a Coder database recount. Preserve ambiguous work; inspect pending age and
+eligibility before any later worker restart to prevent historical model storms.
+
+Parent reports verified remote heads (ANIMA main `814e21a`, SENTRY main
+`970d1c` and feature `5e5ca6d`), Notion takeover writes/readback on ANIMA,
+completion contract and SENTRY, full MO-01–15/A–O plus
+`HA_FRONTEND_REQUIRED=0`, and active native Goal. Coder did not perform those
+external checks. Parent owns full-goal coverage/GOAL-COVERAGE.md and Notion.
+Watchdog is parent-reported PAUSED; prior RELEASED state is historical and does
+not supersede current generation4 ownership.
+
+Current assignment: Stage1 startup/provider ownership/truthful status source
+bundle, under the same generation/fence4. Implementation and regression evidence
+are in ANIMA 027A `STAGE1-CODER-RESULT.md`; independent product review is PENDING.
+No deployment, installed-unit edits/restarts, provider/model turn, physical action,
+commit/push or Notion write by Coder. Parent-reported Android containment stops
+only session/supervisor to prevent Binder retry/mount growth; root repair is gated.
+Existing configured `anima_household` is disabled at rest intentionally, has the
+prebound tools/paths/denies, and is activated by qualified per-turn overrides.
+The earlier enabled-only listing did NOT prove a missing binding. No profile,
+thread, model, permission or persona edit is required or performed.
+ANIMA Graft ask auto-refreshed six source entries during Stage1; byte preservation
+of its internal cache FAILED. SENTRY Graft and both ignore files remain unchanged;
+no further Graft commands or attempted cache reconstruction. Detailed reproducible
+digest recipe and exception are in the Stage1 result. Whole goal remains active.
+
+Stage1 independent-review correction: full SENTRY567 tests pass after replacing
+the stale comment assertion with actual headless native build/status authority
+checks and adding silent-chunk freshness protection across four TTLs. No new
+voice heartbeat or SENTRY production change. ANIMA full wrapper passes1229/76
+skips, OPA9/9, full Ruff format/lint and strict mypy156 files; inherited/introduced
+type and format debt are separately reproduced/preserved and now reconciled.
+Exact evidence is appended to existing027A STAGE1-CODER-RESULT; product remains
+REVIEW_PENDING and undeployed. Parent SQL134 old PENDING/zero under120s and active
+claims/provider runs/46 ambiguity unchanged; no Coder replay/service/cache action.
+
+
+## Owner requested ANIMA and SENTRY assessment — 2026-10-01
+
+Local SENTRY remains at `e2ab3b75781ec293f8830d910cb7622f34bd82cb`
+on `feature/v0.4-personal-continuity`; the local product commit is unpushed
+relative to the recorded remote-tracking branch. No source, services,
+configuration or data were changed during this read-only assessment.
+
+The current SLEEPING display is stale: ANIMA database intent is awake/office,
+while retained voice status is dated September 30. Core and household worker
+startup failed after the host boot; the voice supervisor repeatedly encounters
+AnimaHouseholdError and cannot reconcile desired state. Sensor transport
+failure returns UNAVAILABLE/empty items, rendered misleadingly as no registered
+signals. Parent boot logs identify the installed ANIMA stack/default.target
+cycle; no sensor deletion was established. Android also reports NOT_READY.
+
+Five specialist assessments are consolidated with source links and maps at:
+`/home/sketch/Projects/ANIMA Home Automation/.agent/tasks/active/ANIMA-HA-GOAL-PHYSICAL-LATENCY-AND-RESIDUAL-CLOSURE-027A/SYSTEM-ASSESSMENT-2026-10-01.md`.
+Current source counterexamples include missing full context and suppressed
+follow-up speech on the combined announcement route, source-wide unknown
+latching and busy-speaker required-delivery gaps, plus undercounted personality
+presentation model usage. These are not proof of a particular live incident.
+
+Focused resident-event tests pass 57/57 in the installed Linux venv; an initial
+system-Python run failed two imports for missing numpy and is retained as
+environment-negative evidence. Focused UI tests pass 32/32; no complete suite,
+hosted CI or physical wake/playback qualification was performed this turn.
+
+Current Notion 027A-R5F accepts Sentry and century aliases. Historical reboot
+PASS remains historical evidence, not proof of the current failed boot.
+Graft tooling stays separate. Next proposed work is bounded boot/deployment
+recovery, truthful status and reliable mandatory delivery, then an outcome-
+measured household-learning loop with source development separately governed.
 
 ## Resizable household signal drawer — 2026-09-11
 

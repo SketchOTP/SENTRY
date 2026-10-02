@@ -10,18 +10,19 @@ import sys
 import time
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from perception.voice_status import read_runtime_voice
+
 
 def _path() -> Path:
     return Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")) / "sentry" / "voice.json"
 
 
 def _read(path: Path) -> dict:
-    if not path.is_file():
-        return {"status": "unavailable", "reason": "voice listener has not published status"}
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        return {"status": "unavailable", "reason": type(exc).__name__}
+    return read_runtime_voice(path)
 
 
 def _label(payload: dict) -> str:
@@ -103,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
             except (BrokenPipeError, OSError, ValueError):
                 break
         if not args.watch:
-            return 0 if payload.get("status") != "unavailable" else 1
+            return 0 if payload.get("state") != "UNAVAILABLE" else 1
         try:
             time.sleep(0.25)
         except KeyboardInterrupt:

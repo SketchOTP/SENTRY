@@ -1,10 +1,14 @@
+import ast
 import json
 import tempfile
 import threading
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+
+from tools import sentry_ui, sentry_voice_supervisor
 
 from tools.sentry_install_user_services import (
     ALARM_UNIT_NAMES,
@@ -21,6 +25,16 @@ from tools.sentry_install_user_services import (
 )
 from tools.sentry_proactive import watch_loop
 from tools.sentry_resident_live_probe import _unit_states
+
+
+def native_window_method(name):
+    """Execute the actual nested GTK method headlessly, not a copy of its logic."""
+    tree = ast.parse(Path("tools/sentry_ui.py").read_text(encoding="utf-8"))
+    window = next(node for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and node.name == "SentryWindow")
+    method = next(node for node in window.body if isinstance(node, ast.FunctionDef) and node.name == name)
+    module = ast.Module(body=[method], type_ignores=[])
+    namespace = dict(vars(sentry_ui))
+    return module, namespace
 
 
 class _FakeProcessor:
@@ -217,9 +231,71 @@ class ResidentRuntimeTests(unittest.TestCase):
         self.assertIn("Persistent=true", alarms)
         native_ui = Path("tools/sentry_ui.py").read_text(encoding="utf-8")
         self.assertIn("Gtk.Application", native_ui)
-        self.assertIn("both SENTRY faces are display-only", native_ui)
+        self._assert_native_faces_have_no_local_voice_or_identity_controls()
         self.assertIn("orb_stack.set_child(self.status_orb)", native_ui)
         self.assertNotIn("ThreadingHTTPServer", native_ui)
+
+    def _assert_native_faces_have_no_local_voice_or_identity_controls(self):
+        for projection_mode in (False, True):
+            with self.subTest(projection_mode=projection_mode):
+                module, namespace = native_window_method("_build")
+                # Only display widgets are available. Reaching legacy local
+                # settings/enrollment construction raises AttributeError.
+                gtk = SimpleNamespace(**{name: Mock() for name in (
+                    "CssProvider", "StyleContext", "Overlay", "Box", "DrawingArea", "Label",
+                )}, Orientation=SimpleNamespace(VERTICAL=1),
+                    Align=SimpleNamespace(CENTER=1), STYLE_PROVIDER_PRIORITY_APPLICATION=1)
+                namespace.update(Gtk=gtk, Gdk=Mock(), StatusOrb=Mock())
+                exec(compile(module, "tools/sentry_ui.py", "exec"), namespace)
+                window = SimpleNamespace(projection_mode=projection_mode,
+                    _draw_projection_fallback=Mock(), _show_projection_fallback=Mock(),
+                    _build_sensor_drawer=Mock(), set_child=Mock(), fullscreen=Mock())
+                namespace["_build"](window)
+                window.set_child.assert_called_once()
+                if projection_mode:
+                    window.fullscreen.assert_called_once()
+                    window._build_sensor_drawer.assert_not_called()
+                else:
+                    window._build_sensor_drawer.assert_called_once()
+                    window.fullscreen.assert_not_called()
+                for local_control in ("voice_combo", "speed_scale", "sleep_switch", "manager", "profile_list"):
+                    self.assertFalse(hasattr(window, local_control), local_control)
+
+    def test_native_faces_consume_anima_intent_without_local_authority(self):
+        with tempfile.TemporaryDirectory() as directory:
+            voice_path = Path(directory) / "voice.json"
+            config = Mock()
+            client = config.client.return_value
+            for instance, sleep in (("office", False), ("living_room", True)):
+                with self.subTest(instance=instance, sleep=sleep):
+                    client.voice_settings.return_value = {
+                        "active_instance_id": instance, "sleep_enabled": sleep,
+                        "voice_id": "fixture", "speech_speed": 1.0,
+                    }
+                    with patch.object(sentry_voice_supervisor.AnimaConfig, "load", return_value=config), \
+                            patch.object(sentry_voice_supervisor, "voice_is_active", return_value=False), \
+                            patch.object(sentry_voice_supervisor, "_systemctl", return_value=SimpleNamespace(returncode=0)), \
+                            patch.object(sentry_voice_supervisor, "reconcile_visible_face", return_value="face_ready"):
+                        sentry_voice_supervisor.reconcile_once(publish=lambda value:
+                            sentry_voice_supervisor.publish_desired_status(value, voice_path.with_name("voice-supervisor.json")))
+                    payload = sentry_ui.read_voice_status(voice_path)
+                    # Missing observed voice remains unavailable, even when
+                    # canonical intent is awake; intent comes from ANIMA only.
+                    self.assertEqual(payload["state"], "UNAVAILABLE")
+                    self.assertEqual(payload["desired_sleep_enabled"], sleep)
+                    self.assertEqual(payload["desired_instance_id"], instance)
+                    for projection_mode in (False, True):
+                        module, namespace = native_window_method("_refresh_status")
+                        namespace["read_voice_status"] = lambda: payload
+                        exec(compile(module, "tools/sentry_ui.py", "exec"), namespace)
+                        window = SimpleNamespace(projection_mode=projection_mode,
+                            sleep_enabled=not sleep, _last_wake_at=None, _status_initialized=False,
+                            status_orb=Mock(), projection_fallback_orb=Mock(), state_label=Mock())
+                        window.projection_fallback_orb.get_visible.return_value = False
+                        self.assertTrue(namespace["_refresh_status"](window))
+                        self.assertEqual(window.sleep_enabled, sleep)
+                        self.assertEqual(window.status_orb.present.call_args.args[0], payload)
+            self.assertEqual(client.voice_settings.call_count, 2)
 
     def test_live_probe_uses_user_systemd_and_localhost_api(self):
         self.assertEqual(_unit_states.__module__, "tools.sentry_resident_live_probe")

@@ -9,6 +9,8 @@ import signal
 import subprocess
 import sys
 import time
+from collections.abc import Callable
+from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -90,11 +92,13 @@ def reconcile_visible_face(active_instance_id: str) -> str:
     return "face_ready"
 
 
-def reconcile_once() -> str:
+def reconcile_once(*, publish: Callable[[dict], None] | None = None) -> str:
     """Apply the server-owned desired state once; never read local sleep config."""
 
     config = AnimaConfig.load()
     if config is None:
+        if publish:
+            publish({"status": "UNAVAILABLE"})
         if voice_is_active():
             result = _systemctl("stop", VOICE_UNIT)
             return "anima_unavailable_stopped" if result.returncode == 0 else "anima_unavailable_stop_failed"
@@ -103,7 +107,12 @@ def reconcile_once() -> str:
     sleep_enabled = value.get("sleep_enabled")
     signature = _desired_signature(value)
     if not isinstance(sleep_enabled, bool) or signature is None:
+        if publish:
+            publish({"status": "UNAVAILABLE"})
         return "invalid_anima_setting"
+    if publish:
+        publish({"status": "CURRENT", "desired_sleep_enabled": sleep_enabled,
+                 "desired_instance_id": signature[0]})
     active_instance_id = signature[0]
     if reconcile_visible_face(active_instance_id) == "office_ui_failed":
         return "face_switch_failed"
@@ -126,6 +135,16 @@ def reconcile_once() -> str:
     return "starting" if result.returncode == 0 else "start_failed"
 
 
+def publish_desired_status(value: dict, path: Path | None = None) -> None:
+    """Ephemeral observation of canonical intent, never another settings store."""
+    path = path or _voice_status_path().with_name("voice-supervisor.json")
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps({**value, "updated_at": datetime.now(timezone.utc).isoformat()}))
+    temporary.chmod(0o600)
+    temporary.replace(path)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--poll-seconds", type=float, default=5.0)
@@ -143,8 +162,9 @@ def main(argv: list[str] | None = None) -> int:
         signal.signal(signum, request_stop)
     while not stop:
         try:
-            status = reconcile_once()
+            status = reconcile_once(publish=publish_desired_status)
         except Exception as exc:  # noqa: BLE001 - supervisor must keep retrying
+            publish_desired_status({"status": "UNAVAILABLE"})
             status = f"supervisor_error:{type(exc).__name__}"
         print(status, flush=True)
         if args.once:

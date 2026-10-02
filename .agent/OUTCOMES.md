@@ -2077,3 +2077,80 @@ The Architect accepted the substantive conversational-orchestration result at im
 - This validates the committed wake corroboration and bounded face-enrollment
   transport changes. It does not replace longer ambient wake observation or an
   owner physical enrollment retry.
+
+## OUTCOME-OWNER-SYSTEM-ASSESSMENT — 2026-10-01
+
+- Status: read-only assessment complete / live end-to-end behavior unqualified.
+- Coordinated five agents across ANIMA and SENTRY. Consolidated report and
+  system maps are in ANIMA's existing 027A packet, referenced by CURRENT.md.
+- Current canonical voice setting is awake/office; stale SLEEPING and empty
+  signals reflect unavailable Core transport, not proven registration loss.
+  Parent found a boot ordering cycle discarding Core/Wi-Fi start jobs. Android
+  independently reports incomplete boot and unavailable Binder forwarding.
+- Synthetic source tests reproduced compact-only context and suppressed useful
+  follow-up on announcement-plus-reasoning, and the normally composed ANIMA UI
+  rejecting episode-less external confirmations. No live actions/models used.
+- PASSED: 57 resident-event tests in the supported Linux venv; 32 UI tests;
+  further focused authority/calibration selections as documented in the report.
+  FAILED initially: system Python lacked numpy for two resident-event imports;
+  corrected interpreter rerun passed. NOT RUN: full suite, hosted CI, physical
+  wake/audio, current resident effective-host-permission qualification.
+- The full proposed improvement loop is not implemented by this assessment.
+  Learning context remains non-authoritative; source changes require the
+  separate developer/review/deployment boundary. Historical reboot and both
+  owner-authorized wake aliases remain preserved.
+- Source/settings/services/data/Graft unchanged. Only local governance records
+  changed; no commit, push, deployment or external-record modification.
+
+## OUTCOME-027A-R5F-BASELINE-GOVERNANCE — 2026-10-01
+
+- Coder reported: role routing, project-local Authority contracts, INDEX file
+  responsibility/read/update navigation, companion PROFILE and CURRENT checkpoint
+  reconciled inside existing 027A. Required state files/directories exist; none
+  created. Standalone/adopted goal files and historical records preserved.
+- Independent Coder finding: installed stack After=default.target participates
+  in cycle with Core/Wi-Fi; current boot journal explicitly deleted their start
+  jobs. Correct actual names are anima-core.service and anima-wifi-presence.service.
+  Core/worker/Wi-Fi/voice inactive; supervisor active is not attachment evidence.
+- Detailed loading paths, baseline/dirty inventory, validation, scope and
+  limitations: ANIMA 027A EVIDENCE/HANDOFF dated governance subsection.
+- Parent-reported Notion/Goal/remote/store/Binder findings remain attributed
+  in CURRENT/task evidence; they are not a Coder recount or live vendor proof.
+- Classification: local governance IMPLEMENTED; static/startup observation
+  E1_OBSERVED; runtime recovery NOT RUN. Independent Architect review PENDING;
+  acceptance/goal completion NOT CLAIMED. No product or runtime mutations.
+- Next: primary Architect independently checks important finding and diff,
+  sends direct follow-up/disposition; Stage1 remains a separate later assignment.
+
+
+## 027A / R5F — native Architect governance acceptance and Stage1 follow-up — 2026-10-02
+
+Governance disposition is ACCEPTED (bounded scope), by primary Architect's
+independent review in ANIMA 027A `NATIVE-ARCHITECT-REVIEWS.md`, not by this Coder.
+That record supersedes earlier PENDING governance status while preserving its
+original result/evidence. Stage1 source/testing is authorized by direct follow-up;
+deployment/restarts/household mutations remain gated. Sole Coder under parent
+OWNED generation/fence4; no new directive, phase, goal or runtime brain.
+
+Stage1 implementation, exact changed paths, loading fingerprints, tests, source/
+installed boundary and negative checks are in ANIMA 027A `STAGE1-CODER-RESULT.md`.
+Product result is REVIEW_PENDING; actual recovery and whole goal remain unproven.
+The earlier enabled-only profile listing did not establish a missing ANIMA MCP
+binding: installed `anima_household` is present, disabled at rest, exact-prebound,
+and protected by existing denies/overrides. No resident profile change is made.
+ANIMA Graft ask's automatic cache refresh is an explicit preservation failure;
+no manual rebuild, further ask or speculative byte restoration was performed.
+
+## 2026-10-01 — 027A/R5F Stage1 independent-review corrections — REVIEW_PENDING
+
+Replaced the stale resident-runtime comment assertion with actual native window
+build/status authority execution, preserving committed-baseline failure evidence.
+Both faces consume ANIMA desired settings without creating local voice/identity
+controls or fabricating observed availability. Existing silent-chunk diagnostics
+keep voice.json fresh across four TTLs; no new heartbeat/production voice edit.
+Full SENTRY567 tests PASS; ANIMA full wrapper1229 passed/76 skipped, OPA9/9 and
+full strict mypy/Ruff format/lint156 files PASS after separately reproducing and
+reconciling introduced/inherited debt. Exact canonical result appended in ANIMA
+existing027A `STAGE1-CODER-RESULT.md`. Review PENDING, no acceptance/deployment/
+restart/model/household/cache/profile/goal mutation; no staging/commit/push/Notion.
+Parent retains generation/fence4 and owns review/coverage/root/recovery decisions.

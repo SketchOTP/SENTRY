@@ -1,6 +1,5 @@
 [Unit]
 Description=SENTRY derived routine statistics refresh
-After=default.target
 
 [Service]
 Type=oneshot

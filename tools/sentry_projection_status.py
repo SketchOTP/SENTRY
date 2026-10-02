@@ -16,6 +16,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from perception.remote_voice import constant_time_token_match, read_private_token
+from perception.voice_status import read_runtime_voice
 
 
 STATUS_KEYS = {
@@ -25,18 +26,12 @@ STATUS_KEYS = {
     "speaker_context_preflight_active", "last_segment_outcome", "anima_event_status",
     "anima_event_gate",
     "active_instance_id", "voice_id", "speech_speed",
+    "observed_state", "desired_sleep_enabled", "desired_instance_id",
 }
 
 
 def bounded_status(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        return {"state": "UNAVAILABLE", "reason": "Voice listener has not published status."}
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return {"state": "UNAVAILABLE", "reason": "Voice status is unavailable."}
-    if not isinstance(value, dict):
-        return {"state": "UNAVAILABLE", "reason": "Voice status is invalid."}
+    value = read_runtime_voice(path)
     result = {key: value[key] for key in STATUS_KEYS if key in value}
     return result if result else {"state": "UNAVAILABLE", "reason": "Voice status is empty."}
 

@@ -1,6 +1,6 @@
 [Unit]
 Description=SENTRY opt-in always-available local voice
-After=default.target
+After=pipewire.service
 StartLimitIntervalSec=300
 StartLimitBurst=5
 
