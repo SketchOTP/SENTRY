@@ -59,7 +59,47 @@ class ConversationBridgeTests(unittest.TestCase):
             )
         self.assertEqual(result, {})
         self.assertIsNone(error)
-        self.assertEqual(run.call_args.args[0][:3], ["/opt/codex", "--search", "exec"])
+        args = run.call_args.args[0]
+        self.assertEqual(args[:2], ["/opt/codex", "--search"])
+        self.assertLess(args.index("--search"), args.index("exec"))
+        self.assertIn("shell_tool", args)
+        self.assertIn("mcp_servers={}", args)
+
+    def test_ephemeral_bridge_has_no_host_tools_or_inherited_server_authority(self):
+        completed = type("Completed", (), {
+            "returncode": 0,
+            "stdout": '{"type":"item.completed","item":{"type":"agent_message","text":"{}"}}\n',
+            "stderr": "",
+        })()
+        environment = {
+            "CODEX_HOME": "/isolated-auth-location", "LANG": "C.UTF-8", "PATH": "/usr/bin:/bin",
+            "OPENAI_API_KEY": "TEST_ONLY", "OPENAI_ADMIN_KEY": "TEST_ONLY",
+            "ANIMA_HA_ACCESS_TOKEN": "TEST_ONLY", "ANIMA_DB_PASSWORD": "TEST_ONLY",
+            "ANIMA_PREBOUND_FILE": "/not-a-real-binding", "SENTRY_OPERATOR_REQUEST": "TEST_ONLY",
+            "AWS_SECRET_ACCESS_KEY": "TEST_ONLY",
+        }
+        with patch.dict("tools.sentry_codex_bridge.os.environ", environment, clear=True), patch(
+            "tools.sentry_codex_bridge._launcher_args", return_value=["/opt/codex"]
+        ), patch("tools.sentry_codex_bridge.subprocess.run", return_value=completed) as run:
+            result, _thread, _usage, error = sentry_codex_bridge._invoke_prompt(
+                "fixture", schema_filename="sentry_grounded_response.schema.json", effort="low",
+                timeout_seconds=1,
+            )
+        self.assertEqual(result, {})
+        self.assertIsNone(error)
+        args = run.call_args.args[0]
+        self.assertNotIn("--search", args)
+        disabled = {args[index + 1] for index, arg in enumerate(args) if arg == "--disable"}
+        self.assertTrue({"shell_tool", "view_image", "code_mode_host", "plugins",
+                         "browser_use", "computer_use", "skill_mcp_dependency_install"} <= disabled)
+        self.assertIn("--ignore-user-config", args)
+        self.assertIn("--ephemeral", args)
+        self.assertIn("read-only", args)
+        self.assertIn("mcp_servers={}", args)
+        self.assertIn("skills.config=[]", args)
+        self.assertEqual(args[args.index("--model") + 1], sentry_codex_bridge.MODEL)
+        self.assertEqual(set(run.call_args.kwargs["env"]), {"PATH", "HOME", "LANG", "CODEX_HOME"})
+        self.assertEqual(run.call_args.kwargs["env"]["CODEX_HOME"], environment["CODEX_HOME"])
 
 
 if __name__ == "__main__":

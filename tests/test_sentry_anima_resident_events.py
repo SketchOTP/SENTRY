@@ -157,6 +157,9 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         self.assertNotIn("--ephemeral", args)
         self.assertIn('web_search="disabled"', args)
         overlay = self.overlay_values(args)
+        # Assert the final last-wins launch table, not an intermediate profile.
+        self.assertEqual(overlay["permissions.sentry-resident.filesystem"][":workspace_roots"]["."], "read")
+        self.assertEqual(overlay["permissions.sentry-resident.filesystem"][str(Path.home() / "Projects/ANIMA Home Automation/.env")], "deny")
         self.assertIs(overlay["mcp_servers"]["sentry_office"]["enabled"], False)
         self.assertIn("features.shell_tool=false", args)
         self.assertIn("features.js_repl=false", args)

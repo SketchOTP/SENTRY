@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import stat
+from copy import deepcopy
 from pathlib import Path
 
 import tomllib
@@ -16,6 +17,72 @@ PROFILE_NAME = "sentry-resident"
 DEVELOPMENT_PROFILE_NAME = "sentry"
 MODEL_CONTEXT_WINDOW_TOKENS = 272_000
 AUTO_COMPACT_TOKEN_LIMIT = 217_600
+
+
+def _inline(value):
+    """Whole-table CLI overrides preserve literal path keys, unlike dotted keys."""
+    if isinstance(value, dict):
+        return "{" + ", ".join(f"{json.dumps(k)} = {_inline(v)}" for k, v in value.items()) + "}"
+    if isinstance(value, list):
+        return "[" + ", ".join(_inline(v) for v in value) + "]"
+    if type(value) not in (str, bool, int, float):
+        raise ValueError("RESIDENT_PROFILE_VALUE_INVALID")
+    return json.dumps(value)
+
+
+def private_turn_profile(profile_data: dict, workspace: Path) -> tuple[dict, list[str]]:
+    """Add PC deployment credential denies for this launch only, never install.
+
+    Workspace-relative globs do not cover external ANIMA credentials. Preserve
+    the owner's model/features/server/profile settings; conflicting grants or
+    a private workspace fail closed rather than guessing precedence.
+    """
+    from tools.sentry_anima import (
+        AnimaConfig,
+        binding_root,
+        config_path,
+        filesystem_denies,
+    )
+
+    home = Path.home().resolve()
+    protected = [
+        home / "Projects/ANIMA Home Automation/.env",
+        home / ".config/anima",
+        home / ".local/share/anima-owner-boundary",
+        binding_root(),
+    ]
+    config = AnimaConfig.load()
+    if config_path().exists():
+        protected.append(config_path())
+    if config is not None:
+        config.validate_workspace(workspace)
+        protected.extend([config.path, config.token_file])
+    protected = list(dict.fromkeys(path for original in protected for path in (original.absolute(), original.resolve())))
+    if any(workspace.resolve().is_relative_to(path) or path.is_relative_to(workspace.resolve()) for path in protected):
+        raise ValueError("RESIDENT_PRIVATE_WORKSPACE_CONFLICT")
+    result = deepcopy(profile_data)
+    filesystem = result.setdefault("permissions", {}).setdefault(PROFILE_NAME, {}).setdefault("filesystem", {})
+    if not isinstance(filesystem, dict):
+        raise TypeError("RESIDENT_FILESYSTEM_INVALID")
+    # Minimize overlapping mounts without changing any preexisting rule.
+    existing_denies = [Path(key) for key, mode in filesystem.items()
+                       if isinstance(key, str) and Path(key).is_absolute() and mode == "deny"]
+    for path in protected:
+        if not any(path.is_relative_to(parent) and path.resolve().is_relative_to(parent.resolve())
+                   for parent in existing_denies + protected if parent != path):
+            filesystem[str(path)] = "deny"
+    # The CLI cannot mount a child deny inside a denied ancestor. Drop only
+    # redundant deny entries, never grants; the proof below rejects conflicts.
+    for key, mode in list(filesystem.items()):
+        if isinstance(key, str) and Path(key).is_absolute() and mode == "deny":
+            path = Path(key)
+            if any(parent != path and path.is_relative_to(parent)
+                   and path.resolve().is_relative_to(parent.resolve())
+                   for parent in protected if filesystem.get(str(parent)) == "deny"):
+                del filesystem[key]
+    if not all(filesystem_denies(filesystem, path) for path in protected):
+        raise ValueError("RESIDENT_PRIVATE_DENY_UNPROVEN")
+    return result, ["-c", f"permissions.{PROFILE_NAME}.filesystem={_inline(filesystem)}"]
 
 
 def _default_workspace() -> Path:
@@ -63,17 +130,6 @@ def autonomous_turn_overrides(profile_data: dict) -> list[str]:
         or profile_data.get("permissions", {}).get("sentry-resident", {}).get("network", {}).get("enabled") is not False
     ):
         raise ValueError("AUTONOMOUS_PROFILE_NOT_READY")
-    def inline(value):
-        # CLI -c splits dotted keys literally (quoted path segments are not
-        # TOML-aware). Pass whole tables so filesystem paths/server names survive.
-        if isinstance(value, dict):
-            return "{" + ", ".join(f"{json.dumps(k)} = {inline(v)}" for k, v in value.items()) + "}"
-        if isinstance(value, list):
-            return "[" + ", ".join(inline(v) for v in value) + "]"
-        if type(value) not in (str, bool, int, float):
-            raise ValueError("AUTONOMOUS_PROFILE_VALUE_INVALID")
-        return json.dumps(value)
-
     overrides = {
         "web_search": "disabled",
         "allow_login_shell": False,
@@ -113,7 +169,7 @@ def autonomous_turn_overrides(profile_data: dict) -> list[str]:
     }
     result: list[str] = []
     for key, value in sorted(overrides.items()):
-        result.extend(["-c", f"{key}={inline(value)}"])
+        result.extend(["-c", f"{key}={_inline(value)}"])
     return result
 
 

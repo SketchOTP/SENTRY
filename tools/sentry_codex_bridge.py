@@ -117,6 +117,23 @@ def _launcher_args() -> list[str] | None:
     return [launcher]
 
 
+def _tool_free_overrides() -> list[str]:
+    """Existing ephemeral tool-free contract; native web search is separate."""
+    features = (
+        "apps", "browser_use", "browser_use_external", "browser_use_full_cdp_access",
+        "computer_use", "image_generation", "memories", "plugins", "shell_tool",
+        "view_image", "workspace_dependencies", "js_repl",
+        "apply_patch_freeform", "code_mode", "code_mode_host", "code_mode_only",
+        "code_mode_prewarm", "hooks", "in_app_browser", "in_app_local_automation",
+        "in_app_chat", "skill_search", "skill_mcp_dependency_install", "remote_plugin",
+        "multi_agent", "multi_agent_v2", "tool_suggest", "request_permissions_tool",
+        "auth_elicitation", "goals", "sleep_tool",
+    )
+    return [argument for name in features for argument in ("--disable", name)] + [
+        "-c", "mcp_servers={}", "-c", "skills.config=[]",
+    ]
+
+
 def _invoke_prompt(
     prompt: str,
     *,
@@ -135,9 +152,16 @@ def _invoke_prompt(
     launcher_args = _launcher_args()
     if launcher_args is None:
         return None, None, None, "codex executable was not found"
-    child_env = os.environ.copy()
-    child_env.pop("OPENAI_API_KEY", None)
-    child_env.pop("OPENAI_ADMIN_KEY", None)
+    # A read-only filesystem still permits credential reads. This bridge only
+    # reasons over the supplied packet: no native host tools, bindings, server
+    # secrets or arbitrary parent environment belong in the ephemeral turn.
+    child_env = {
+        "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+        "HOME": str(Path.home()),
+        "LANG": os.environ.get("LANG", "C.UTF-8"),
+    }
+    if os.environ.get("CODEX_HOME"):
+        child_env["CODEX_HOME"] = os.environ["CODEX_HOME"]
     with tempfile.TemporaryDirectory(prefix="sentry-codex-") as runtime_dir:
         schema_path = Path(runtime_dir) / schema_filename
         shutil.copyfile(repo_root / "tools" / schema_filename, schema_path)
@@ -147,6 +171,8 @@ def _invoke_prompt(
             # ``exec``. It exposes only the native Responses web-search tool.
             args.append("--search")
         args.extend([
+            *_tool_free_overrides(),
+            "--ask-for-approval", "never",
             "exec",
             "--ephemeral",
             "--json",

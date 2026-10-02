@@ -264,6 +264,16 @@ def household_context_guidance() -> str:
         "Read only context relevant to this request; missing or unauthorized personal context stays unavailable. "
         "Do not infer a person from a service token, device ownership, stale history, or a voice claim. "
         "Separate owner statements, observations with source and observed_at/freshness, and uncertain inferences. "
+        "The bounded household_situation is commissioned context, not a second brain or an action grant. "
+        "HOME/AWAY/UNSET is owner-declared expectation, never inferred from phone absence or used as authentication. "
+        "An unexpected observation while declared Away can warrant investigation only within the current "
+        "reasoning-eligible route; consider legitimate arrivals, unknown identity, stale reports, source failure "
+        "and household membership. Do not conclude an intruder from a scripted rule. Multiple transport "
+        "records are not independent corroboration, and familiarity never suppresses mandatory canonical speech. "
+        "When authorized and useful, record one source-linked inferred assessment through the frozen "
+        "record_incident_assessment tool, separating observed, inferred and unknown. Its response ledger "
+        "must be ANIMA-linked to this request, not an unrelated successful action; provider acceptance is "
+        "not human receipt. Immediate-only routes stay zero-model with no contextual commentary. "
         "Routines express expectations, not proof of presence, actions, intent, or an intruder. "
         "The owner authorizes automatic useful durable memory through available ANIMA knowledge tools: "
         "select grounded facts explicitly told or discovered and reusable lessons, not every interaction. "
@@ -584,6 +594,11 @@ def invoke_sentry_agent(
     except (OSError, ValueError):
         profile_data = {}
         anima_profile = None
+    from tools.sentry_codex_profile import private_turn_profile
+    try:
+        profile_data, privacy_overrides = private_turn_profile(profile_data, cwd)
+    except (OSError, ValueError, TypeError, KeyError):
+        return {"ok": False, "error": {"code": "credential_isolation_not_ready", "message": "Resident private-path restrictions cannot be qualified"}}
     event_overrides: list[str] = []
     event_request_id: str | None = None
     if autonomous_binding is not None:
@@ -605,7 +620,9 @@ def invoke_sentry_agent(
         shutil.copyfile(repo_root / "tools" / schema_name, schema_path)
         args = [
             *launcher,
-            *(event_overrides if autonomous_binding else ["--search"]),
+            *([] if autonomous_binding else ["--search"]),
+            *privacy_overrides,
+            *event_overrides,
             "--profile",
             profile,
             "-C",
