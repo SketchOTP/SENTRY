@@ -904,13 +904,20 @@ class ResidentEventIntegrationTests(unittest.TestCase):
 
     def test_private_optin_builds_source_with_exact_existing_agent_without_claim(self):
         settings = json.loads(self.config.read_text())
-        self.assertIsNone(configured_attention_source(self.agent))
+        direct = configured_attention_source(self.agent)
+        self.assertIsNotNone(direct)
+        self.assertFalse(direct.enabled)
+        self.assertTrue(direct.delivery_enabled)
+        self.assertEqual(direct()["gate"], "AUTONOMOUS_NOT_ENABLED")
         settings["auto_wake"] = {
             "enabled": True, "context_ready": False, "enabled_at": self.enable_epoch.isoformat(),
             "household_id": self.household_id,
         }
         self.config.write_text(json.dumps(settings))
-        self.assertIsNone(configured_attention_source(self.agent))
+        direct = configured_attention_source(self.agent)
+        self.assertIsNotNone(direct)
+        self.assertFalse(direct.enabled)
+        self.assertEqual(direct()["gate"], "AUTONOMOUS_NOT_ENABLED")
         settings["auto_wake"]["context_ready"] = True
         self.config.write_text(json.dumps(settings))
         source = configured_attention_source(self.agent)

@@ -130,7 +130,7 @@ def _initiative_notification(context: Any, request_id: str, *, now: datetime | N
             or type(notification["required"]) is not bool
             or notification["reason"] not in {
                 "ALWAYS_NOTIFY", "LEARNING_REQUIRED", "PROACTIVE_DISABLED",
-                "LEARNED_PROACTIVE", "REVIEW_SILENT", "UNAVAILABLE",
+                "LEARNED_PROACTIVE", "REVIEW_SILENT", "UNAVAILABLE", "EXPLICIT_OWNER_TASK",
             }
             or notification.get("sentry_event_path", "ANNOUNCEMENT_AND_CONTEXTUAL_REASONING")
             not in _SENTRY_EVENT_PATHS
@@ -145,7 +145,7 @@ def _initiative_notification(context: Any, request_id: str, *, now: datetime | N
         required = notification["required"]
         reason = notification["reason"]
         if (
-            (allowed and reason not in {"ALWAYS_NOTIFY", "LEARNED_PROACTIVE"})
+            (allowed and reason not in {"ALWAYS_NOTIFY", "LEARNED_PROACTIVE", "EXPLICIT_OWNER_TASK"})
             or (required and (not allowed or reason != "ALWAYS_NOTIFY"))
         ):
             return denied
@@ -249,15 +249,19 @@ def configured_attention_source(agent: Any) -> AttentionQueueSource | None:
     settings = private_json(config.path).get("auto_wake", {})
     if not isinstance(settings, dict):
         raise TypeError("EVENT_AUTOWAKE_CONFIG_INVALID")
-    if settings.get("enabled") is not True or settings.get("context_ready") is not True:
-        return None
-    if set(settings) != {"enabled", "context_ready", "enabled_at", "household_id"}:
+    enabled = settings.get("enabled") is True and settings.get("context_ready") is True
+    owner_tasks_enabled = settings.get("context_ready") is True and bool(settings.get("household_id"))
+    if enabled and set(settings) != {"enabled", "context_ready", "enabled_at", "household_id"}:
         raise ValueError("EVENT_AUTOWAKE_CONFIG_INVALID")
     source = AttentionQueueSource(
-        agent, household_id=str(settings["household_id"]),
-        not_before=datetime.fromisoformat(str(settings["enabled_at"])),
-        enabled=True, context_ready=True, persistent_history_allowed=True,
+        agent, household_id=str(settings["household_id"]) if settings.get("household_id") else None,
+        not_before=datetime.fromisoformat(str(settings["enabled_at"])) if settings.get("enabled_at") else None,
+        enabled=enabled, context_ready=settings.get("context_ready") is True,
+        delivery_enabled=True, persistent_history_allowed=enabled or owner_tasks_enabled,
+        owner_tasks_enabled=owner_tasks_enabled,
     )
+    if not enabled and not owner_tasks_enabled:
+        return source  # Direct replies do not enable autonomous cognition/preflight.
     try:
         source.warm_runtime()
     except Exception as exc:  # noqa: BLE001 - optional preflight must not disable mandatory transport
@@ -278,17 +282,24 @@ class AttentionQueueSource:
     """
 
     def __init__(
-        self, agent: Any, *, household_id: str, not_before: datetime,
+        self, agent: Any, *, household_id: str | None, not_before: datetime | None,
         enabled: bool = False, context_ready: bool = False,
         persistent_history_allowed: bool = False,
+        delivery_enabled: bool | None = None,
+        owner_tasks_enabled: bool = False,
     ) -> None:
-        UUID(household_id)
-        if not_before.tzinfo is None or not_before.utcoffset() is None:
+        if household_id is not None:
+            UUID(household_id)
+        if not_before is not None and (not_before.tzinfo is None or not_before.utcoffset() is None):
             raise ValueError("EVENT_ENABLE_EPOCH_REQUIRES_TIMEZONE")
+        if enabled and context_ready and (household_id is None or not_before is None):
+            raise ValueError("EVENT_AUTOWAKE_SCOPE_REQUIRED")
         self.agent = agent
         self.household_id = household_id
-        self.not_before = not_before.astimezone(timezone.utc)
+        self.not_before = not_before.astimezone(timezone.utc) if not_before else None
         self.enabled = enabled
+        self.owner_tasks_enabled = owner_tasks_enabled
+        self.delivery_enabled = enabled and context_ready if delivery_enabled is None else delivery_enabled
         self.context_ready = context_ready
         # Owner permits nonrestricted household context in the same thread.
         # This host input never overrides the persistent MCP restricted gate.
@@ -313,7 +324,7 @@ class AttentionQueueSource:
         Unknown reasoning stays latched. Only an explicit playback UNSTARTED
         result permits speech retry; a lost/possibly-started receipt is UNKNOWN.
         """
-        if not self.enabled or not self.context_ready or not self._delivery_lock.acquire(False):
+        if not self.delivery_enabled or not self._delivery_lock.acquire(False):
             return {"status": "NOT_READY", "delivery_status": "NOT_ATTEMPTED"}
         claim: dict[str, Any] | None = None
         intended = False
@@ -344,8 +355,26 @@ class AttentionQueueSource:
                         self._followup_ack_fault = type(exc).__name__
                     break  # At most one content acknowledgement per drain tick.
             claim = client.call("/v1/provider/alerts/next", {
-                **self._filters(), "active_instance_id": active_instance_id,
-            })
+                **self._alert_filters(), "active_instance_id": active_instance_id,
+            }) if self.household_id is not None and self.not_before is not None and self.context_ready else {"status": "EMPTY"}
+            receipt_route = "/v1/provider/alerts/receipt"
+            if claim.get("status") == "EMPTY":
+                # Verified replies are read-only Core-authored continuation,
+                # never another model/action turn. Mandatory alerts are first.
+                try:
+                    claim = client.call("/v1/provider/approval-results/next", {
+                        "active_instance_id": active_instance_id,
+                    })
+                    receipt_route = "/v1/provider/approval-results/receipt"
+                except Exception as exc:
+                    # Optional current Core support cannot disturb canonical
+                    # mandatory speech or cause adoption of old provider work.
+                    return {"status": "NOT_READY", "delivery_status": "NOT_ATTEMPTED",
+                            "reason": "ORIGINATING_RESULT_TRANSPORT_UNAVAILABLE",
+                            "exception_type": type(exc).__name__}
+            if claim.get("status") == "UNAVAILABLE":
+                return {"status": "UNAVAILABLE", "delivery_status": "NOT_ATTEMPTED",
+                        "reason": str(claim.get("reason", "ORIGINATING_RESULT_UNAVAILABLE"))[:128]}
             if claim.get("status") == "EMPTY":
                 result = {"status": "EMPTY", "delivery_status": "NOT_ATTEMPTED"}
                 if self._followup_ack_fault is not None:
@@ -365,7 +394,7 @@ class AttentionQueueSource:
                 if (cached is None or time.monotonic() - cached[1] > 600 or
                         hashlib.sha256(cached[0].encode()).hexdigest() !=
                         claim["announcement"].get("response_digest")):
-                    return client.call("/v1/provider/alerts/receipt", {
+                    return client.call(receipt_route, {
                         **receipt, "outcome": "CONTENT_UNAVAILABLE", "evidence": {},
                     })
                 text = cached[0]
@@ -373,10 +402,12 @@ class AttentionQueueSource:
                 raise ValueError("ALERT_CONTRACT_MISMATCH")
             timed = getattr(speaker, "speak_with_timing", None)
             if not available or getattr(speaker, "is_speaking", False) or not callable(timed):
-                return client.call("/v1/provider/alerts/receipt", {**receipt, "outcome": "UNSTARTED", "evidence": {}})
+                return client.call(receipt_route, {**receipt, "outcome": "UNSTARTED", "evidence": {}})
             # Persist before calling playback. Failed transport here never calls
             # the speaker: expired intent is conservatively UNKNOWN in Core.
-            client.call("/v1/provider/alerts/receipt", {**receipt, "outcome": "PLAYBACK_INTENT", "evidence": {}})
+            intent = client.call(receipt_route, {**receipt, "outcome": "PLAYBACK_INTENT", "evidence": {}})
+            if intent.get("status") != "RECORDED" or intent.get("delivery_status") != "PLAYBACK_INTENT":
+                return {"status": "NOT_READY", "delivery_status": "NOT_ATTEMPTED"}
             intended = True
             if on_speech_started is not None:
                 on_speech_started()
@@ -391,7 +422,7 @@ class AttentionQueueSource:
                 "playback_state", "timing_source", "playback_process_started_at",
                 "playback_completed_at", "actual_audible_start_at",
             )} if isinstance(delivery, dict) else {}
-            recorded = client.call("/v1/provider/alerts/receipt", {**receipt, "outcome": outcome,
+            recorded = client.call(receipt_route, {**receipt, "outcome": outcome,
                                                                     "evidence": evidence})
             if claim["phase"] == "FOLLOWUP" and outcome in {"DELIVERED", "UNKNOWN"}:
                 self._followups.pop(claim["request_id"], None)
@@ -428,6 +459,13 @@ class AttentionQueueSource:
         verify_autonomous_cli(launcher, codex_home, workspace, profile)
 
     def _filters(self) -> dict[str, Any]:
+        if not self.enabled and self.owner_tasks_enabled:
+            return {"origin": "DURABLE_TASK"}
+        return self._alert_filters()
+
+    def _alert_filters(self) -> dict[str, Any]:
+        if self.not_before is None:
+            raise ValueError("EVENT_ENABLE_EPOCH_NOT_COMMISSIONED")
         return {
             "origin": "AUTONOMOUS_ATTENTION",
             "not_before": self.not_before.isoformat(),
@@ -436,6 +474,9 @@ class AttentionQueueSource:
 
     def wait_until_ready(self, stop_event: threading.Event) -> bool:
         """Block on Core's authenticated push channel; never contact the model."""
+        if not (self.enabled or self.owner_tasks_enabled) or not self.context_ready:
+            stop_event.wait(1.0)
+            return False
         if self._halted or stop_event.is_set():
             return False
         with self._ready_lock:
@@ -508,11 +549,14 @@ class AttentionQueueSource:
         created = datetime.fromisoformat(str(value.get("created_at", "")))
         now = datetime.now(timezone.utc)
         if (
-            value.get("origin") != "AUTONOMOUS_ATTENTION"
+            value.get("origin") not in {"AUTONOMOUS_ATTENTION", "DURABLE_TASK"}
+            or (not self.enabled and value.get("origin") != "DURABLE_TASK")
             or value.get("household_id") != self.household_id
             or value.get("provider_id") != "sentry"
-            or created.tzinfo is None or created < self.not_before
-            or not timedelta(0) <= now - created <= timedelta(seconds=120)
+            or created.tzinfo is None or created > now
+            or (value.get("origin") != "DURABLE_TASK" and (
+                created < self.not_before
+                or not timedelta(0) <= now - created <= timedelta(seconds=120)))
         ):
             raise ValueError("EVENT_QUEUE_CONTRACT_MISMATCH")
         UUID(value["request_id"])
@@ -524,6 +568,8 @@ class AttentionQueueSource:
         on_work_started: Callable[[], None] | None = None,
     ) -> dict[str, Any]:
         not_ready = {"status": "NOT_READY", "delivery_status": "NOT_ATTEMPTED"}
+        if not (self.enabled or self.owner_tasks_enabled) or not self.context_ready:
+            return {**not_ready, "gate": "AUTONOMOUS_NOT_ENABLED"}
         if not self._reasoning_ready:
             if time.monotonic() >= self._next_preflight_retry:
                 self._next_preflight_retry = time.monotonic() + 60
@@ -545,7 +591,7 @@ class AttentionQueueSource:
                 result = run_resident_event(
                     self.agent, request_id=None, household_id=self.household_id,
                     claim_next=self._claim_next, speaker=speaker,
-                    enabled=self.enabled, context_ready=self.context_ready,
+                    enabled=self.enabled or self.owner_tasks_enabled, context_ready=self.context_ready,
                     persistent_history_allowed=self.persistent_history_allowed,
                     on_work_started=on_work_started,
                 )
@@ -674,7 +720,7 @@ class QueuedEventLease:
     ) -> None:
         if (
             claim.get("status") != "CLAIMED"
-            or claim.get("origin") != "AUTONOMOUS_ATTENTION"
+            or claim.get("origin") not in {"AUTONOMOUS_ATTENTION", "DURABLE_TASK"}
             or claim.get("provider_id") != "sentry"
             or claim.get("request_id") != expected_request_id
             or claim.get("household_id") != household_id
@@ -1273,10 +1319,27 @@ def run_resident_event(
                     receipt["delivery_status"] = "BUSY_NOT_DELIVERED"
                 else:
                     try:
-                        delivered = bool(speaker.speak(final["answer"]))
-                        receipt["delivery_status"] = "DELIVERED" if delivered else "FAILED"
+                        if current["reason"] == "EXPLICIT_OWNER_TASK":
+                            timed = getattr(speaker, "speak_with_timing", None)
+                            playback = timed(final["answer"]) if callable(timed) else None
+                            receipt["delivery_status"] = (
+                                "UNAVAILABLE" if not isinstance(playback, dict)
+                                else "DELIVERED" if playback.get("delivered") is True
+                                else "UNSTARTED" if playback.get("playback_state") == "UNSTARTED"
+                                else "UNKNOWN"
+                            )
+                            receipt["delivery_scope"] = "PLAYBACK_CALLBACK_NOT_HUMAN_OR_PHYSICAL_VERIFICATION"
+                            if isinstance(playback, dict):
+                                receipt["playback_evidence"] = {key: playback.get(key) for key in (
+                                    "playback_state", "timing_source", "playback_process_started_at",
+                                    "playback_completed_at", "actual_audible_start_at",
+                                )}
+                        else:
+                            delivered = bool(speaker.speak(final["answer"]))
+                            receipt["delivery_status"] = "DELIVERED" if delivered else "FAILED"
                     except Exception as exc:  # noqa: BLE001 - delivery cannot turn into model replay
-                        receipt.update(delivery_status="FAILED", stage="TTS", exception_type=type(exc).__name__)
+                        receipt.update(delivery_status="UNKNOWN" if current["reason"] == "EXPLICIT_OWNER_TASK" else "FAILED",
+                                       stage="TTS", exception_type=type(exc).__name__)
             receipt["trial_record_status"] = _record_operational_trial(request_id, receipt)
             return receipt
 

@@ -1,5 +1,81 @@
 # Current Project State
 
+Stage8 source acceptance2026-10-02T19:34Z: primary collected actual native
+Leibniz final and independently accepted bounded paired33-file bundle. SENTRY
+three files integrated exactly; full final594run/587PASS/7explicitSKIP, focused
+78PASS/4SKIP, source custody unchanged. Deterministic current approval-result
+drain remains separate from autonomous opt-in; new explicitly saved future
+owner tasks use frozen existing provider/current policy and honest playback
+accounting. No model/action replay to reconstruct responses. Product publication/
+exactCI and matched ANIMA deployment pending; resident live Stage7 baseline
+unchanged. Household/Office effective-authority correction prepared next;
+private resident model/profile/persona/orb/voice and Graft unchanged/excluded.
+Canonical evidence: ANIMA existing027A STAGE8-CODER-RESULT and
+STAGE8-ARCHITECT-ACCEPTANCE. E4 source acceptance is not owner audio/physical
+delivery or whole-Goal completion; historical negatives retained.
+
+
+## ANIMA Stage7 live / owner-result work and direct-turn authority gap — 2026-10-02T16:46Z
+
+ANIMA9ee8128 exactCI37031786052 PASS, controlled liveimage4259/source110/
+lock47/installed11 matched; detailed continuity/read-only evidence in ANIMA027A
+CURRENT/native reviews. SENTRY remains exact4909e089/product862cc8ec, resident
+profile/model/orb/persona/voice bytes unchanged; application recovery observed.
+Three existing Notion authority/reference currentsections entirely refetched
+MATCH, including honest51 Memory completion-version reconciliation (not new
+learned forecasts or actual improvement). Same sole Coder Stage8 active only
+in assigned isolated worktrees, no SENTRY draft acceptance or deployment.
+Independent read-only final and primary unchanged pure guard/source replay
+accept sec9 E1/E2 implementation gap: direct household-bound turns retain Office
+host powers unlike autonomous isolation, and existing broker path/input guards
+admit protected engineering/credential targets. No live exploit/credential
+read/model-child sandbox qualification claimed. Next bounded interface correction
+must preserve legitimate standalone Office/audio/projection behavior and resident
+continuity without household developer powers. Read-only mapping actualfinal
+collected/critical ordering source-checked; Planck closed after bounded work.
+Stage9 prepared, NOT ISSUED; primary retains acceptance/publication/deployment.
+Full MO/A–O, Androidroot,
+vendor/owner/playback/future gates remain; Goal and027A ACTIVE, not complete.
+
+## ANIMA Stage5 correction / same-Coder Stage6 resumed — 2026-10-02T13:18Z
+
+Actual corrected nativefinal27 independently accepted; testselection-only
+f783562d69b13f565e219abe2c4f3e86cbcb222c pushed, exactCI37012005053 pending,
+prior failed0195/37008012204 retained. Stage6 explicitly resumed sameLeibniz,
+paused5draft hashes preserved across ANIMAworktreeff. SENTRY4909e089/product
+862cc8ec unchanged; no ceremonial productcommit/new worker/runtime change.
+CurrentUI02a42012 persists until qualified deployment. Canonical ANIMA027A
+records retain full MO/A–O/root/owner/vendor/audible/prospective gates. No
+wholegoal/owner success claimed; Stage6 actualfinal remains pending.
+
+## ANIMA Stage5 hosted correction / Stage6 preserved — 2026-10-02T13:00Z
+
+ANIMA0195c52 exactCI37008012204 FAILED at default browser discovery:115pass/
+14skip/3newtests against wrong read-only fixture; dedicated actual-store step
+skipped. Same sole Leibniz preserves/pauses Stage6 while correcting only Stage5
+test selection in its separate worktree. No new SENTRY product/deployment,
+resident profile/model/voice/orb change, worker or packet. Current SENTRY remains
+4909e089/product862cc8ec; ANIMA UI remains Stage4 image02a42012. Dual existing
+Notion authority failed-run sections fully refetched. Android Binder/root and
+real owner/vendor/audible/prospective gates persist; full Goal ACTIVE. Details
+in canonical ANIMA027A NATIVE-ARCHITECT-REVIEWS and actual Coder return.
+
+## ANIMA Stage5 accepted / Stage6 parity issued — 2026-10-02T12:43Z
+
+SENTRY source/governance remains4909e089888bc8d93e5d08f2f442ed1b677fb699;
+product862cc8ec unchanged. No Stage5 product edits or ceremonial SENTRY commit.
+ANIMA actual native26-file final independently source accepted/published
+0195c52a7935b6631d111e7c719f80488a076018, exactCI37008012204 pending. Candidate
+imagee7cf3e0f/source108 matched, NOT deployed; liveUI02a42012 remains Stage4.
+Actual ANIMA helper accounting and typed owner workflow corrections are source
+qualified, not operational/billing/owner/physical proof. Sole Leibniz now issued
+Stage6 in /tmp/sentry-stage6-development.YR0zxj@4909 and ANIMA0195 worktree;
+canonical assignment/results/reviews and full Goal coverage remain ANIMA027A.
+Supported setup/scene/automation parity must preserve frozen MCP/OPA/Phase9/
+fencing/no-replay; no new workflow engine or private resident profile change.
+Parent owns acceptance/publication/deployment, owner-root/vendor/playback/real
+owner/future evidence gates remain. Previous pending-worker pointers are history.
+
 ## Exact Stage4 pair deployed — 2026-10-02T11:29Z
 
 Live feature862cc8ecff7390000fcc66f3fe5f32f23101b66e exact36998958481 PASS;
