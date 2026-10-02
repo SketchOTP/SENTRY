@@ -13,6 +13,7 @@ No request, response, or binding is logged by this module. Installed CLI tool
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import stat
@@ -254,7 +255,12 @@ def configured_attention_source(agent: Any) -> AttentionQueueSource | None:
         not_before=datetime.fromisoformat(str(settings["enabled_at"])),
         enabled=True, context_ready=True, persistent_history_allowed=True,
     )
-    source.warm_runtime()
+    try:
+        source.warm_runtime()
+    except Exception as exc:  # noqa: BLE001 - optional preflight must not disable mandatory transport
+        source._reasoning_ready = False
+        source._reasoning_fault = type(exc).__name__
+        source._next_preflight_retry = time.monotonic() + 60
     return source
 
 
@@ -288,6 +294,115 @@ class AttentionQueueSource:
         self._lock = threading.Lock()
         self._ready_lock = threading.Lock()
         self._available_candidate: dict[str, Any] | None = None
+        self._delivery_lock = threading.Lock()
+        self._followups: dict[str, tuple[str, float]] = {}
+        self._followup_ready: set[str] = set()
+        self._followup_ack_fault: str | None = None
+        self._reasoning_ready = True
+        self._reasoning_fault: str | None = None
+        self._next_preflight_retry = 0.0
+
+    def deliver_required(self, *, speaker: Any, available: bool = True,
+                         active_instance_id: str = "office",
+                         on_speech_started: Callable[[], None] | None = None) -> dict[str, Any]:
+        """One independently authorized obligation; no model/session/claim lock.
+
+        Unknown reasoning stays latched. Only an explicit playback UNSTARTED
+        result permits speech retry; a lost/possibly-started receipt is UNKNOWN.
+        """
+        if not self.enabled or not self.context_ready or not self._delivery_lock.acquire(False):
+            return {"status": "NOT_READY", "delivery_status": "NOT_ATTEMPTED"}
+        claim: dict[str, Any] | None = None
+        intended = False
+        try:
+            from tools.sentry_anima import AnimaConfig
+
+            config = AnimaConfig.load()
+            if config is None:
+                return {"status": "NOT_READY", "delivery_status": "NOT_ATTEMPTED"}
+            client = config.client()
+            # Bounded retry of the content-ready acknowledgement only, never
+            # of model work. A lost acknowledgement must not lose an already
+            # accounted follow-up behind canonical speech contention.
+            for request, cached in list(self._followups.items()):
+                if time.monotonic() - cached[1] > 600:
+                    self._followups.pop(request, None)
+                    self._followup_ready.discard(request)
+                elif request not in self._followup_ready:
+                    try:
+                        acknowledgement = client.call("/v1/provider/alerts/followup-ready", {
+                            "request_id": request,
+                            "response_digest": hashlib.sha256(cached[0].encode()).hexdigest(),
+                        })
+                        if acknowledgement.get("status") == "RECORDED":
+                            self._followup_ready.add(request)
+                            self._followup_ack_fault = None
+                    except Exception as exc:  # noqa: BLE001 - contain ACK failure, never replay model/action
+                        self._followup_ack_fault = type(exc).__name__
+                    break  # At most one content acknowledgement per drain tick.
+            claim = client.call("/v1/provider/alerts/next", {
+                **self._filters(), "active_instance_id": active_instance_id,
+            })
+            if claim.get("status") == "EMPTY":
+                result = {"status": "EMPTY", "delivery_status": "NOT_ATTEMPTED"}
+                if self._followup_ack_fault is not None:
+                    result.update(followup_content_status="ACK_PENDING",
+                                  followup_ack_exception_type=self._followup_ack_fault)
+                return result
+            if (claim.get("status") != "CLAIMED" or type(claim.get("generation")) is not int
+                    or not isinstance(claim.get("delivery_token"), str)
+                    or not isinstance(claim.get("announcement"), dict)):
+                raise ValueError("ALERT_CONTRACT_MISMATCH")
+            UUID(claim["request_id"])
+            receipt = {key: claim[key] for key in ("request_id", "generation", "delivery_token",
+                                                  "active_instance_id", "phase")}
+            text = claim["announcement"].get("text")
+            if claim["phase"] == "FOLLOWUP":
+                cached = self._followups.get(claim["request_id"])
+                if (cached is None or time.monotonic() - cached[1] > 600 or
+                        hashlib.sha256(cached[0].encode()).hexdigest() !=
+                        claim["announcement"].get("response_digest")):
+                    return client.call("/v1/provider/alerts/receipt", {
+                        **receipt, "outcome": "CONTENT_UNAVAILABLE", "evidence": {},
+                    })
+                text = cached[0]
+            if not isinstance(text, str) or not text:
+                raise ValueError("ALERT_CONTRACT_MISMATCH")
+            timed = getattr(speaker, "speak_with_timing", None)
+            if not available or getattr(speaker, "is_speaking", False) or not callable(timed):
+                return client.call("/v1/provider/alerts/receipt", {**receipt, "outcome": "UNSTARTED", "evidence": {}})
+            # Persist before calling playback. Failed transport here never calls
+            # the speaker: expired intent is conservatively UNKNOWN in Core.
+            client.call("/v1/provider/alerts/receipt", {**receipt, "outcome": "PLAYBACK_INTENT", "evidence": {}})
+            intended = True
+            if on_speech_started is not None:
+                on_speech_started()
+            delivery = timed(text)
+            outcome = "UNKNOWN"
+            if isinstance(delivery, dict):
+                if delivery.get("delivered") is True:
+                    outcome = "DELIVERED"
+                elif delivery.get("playback_state") == "UNSTARTED":
+                    outcome = "UNSTARTED"
+            evidence = {key: delivery.get(key) for key in (
+                "playback_state", "timing_source", "playback_process_started_at",
+                "playback_completed_at", "actual_audible_start_at",
+            )} if isinstance(delivery, dict) else {}
+            recorded = client.call("/v1/provider/alerts/receipt", {**receipt, "outcome": outcome,
+                                                                    "evidence": evidence})
+            if claim["phase"] == "FOLLOWUP" and outcome in {"DELIVERED", "UNKNOWN"}:
+                self._followups.pop(claim["request_id"], None)
+                self._followup_ready.discard(claim["request_id"])
+            if self._followup_ack_fault is not None:
+                recorded.update(followup_content_status="ACK_PENDING",
+                                followup_ack_exception_type=self._followup_ack_fault)
+            return recorded
+        except Exception as exc:  # noqa: BLE001 - never replay unknown speech/model
+            return {"status": "UNKNOWN_RESULT" if intended else "NOT_READY",
+                    "delivery_status": "UNKNOWN" if intended else "NOT_ATTEMPTED",
+                    "exception_type": type(exc).__name__}
+        finally:
+            self._delivery_lock.release()
 
     def warm_runtime(self) -> None:
         """Qualify the CLI/profile at voice startup, before any event is claimed."""
@@ -406,6 +521,18 @@ class AttentionQueueSource:
         on_work_started: Callable[[], None] | None = None,
     ) -> dict[str, Any]:
         not_ready = {"status": "NOT_READY", "delivery_status": "NOT_ATTEMPTED"}
+        if not self._reasoning_ready:
+            if time.monotonic() >= self._next_preflight_retry:
+                self._next_preflight_retry = time.monotonic() + 60
+                try:
+                    self.warm_runtime()
+                    self._reasoning_ready = True
+                    self._reasoning_fault = None
+                except Exception as exc:  # noqa: BLE001 - failed preflight keeps optional reasoning gated
+                    self._reasoning_fault = type(exc).__name__
+            if not self._reasoning_ready:
+                return {**not_ready, "gate": "REASONING_PREFLIGHT_UNAVAILABLE",
+                        "exception_type": self._reasoning_fault}
         if not self._lock.acquire(blocking=False):
             return {**not_ready, "gate": "EVENT_SOURCE_BUSY"}
         try:
@@ -431,6 +558,35 @@ class AttentionQueueSource:
                         "stage": "EVENT_SOURCE", "exception_type": type(exc).__name__}
             if result.get("status") == "UNKNOWN_RESULT" or result.get("result_status") == "UNKNOWN_RESULT":
                 self._halted = True
+            pending = result.pop("pending_followup", None)
+            if isinstance(pending, str) and result.get("followup_queued") is True:
+                from tools.sentry_anima import AnimaConfig
+
+                request = result["request_id"]
+                for key, cached in list(self._followups.items()):
+                    if time.monotonic() - cached[1] > 600:
+                        self._followups.pop(key, None)
+                        self._followup_ready.discard(key)
+                if len(self._followups) >= 64:
+                    # Core's retained obligation will explicitly escalate when
+                    # no bounded transient content is available; never replay.
+                    result["followup_content_status"] = "CAPACITY_UNAVAILABLE"
+                    return result
+                self._followups[request] = (pending, time.monotonic())
+                config = AnimaConfig.load()
+                if config is not None:
+                    try:
+                        acknowledged = config.client().call("/v1/provider/alerts/followup-ready", {
+                            "request_id": request,
+                            "response_digest": hashlib.sha256(pending.encode()).hexdigest(),
+                        })
+                        if acknowledged.get("status") == "RECORDED":
+                            self._followup_ready.add(request)
+                            self._followup_ack_fault = None
+                    except Exception as exc:  # noqa: BLE001 - contain ACK failure after accounted model result
+                        self._followup_ack_fault = type(exc).__name__
+                        result["followup_content_status"] = "ACK_PENDING"
+                        result["followup_ack_exception_type"] = self._followup_ack_fault
             return result
         finally:
             self._lock.release()
@@ -663,6 +819,11 @@ class QueuedEventLease:
         return {
             "status": receipt, "result_status": recorded_status,
             "notification": notification,
+            **({"required_delivery": value["required_delivery"]}
+               if receipt == "RECORDED" and isinstance(value.get("required_delivery"), dict)
+               else {}),
+            **({"followup_queued": value.get("followup_queued") is True}
+               if receipt == "RECORDED" else {}),
             **({"detail": outcome.detail} if outcome.detail is not None else {}),
             "delivery_status": "NOT_ATTEMPTED", **self._failure,
             **(telemetry or {}),
@@ -790,6 +951,7 @@ def run_resident_event(
                 "request_created_at": str(claim.get("created_at", "")),
                 "claim_received_at": datetime.now(timezone.utc).isoformat(),
                 "immediate_delivery": False,
+                "audible_start_objective": "NOT_OBSERVABLE",
             }
             try:
                 request_created = datetime.fromisoformat(telemetry["request_created_at"])
@@ -847,9 +1009,14 @@ def run_resident_event(
                 "delivered": False,
                 "thread": None,
             }
+            managed_delivery = context.get("required_delivery", {})
+            if managed_delivery.get("managed") is True:
+                immediate["delivered"] = managed_delivery.get("state") == "DELIVERED"
 
             def deliver_immediate() -> None:
                 if (
+                    managed_delivery.get("managed") is True
+                    or
                     event_path not in {
                         "IMMEDIATE_ANNOUNCEMENT_ONLY",
                         "ANNOUNCEMENT_AND_CONTEXTUAL_REASONING",
@@ -878,9 +1045,8 @@ def run_resident_event(
                                 telemetry["tts_start_at"] = delivery["tts_start_at"]
                                 telemetry["tts_timing_source"] = delivery.get("timing_source")
                         else:
-                            # Compatibility speakers expose invocation timing only;
-                            # production Kokoro records the playback-owned timestamp.
-                            telemetry["tts_start_at"] = telemetry["tts_requested_at"]
+                            # Invocation is not evidence of an audible endpoint.
+                            telemetry["tts_start_at"] = None
                             telemetry["tts_timing_source"] = "HOST_SPEAK_INVOCATION"
                             immediate["delivered"] = bool(speaker.speak(announcement["text"]))
                     except Exception as exc:  # noqa: BLE001 - speech cannot replay provider work
@@ -911,6 +1077,18 @@ def run_resident_event(
                     return EventResult("NO_ACTION")
                 if on_work_started is not None:
                     on_work_started()
+                if compact_notification and event_path == "ANNOUNCEMENT_AND_CONTEXTUAL_REASONING":
+                    # Compact canonical speech is independent. Reasoning uses
+                    # the same frozen, request-bound catalogue and fuller context.
+                    full_context = client.context(request_id, claim["binding"])
+                    frozen_tools = client.tools(request_id, claim["binding"])
+                    for target, payload in ((path.with_name("context.json"), full_context),
+                                            (path.with_name("tools.json"), frozen_tools)):
+                        encoded = json.dumps({"version": 1, "request_id": request_id,
+                                              "value": payload}, sort_keys=True)
+                        if len(encoded.encode()) > 512 * 1024:
+                            return EventResult("PARTIAL", detail="CONTEXT_LIMIT")
+                        target.write_text(encoded, encoding="utf-8")
                 telemetry["model_started_at"] = datetime.now(timezone.utc).isoformat()
                 invocation = invoke_sentry_agent(
                     "ANIMA autonomous Attention event", [], session_id=thread_id,
@@ -982,6 +1160,8 @@ def run_resident_event(
                 after_provider_start=deliver_immediate,
                 telemetry=telemetry,
             )
+            if managed_delivery.get("managed") is True:
+                immediate["delivered"] = receipt.get("required_delivery", {}).get("state") == "DELIVERED"
             immediate_thread = immediate.get("thread")
             if isinstance(immediate_thread, threading.Thread):
                 immediate_thread.join(timeout=30)
@@ -1022,6 +1202,10 @@ def run_resident_event(
                     3,
                 )
             receipt.update(telemetry)
+            receipt["request_id"] = request_id
+            receipt["delivery_managed"] = managed_delivery.get("managed") is True
+            if receipt.get("followup_queued") is True and isinstance(final.get("answer"), str):
+                receipt["pending_followup"] = final["answer"]
             receipt["immediate_delivery"] = bool(immediate["delivered"])
             receipt["decision"] = final.get("decision")
             if final.get("status") in {"completed", "partial", "unavailable"}:
@@ -1049,7 +1233,12 @@ def run_resident_event(
                 final.get("decision") == "speak"
                 and initiative.get("allowed")
                 and receipt["status"] == "RECORDED"
-                and not immediate["delivered"]
+                and (not immediate["delivered"] or (
+                    isinstance(announcement, dict) and
+                    " ".join(str(final.get("answer", "")).lower().split()) !=
+                    " ".join(announcement["text"].lower().split())
+                ))
+                and managed_delivery.get("managed") is not True
             ):
                 current = _initiative_notification(
                     {"household_context": {"initiative": {"status": "AVAILABLE", "notification": returned_notification}}},

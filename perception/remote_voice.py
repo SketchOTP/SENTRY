@@ -116,7 +116,7 @@ class RemoteWavPlayback:
         return self.send_with_timing(wav_bytes)["delivered"]
 
     def send_with_timing(self, wav_bytes: bytes) -> dict[str, str | bool | None]:
-        """Return the projection-owned playback-start timestamp when available."""
+        """Keep process/transport timing distinct from unobserved audible start."""
         if not isinstance(wav_bytes, bytes) or not 0 < len(wav_bytes) <= MAX_WAV_BYTES:
             return {"delivered": False, "tts_start_at": None, "timing_source": None}
         token = read_private_token(self.token_file)
@@ -133,11 +133,17 @@ class RemoteWavPlayback:
         try:
             with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
                 payload = json.loads(response.read(4097))
-                start = payload.get("tts_start_at") if isinstance(payload, dict) else None
+                start = (payload.get("playback_process_started_at", payload.get("tts_start_at"))
+                         if isinstance(payload, dict) else None)
                 valid_start = isinstance(start, str) and bool(start.strip())
+                completed = 200 <= response.status < 300 and payload.get("played") is True
                 return {
-                    "delivered": 200 <= response.status < 300 and payload.get("played") is True,
-                    "tts_start_at": start if valid_start else None,
+                    "delivered": completed,
+                    "playback_state": "DELIVERED" if completed else "UNKNOWN",
+                    "tts_start_at": None,
+                    "actual_audible_start_at": None,
+                    "playback_process_started_at": start if valid_start else None,
+                    "playback_completed_at": payload.get("playback_completed_at"),
                     "timing_source": "PROJECTION_PLAYBACK_PROCESS" if valid_start else None,
                 }
         except (

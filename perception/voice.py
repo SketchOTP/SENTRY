@@ -519,6 +519,9 @@ class KokoroSpeaker:
             "delivered": False,
             "tts_start_at": None,
             "timing_source": None,
+            "playback_state": "UNSTARTED",
+            "playback_process_started_at": None,
+            "actual_audible_start_at": None,
         }
         if not self.available or not isinstance(text, str) or not text.strip():
             return delivery
@@ -543,6 +546,7 @@ class KokoroSpeaker:
                     if not audio:
                         return delivery
                     if self.remote_playback is not None:
+                        delivery["playback_state"] = "UNKNOWN"
                         timed = getattr(self.remote_playback, "send_with_timing", None)
                         remote_delivery = timed(audio) if callable(timed) else None
                         if isinstance(remote_delivery, dict):
@@ -550,8 +554,6 @@ class KokoroSpeaker:
                         delivery["delivered"] = bool(self.remote_playback.send(audio))
                         return delivery
                     pcm, sample_rate, channels = _decode_wav(audio)
-                    delivery["tts_start_at"] = datetime.now(timezone.utc).isoformat()
-                    delivery["timing_source"] = "LOCAL_PLAYBACK_PROCESS"
                     process = subprocess.Popen(
                         [
                             self.player,
@@ -569,6 +571,9 @@ class KokoroSpeaker:
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.PIPE,
                     )
+                    delivery["playback_state"] = "STARTED"
+                    delivery["playback_process_started_at"] = datetime.now(timezone.utc).isoformat()
+                    delivery["timing_source"] = "LOCAL_PLAYBACK_PROCESS"
                     with self._lock:
                         self._process = process
                     meter: threading.Thread | None = None
@@ -589,6 +594,8 @@ class KokoroSpeaker:
                         if self._process is process:
                             self._process = None
                     delivery["delivered"] = process.returncode == 0
+                    delivery["playback_completed_at"] = datetime.now(timezone.utc).isoformat()
+                    delivery["playback_state"] = "DELIVERED" if process.returncode == 0 else "UNKNOWN"
                     return delivery
         except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired):
             if self.level_callback is not None:

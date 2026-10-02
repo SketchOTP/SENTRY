@@ -1,10 +1,17 @@
 # Project Profile
 
-## Current companion integration and development checkpoint — 2026-10-01
+## Current companion integration and development checkpoint — 2026-10-02
 
 Actual local root: `/home/sketch/Projects/SENTRY`, preserved branch
 `feature/v0.4-personal-continuity` at
-`e2ab3b75781ec293f8830d910cb7622f34bd82cb`. The old Atlas root below is history.
+`23fb216250d646451c47e8d3ea8c63cd7f289d18` before Stage2 publication.
+Bounded Stage1 recovery/exact-head CI are independently accepted. Stage2 source
+is independently accepted for publication/controlled deployment: mandatory
+delivery has an independent fenced drain, optional reasoning preflight cannot
+disable it, busy voice retries safely, and content-free ACK faults are visible.
+Actual audible-start timing remains unknown; process timing is not physical
+latency proof. Current Sentry/century accepted wake aliases remain unchanged.
+The old Atlas root below is history; full integration acceptance remains open.
 
 Preserve this repository's standalone one-office-room PROJECT_GOAL and protected
 V0.4 continuity/orb/persona/voice/memory work. For the companion ANIMA integration,
@@ -21,7 +28,7 @@ completion marker `ANIMA_HA_PROTOTYPE_GOAL_COMPLETE`; completion contract
 https://app.notion.com/p/3d2833cb27ff8154a7b2dd259b4d5250 and integration authority
 https://app.notion.com/p/3d1833cb27ff81629fdcdd8997323f7e. Shared continuation/evidence
 is in ANIMA's existing 027A / R5F packet; parent owns its full coverage map.
-ANIMA local main is `c8ea05efe8c5a6ae5def4a1c75834910aa519d44`.
+ANIMA local main is `949804dc9f07487868664d2b1508eceb9f44cc6c` before Stage2 publication.
 
 Development role transfer is primary Codex Architect plus one native Coder,
 independent review and owner material decisions; RECORD holds provenance.

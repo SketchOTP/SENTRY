@@ -227,8 +227,10 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         self.assertEqual(result["delivery_status"], "DELIVERED")
         self.assertTrue(result["immediate_delivery"])
         self.assertEqual(result["result_status"], "RESPONSE")
-        self.assertEqual(result["audible_start_objective"], "MET")
-        self.assertLessEqual(result["event_to_tts_start_ms"], 3000)
+        self.assertEqual(result["audible_start_objective"], "NOT_OBSERVABLE")
+        self.assertIsNone(result.get("tts_start_at"))
+        self.assertNotIn("event_to_tts_start_ms", result)
+        self.assertEqual(result["tts_timing_source"], "HOST_SPEAK_INVOCATION")
         self.client.submit_result.assert_called_once_with(
             self.request_id,
             "synthetic-private-binding",

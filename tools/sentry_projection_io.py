@@ -349,7 +349,10 @@ class ProjectionHandler(BaseHTTPRequestHandler):
         except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
             self._send(422, {"ok": False, "error": str(exc)})
             return
-        self._send(200, {"ok": True, "played": True, "tts_start_at": started_at})
+        self._send(200, {"ok": True, "played": True,
+                         "playback_process_started_at": started_at,
+                         "playback_completed_at": datetime.now(timezone.utc).isoformat(),
+                         "actual_audible_start_at": None, "tts_start_at": None})
 
     def log_message(self, _format: str, *_args: object) -> None:
         return

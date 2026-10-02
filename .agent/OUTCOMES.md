@@ -2154,3 +2154,41 @@ reconciling introduced/inherited debt. Exact canonical result appended in ANIMA
 existing027A `STAGE1-CODER-RESULT.md`. Review PENDING, no acceptance/deployment/
 restart/model/household/cache/profile/goal mutation; no staging/commit/push/Notion.
 Parent retains generation/fence4 and owns review/coverage/root/recovery decisions.
+
+## 2026-10-02UTC — 027A/R5F accepted source, controlled recovery observed — PARTIAL
+
+Primary ACCEPTED corrected source then supplied IMAGE_READY. Published SENTRY
+23fb2162/ANIMA949804dc; frozen source. Reviewed installers23/23 hashes match;
+Core authenticated READY, native display/supervisor/voice active, idle diagnostics
+fresh beyond60s LISTENING with canonical awake/office. Sensor service CURRENT10
+rows. Effective live voice uses dedicated SENTRY_CODEX_HOME; at-rest profile
+binding/settings/token fingerprints unchanged, no resident thread reset/model
+or permission edit. Two allowed configured review requests ended NO_ACTION;
+historical134 pending/46 ambiguity preserved, active claims0. Android/Wi-Fi held.
+Exact manifests/preservation/growth/runtime limits in ANIMA027A appended result.
+Runtime PARTIAL/review-pending; source acceptance does not close whole goal.
+
+## 2026-10-02 — 027A/R5F Stage2 coherent source/test handoff
+
+Primary bounded Stage1 controlled recovery is independently ACCEPTED; both
+published-head CI PASS, not whole goal. Stage2 frozen LOCAL / READY_FOR_REVIEW,
+uncommitted and not deployed: ANIMA027A STAGE2-CODER-RESULT.md carries canonical
+paths, manifests, tests, negative history, semantics and remaining gates.
+SENTRY full575/security56/compile PASS; ANIMA full validator1251 passed/76 skipped,
+strict mypy160/Ruff/OPA9 pass. New required delivery6/6 and real isolated
+PostgreSQL/Unix HTTP delivery11/11 are software tests, not physical/live policy
+evidence. Deterministic canonical speech survives model preflight outage/latch;
+contextual gates remain. Speech timing is process/transport completion, actual
+audible start unknown. Protected Graft/ignore/goals/profile/model/thread unchanged.
+Parent reviews/coverage untouched, no Coder publication/runtime recovery/new brain.
+
+## 2026-10-02T04:41Z — Stage2 source independently accepted, operational proof pending
+
+Primary collected actual final native correction and accepts E4 source for one
+publication/controlled deployment cycle. Full ANIMA1251/76 and SENTRY575/security56
+pass; parent directly checked critical target suites, frozen manifests and104
+test-image source equality. SENTRY lint baseline18/current18/introduced0; inherited
+debt and earlier disproven counts retained. Isolated PG11/ingress45 now required
+by existing hosted CI/artifact workflow. Source acceptance is not live delivery,
+audible3s proof, vendor readiness, Stage3/4 or full-goal completion. Graft excluded;
+same sole native Coder has preflight-only scope until explicit IMAGE_READY/GO.

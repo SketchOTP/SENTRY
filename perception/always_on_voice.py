@@ -1479,6 +1479,7 @@ class AlwaysOnVoiceLoop:
             if (
                 status == "RECORDED"
                 and delivery_status == "DELIVERED"
+                and result.get("delivery_managed") is not True
             ):
                 self._rearm_until = self.clock() + self.config.post_speech_rearm_ms / 1000
                 self._schedule_focus_after_speech()
@@ -1504,6 +1505,60 @@ class AlwaysOnVoiceLoop:
             self._process_idle_anima_event()
             if not callable(waiter):
                 stop_event.wait(0.25)
+
+    def _run_required_delivery_worker(self, stop_event: threading.Event) -> None:
+        """Independent deterministic speech, never another intelligence thread."""
+        deliver = getattr(self.anima_event_fn, "deliver_required", None)
+        while callable(deliver) and not stop_event.is_set():
+            self._process_required_delivery_once()
+            stop_event.wait(1)
+
+    def _process_required_delivery_once(self) -> None:
+        deliver = getattr(self.anima_event_fn, "deliver_required", None)
+        if not callable(deliver):
+            return
+        previous_state = self.state
+        started = False
+
+        def on_speech_started() -> None:
+            nonlocal started
+            started = True
+            self._set_state(VoiceState.SPEAKING,
+                            last_segment_outcome="required_alert_speech_invocation")
+
+        try:
+            # Do not interrupt an operator conversation/capture. Core retains
+            # the obligation and bounds retry/expiration while it is busy.
+            available = (not self.config.sleep_enabled
+                         and (self.state in {VoiceState.LISTENING, VoiceState.DISABLED}
+                              or (self.state == VoiceState.PROCESSING and
+                                  self.diagnostics.payload.get("last_segment_outcome") ==
+                                  "anima_event_processing"))
+                         and self._active_capture is None and not self._speech_samples
+                         and self._focus_deadline is None
+                         and not self._focus_pending
+                         and self._action_response_authorization_id is None)
+            result = deliver(
+                speaker=self.speaker, available=available,
+                active_instance_id=str(self.diagnostics.payload.get("active_instance_id",
+                                                                    self.config.room_id)),
+                on_speech_started=on_speech_started,
+            )
+            if isinstance(result, dict):
+                status = result.get("delivery_status")
+                if status in {"PENDING", "DELIVERED", "UNKNOWN", "NOT_ATTEMPTED"}:
+                    self.diagnostics.update(required_alert_delivery_status=status)
+                if result.get("status") == "RECORDED" and status == "DELIVERED":
+                    self._rearm_until = self.clock() + self.config.post_speech_rearm_ms / 1000
+                    self._schedule_focus_after_speech()
+                    self._set_state(VoiceState.SPEAKING, last_segment_outcome="required_alert_spoken")
+                elif started:
+                    self._set_state(previous_state, last_segment_outcome="required_alert_unavailable")
+        except Exception as exc:  # noqa: BLE001 - one transport fault cannot kill the drain
+            self.diagnostics.update(required_alert_delivery_status="UNKNOWN",
+                                    required_alert_exception_type=type(exc).__name__)
+            if started:
+                self._set_state(previous_state, last_segment_outcome="required_alert_unavailable")
 
     def run(self, stop_event: threading.Event) -> int:
         if self.config.sleep_enabled:
@@ -1540,6 +1595,7 @@ class AlwaysOnVoiceLoop:
             ),
         )
         event_worker: threading.Thread | None = None
+        delivery_worker: threading.Thread | None = None
         if self.anima_event_fn is not None and not self.config.sleep_enabled:
             event_worker = threading.Thread(
                 target=self._run_anima_event_worker,
@@ -1548,6 +1604,12 @@ class AlwaysOnVoiceLoop:
                 name="sentry-anima-event-worker",
             )
             event_worker.start()
+            if callable(getattr(self.anima_event_fn, "deliver_required", None)):
+                delivery_worker = threading.Thread(
+                    target=self._run_required_delivery_worker, args=(stop_event,),
+                    daemon=True, name="sentry-required-delivery-worker",
+                )
+                delivery_worker.start()
         try:
             for chunk in self.stream.iter_chunks(stop_event):
                 if stop_event.is_set():
@@ -1558,8 +1620,11 @@ class AlwaysOnVoiceLoop:
             self._reset_capture(clear_timeline=True)
             return 1
         finally:
+            stop_event.set()
             if event_worker is not None:
                 event_worker.join(timeout=3)
+            if delivery_worker is not None:
+                delivery_worker.join(timeout=3)
         self._close_focus("shutdown")
         self._clear_action_response("shutdown")
         if self.identity_coordinator is not None:

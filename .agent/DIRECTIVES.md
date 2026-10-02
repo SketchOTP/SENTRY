@@ -684,3 +684,14 @@ binding: installed `anima_household` is present, disabled at rest, exact-preboun
 and protected by existing denies/overrides. No resident profile change is made.
 ANIMA Graft ask's automatic cache refresh is an explicit preservation failure;
 no manual rebuild, further ask or speculative byte restoration was performed.
+
+## 2026-10-02 — 027A / R5F Stage2 native assignment register
+
+Primary Architect accepted bounded Stage1 controlled recovery and reported both
+published-head CI PASS, not whole Stage1/physical/goal closure. Existing ANIMA
+027A NATIVE-ARCHITECT-REVIEWS.md records disposition and scope. Sole Coder's
+Stage2 alert/presence/approval/packaging bundle is LOCAL / REVIEW_PENDING;
+older loaded runtime remains the Stage1 observation boundary. Preserve resident
+identity/persona/orb/thread/profile/model/history; no second brain, deployment,
+model/physical test, publication, descendants, or parent-owned review/coverage edit.
+Detailed shared result: ANIMA 027A STAGE2-CODER-RESULT.md. Parent holds generation4.

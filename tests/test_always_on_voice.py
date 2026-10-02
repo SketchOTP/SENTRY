@@ -352,6 +352,40 @@ class AlwaysOnVoiceTests(unittest.TestCase):
         self.assertEqual(loop.diagnostics.payload["anima_event_exception_type"], "OSError")
         self.assertNotIn("PRIVATE", str(loop.diagnostics.payload))
 
+    def test_required_delivery_opens_followup_and_idle_fault_poll_preserves_orb(self):
+        loop, _clock = self.make_loop([])
+        loop.state = VoiceState.LISTENING
+        delivered = Mock()
+        def work(**kwargs):
+            self.assertTrue(kwargs["available"])
+            self.assertEqual(kwargs["active_instance_id"], loop.config.room_id)
+            kwargs["on_speech_started"]()
+            self.assertEqual(loop.state, VoiceState.SPEAKING)
+            return {"status": "RECORDED", "delivery_status": "DELIVERED"}
+        delivered.deliver_required.side_effect = work
+        loop.anima_event_fn = delivered
+        loop._process_required_delivery_once()
+        self.assertTrue(loop._focus_pending)
+        self.assertEqual(loop.state, VoiceState.SPEAKING)
+        loop._focus_pending = False
+        loop.state = VoiceState.LISTENING
+        delivered.deliver_required.side_effect = OSError("isolated transport fault")
+        loop._process_required_delivery_once()
+        self.assertEqual(loop.state, VoiceState.LISTENING)
+        self.assertEqual(loop.diagnostics.payload["required_alert_delivery_status"], "UNKNOWN")
+        delivered.deliver_required.side_effect = None
+        delivered.deliver_required.return_value = {"status": "EMPTY"}
+        loop._process_required_delivery_once()
+        self.assertEqual(loop.state, VoiceState.LISTENING)
+        self.assertEqual(self.ask_calls, [])
+
+    def test_required_delivery_sleep_and_current_capture_cannot_acquire_speaker(self):
+        loop, _ = self.make_loop([], config=AlwaysOnVoiceConfig(sleep_enabled=True))
+        loop.anima_event_fn = Mock()
+        loop.anima_event_fn.deliver_required.return_value = {"status": "EMPTY"}
+        loop._process_required_delivery_once()
+        self.assertFalse(loop.anima_event_fn.deliver_required.call_args.kwargs["available"])
+
     def make_loop(
         self, probabilities, transcripts=(), *, detections=(), command_updates=(),
         clock=None, gate=None, ask=None, config=None, fast_streaming_timing=True,
