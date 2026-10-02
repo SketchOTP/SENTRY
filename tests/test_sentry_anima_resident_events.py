@@ -55,6 +55,7 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         self.config.chmod(0o600)
         environment = patch.dict(os.environ, {
             "SENTRY_ANIMA_CONFIG": str(self.config),
+            "SENTRY_AUTHORITY_ROOT": str(self.root / "authority"),
             "SENTRY_AGENT_WORKSPACE": str(self.workspace),
             "SENTRY_CODEX_HOME": str(self.codex_home),
             "XDG_STATE_HOME": str(self.root / "state"),
@@ -202,6 +203,9 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         self.client.submit_result.assert_called_once()
         self.speaker.speak.assert_called_once_with("Synthetic current result.")
         self.assertEqual(self.store.load()["thread_id"], self.thread_id)
+        self.assertEqual(result["model_call_count"], 1)
+        self.assertEqual(result["model_call_counts"], {"ATTEMPTED": 1, "SUCCEEDED": 1})
+        self.assertEqual(result["model_usage_status"], "UNKNOWN")
         self.assertEqual(self.store.load()["turn_count"], 6)
         self.assertNotIn("Synthetic current result", self.store.path.read_text())
         self.assertEqual((self.codex_home / "sentry-resident.config.toml").read_text(), self.profile)
@@ -252,6 +256,8 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         self.assertEqual((result["status"], result["result_status"]), ("RECORDED", "RESPONSE"))
         self.assertEqual(result["delivery_status"], "DELIVERED")
         self.assertTrue(result["immediate_delivery"])
+        self.assertEqual(result["model_call_count"], 0)
+        self.assertEqual(result["model_call_counts"], {"ATTEMPTED": 0})
         self.runner.assert_not_called()
         self.speaker.speak.assert_called_once_with("Front Door Lock was unlocked.")
         self.client.submit_result.assert_called_once_with(
@@ -709,6 +715,19 @@ class ResidentEventIntegrationTests(unittest.TestCase):
         work_started.assert_called_once_with()
         self.speaker.speak.assert_called_once()
         self.assertEqual(self.store.load()["thread_id"], self.thread_id)
+
+    def test_autonomous_event_process_timeout_receipt_is_counted_without_double_start(self):
+        import subprocess
+
+        self.serve_queue(self.queue_claim())
+        with patch("tools.sentry_anima_events._event_process", side_effect=subprocess.TimeoutExpired("fixture", 1)) as process:
+            result = self.queue_source()()
+        process.assert_called_once()
+        self.client.provider_start.assert_called_once()
+        self.assertEqual(result["model_call_count"], 1)
+        self.assertEqual(result["model_call_counts"], {"ATTEMPTED": 1, "TIMEOUT": 1})
+        self.assertEqual(result["result_status"], "UNKNOWN_RESULT")
+        self.assertEqual(result["model_usage_status"], "UNKNOWN")
 
     def test_queue_gates_do_not_contact_core(self):
         for name in ("enabled", "context_ready", "persistent_history_allowed"):

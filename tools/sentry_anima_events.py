@@ -74,6 +74,9 @@ _TRIAL_FIELDS = (
     "provider_model_ms",
     "audible_start_objective",
     "contextual_response_objective",
+    "model_call_count",
+    "model_call_counts",
+    "model_usage_status",
 )
 
 
@@ -952,6 +955,9 @@ def run_resident_event(
                 "claim_received_at": datetime.now(timezone.utc).isoformat(),
                 "immediate_delivery": False,
                 "audible_start_objective": "NOT_OBSERVABLE",
+                "model_call_count": 0,
+                "model_call_counts": {"ATTEMPTED": 0},
+                "model_usage_status": "UNKNOWN",
             }
             try:
                 request_created = datetime.fromisoformat(telemetry["request_created_at"])
@@ -1099,6 +1105,20 @@ def run_resident_event(
                     runner=runner or (lambda args, **kwargs: _event_process(args, active, **kwargs)),
                 )
                 telemetry["model_completed_at"] = datetime.now(timezone.utc).isoformat()
+                # Receipts come from the existing central invocation wrapper,
+                # including _event_process; never count the same call twice.
+                calls = invocation.get("model_calls", [])
+                telemetry["model_call_count"] = len(calls)
+                counts = {"ATTEMPTED": len(calls)}
+                for call in calls:
+                    status = call["status"] if call["phase"] == "FINISHED" else "UNKNOWN"
+                    counts[status] = counts.get(status, 0) + 1
+                telemetry["model_call_counts"] = counts
+                telemetry["model_usage_status"] = (
+                    "REPORTED" if calls and all(
+                        call["usage_status"] == "REPORTED" for call in calls
+                    ) else "UNKNOWN"
+                )
                 if not invocation.get("ok") or invocation.get("thread_id", thread_id) not in {None, thread_id}:
                     return EventResult("UNKNOWN_RESULT")
                 final.update(invocation["result"])

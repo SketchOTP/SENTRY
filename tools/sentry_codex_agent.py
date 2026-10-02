@@ -27,6 +27,7 @@ from tools.sentry_execution_authority import (
     RequestContext,
 )
 from tools.sentry_grounding import unavailable_response
+from tools.sentry_model_calls import account_calls, accounted_run
 
 PROFILE_NAME = "sentry-resident"
 MODEL_CONTEXT_WINDOW_TOKENS = 272_000
@@ -400,7 +401,7 @@ def invoke_presentation_renderer(
             "--output-schema", str(schema_path), "-",
         ]
         try:
-            completed = runner(
+            completed = accounted_run("PRESENTATION", MODEL, runner,
                 args,
                 cwd=runtime_dir,
                 env=environment,
@@ -547,6 +548,7 @@ def _prompt(
     )
 
 
+@account_calls
 def invoke_sentry_agent(
     question: str,
     prior: list[dict[str, str]],
@@ -658,7 +660,7 @@ def invoke_sentry_agent(
                 child_env["ANIMA_PREBOUND_FILE"] = str(anima.path)
                 timeout_seconds = min(timeout_seconds, max(1, int(anima.deadline - time.monotonic() - 15)))
             anima.start_execution()
-            completed = runner(
+            completed = accounted_run("OPERATIONAL", MODEL, runner,
                 args,
                 cwd=str(cwd),
                 env=child_env,
@@ -712,6 +714,7 @@ def invoke_sentry_agent(
     return {"ok": True, "result": result, "thread_id": thread_id, "usage": usage, "observed_tools": observed_tools, "compactions": compactions, "thread_compaction_count": thread_compaction_count, "context_input_tokens": context_input_tokens, "effective_context_window_tokens": effective_context_window, "anima": anima.diagnostics}
 
 
+@account_calls
 def invoke_action_response_classifier(
     pending_summary: str,
     action_type: str,
@@ -763,7 +766,7 @@ def invoke_action_response_classifier(
             "--output-schema", str(schema_path), "-",
         ]
         try:
-            completed = runner(
+            completed = accounted_run("CLASSIFIER", MODEL, runner,
                 args, cwd=runtime_dir, env=environment, input=prompt,
                 capture_output=True, text=True, timeout=60, check=False,
             )
@@ -835,6 +838,7 @@ class CodexNativeAgent:
             "compaction_status": "observed" if compactions else "unobserved",
             "thread_storage_owner": "Codex local thread store",
             "old_thread_deleted": False,
+            "model_calls": ExecutionAuthority().model_call_summary(),
         }
 
     def _security_response(self, *, query_id: str, conversation_id: str, answer: str, status: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -942,6 +946,7 @@ class CodexNativeAgent:
         continuing = self.authority.record_dialogue_act(authorization_id, DialogueAct.UNRELATED)
         return None, question, question, bool(continuing.get("pending"))
 
+    @account_calls
     def ask(
         self,
         question: str,

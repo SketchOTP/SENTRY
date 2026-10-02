@@ -14,6 +14,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import time
 import uuid
 from contextlib import contextmanager
@@ -385,6 +386,164 @@ class ExecutionAuthority:
             "error_class": error_class, "duration_ms": duration_ms,
             "authority_source": authority_source,
         })
+
+    def record_model_call(self, record: Mapping[str, Any]) -> None:
+        """Reuse the private audit ledger, with no prompt or household identifiers."""
+        fields = {"call_id", "purpose", "phase", "status", "model", "usage", "usage_status"}
+        if set(record) != fields or not self._valid_model_call(record):
+            raise ValueError("invalid model-call metadata")
+        self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        payload = {**record, "record_type": "MODEL_CALL", "timestamp": _iso(self.clock())}
+        descriptor = os.open(self.audit_path, os.O_APPEND | os.O_CREAT | os.O_WRONLY | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+        try:
+            metadata = os.fstat(descriptor)
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != os.getuid() or metadata.st_nlink != 1 or metadata.st_mode & 0o077:
+                raise PermissionError("model-call audit is not private")
+            os.write(descriptor, (json.dumps(payload, sort_keys=True) + "\n").encode())
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+    @staticmethod
+    def _valid_model_call(record: Mapping[str, Any]) -> bool:
+        usage = record.get("usage")
+        return (
+            all(isinstance(record.get(key), str) for key in (
+                "phase", "purpose", "status", "call_id", "model", "usage_status"
+            ))
+            and record.get("phase") in {"ATTEMPTED", "FINISHED"}
+            and record.get("purpose") in {"OPERATIONAL", "PRESENTATION", "CLASSIFIER", "GROUNDED", "PLANNER", "SYNTHESIS", "PROACTIVE", "EVENT"}
+            and record.get("status") in {"UNKNOWN", "SUCCEEDED", "FAILED", "TIMEOUT", "LAUNCH_FAILED", "INVALID_RESULT"}
+            and isinstance(record.get("call_id"), str)
+            and bool(re.fullmatch(r"[A-Za-z0-9-]{1,64}", record["call_id"]))
+            and isinstance(record.get("model"), str)
+            and bool(re.fullmatch(r"[A-Za-z0-9._-]{1,64}", record["model"]))
+            and record.get("usage_status") in {"UNKNOWN", "REPORTED"}
+            and (usage is None or (
+                isinstance(usage, dict)
+                and set(usage) <= {"input_tokens", "cached_input_tokens", "output_tokens", "total_tokens", "reasoning_output_tokens"}
+                and all(type(value) is int and value >= 0 for value in usage.values())
+            ))
+        )
+
+    def model_call_summary(self) -> dict[str, Any]:
+        """Bounded recent-window counts; missing final receipts remain UNKNOWN."""
+        if not self.audit_path.exists():
+            return {"calls": [], "counts": {}, "window": "RECENT_200_CALLS", "truncated": False}
+        descriptor = os.open(self.audit_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(descriptor, "rb") as handle:
+            metadata = os.fstat(handle.fileno())
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != os.getuid() or metadata.st_nlink != 1 or metadata.st_mode & 0o077:
+                raise PermissionError("model-call audit is not private")
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(0, size - 1024 * 1024))
+            if size > 1024 * 1024:
+                handle.readline()
+            lines = handle.read().decode("utf-8").splitlines()
+        calls: dict[str, dict[str, Any]] = {}
+        classified: dict[str, str] = {}
+        raw_receipts: dict[str, list[dict[str, Any]]] = {}
+        for line in lines:
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            if (isinstance(row, dict)
+                and row.get("record_type") == "MODEL_CALL_CLASSIFICATION"
+                and row.get("classification") == "SYNTHETIC_TEST"
+                and isinstance(row.get("receipts"), list)):
+                for item in row["receipts"][:20]:
+                    if (isinstance(item, dict) and isinstance(item.get("call_id"), str)
+                        and re.fullmatch(r"[a-f0-9-]{36}", item["call_id"])
+                        and isinstance(item.get("receipt_digest"), str)
+                        and re.fullmatch(r"[a-f0-9]{64}", item["receipt_digest"])):
+                        classified[item["call_id"]] = item["receipt_digest"]
+                continue
+            if not isinstance(row, dict) or row.get("record_type") != "MODEL_CALL" or not self._valid_model_call(row):
+                continue
+            raw_receipts.setdefault(row["call_id"], []).append(row)
+            # Public inspection never forwards arbitrary private audit fields.
+            row = {key: row.get(key) for key in (
+                "call_id", "purpose", "phase", "status", "model", "usage", "usage_status", "timestamp"
+            )}
+            previous = calls.get(row["call_id"], {})
+            calls[row["call_id"]] = {**row, "attempt_observed": previous.get("attempt_observed", False) or row["phase"] == "ATTEMPTED"}
+        verified = set()
+        for key, digest in classified.items():
+            records = raw_receipts.get(key, [])
+            actual = hashlib.sha256(("\n".join(json.dumps(row, sort_keys=True)
+                for row in records) + "\n").encode()).hexdigest()
+            if len(records) == 2 and actual == digest:
+                verified.add(key)
+            elif len(records) < 2 and size > 1024 * 1024:
+                # The validated append-only classification is still retained;
+                # a bounded tail must not reclassify known test calls as runtime.
+                verified.add(key)
+        synthetic = [row for key, row in calls.items() if key in verified]
+        selected = [row for key, row in calls.items() if key not in verified][-200:]
+        counts: dict[str, int] = {}
+        for row in selected:
+            status = row["status"] if row["phase"] == "FINISHED" else "UNKNOWN"
+            counts[status] = counts.get(status, 0) + 1
+        counts["ATTEMPTED"] = sum(row["attempt_observed"] for row in selected)
+        return {"calls": selected[-20:], "counts": counts, "window": "RECENT_200_CALLS",
+                "truncated": size > 1024 * 1024 or len(calls) > 200,
+                "excluded_synthetic_test_calls": len(synthetic),
+                "result_basis": "CLI_EXIT_AND_JSON_OBJECT_NOT_APPLICATION_ACCEPTANCE_OR_PROVIDER_CHARGE",
+                "historical_calls_before_instrumentation": "UNKNOWN"}
+
+    def classify_model_test_receipts(
+        self, expected: Mapping[str, str], *, apply: bool = False,
+    ) -> dict[str, Any]:
+        """Offline operator correction only. Never registered as a resident/MCP tool.
+
+        Exact immutable receipt digests prevent broad/time-based exclusion.
+        Original records and execution authority are untouched. The native
+        resident profile denies this authority root; no LLM write API exists.
+        Empty digests are accepted ONLY for read-only planning.
+        """
+        if not 1 <= len(expected) <= 20:
+            raise ValueError("exact bounded call IDs required")
+        for key, digest in expected.items():
+            if str(uuid.UUID(key)) != key or (apply and not re.fullmatch(r"[a-f0-9]{64}", digest)):
+                raise ValueError("exact call UUID/digest required")
+        flags = os.O_NOFOLLOW | os.O_NONBLOCK | (os.O_RDWR | os.O_APPEND if apply else os.O_RDONLY)
+        descriptor = os.open(self.audit_path, flags)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX if apply else fcntl.LOCK_SH)
+            metadata = os.fstat(descriptor)
+            if (not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != os.getuid()
+                or metadata.st_nlink != 1 or metadata.st_mode & 0o077
+                or metadata.st_size > 16 * 1024 * 1024):
+                raise PermissionError("audit correction requires bounded private existing ledger")
+            with os.fdopen(os.dup(descriptor), "r", encoding="utf-8") as reader:
+                records = [json.loads(line) for line in reader if line.strip()]
+            receipts = []
+            for key in sorted(expected):
+                selected = [row for row in records if isinstance(row, dict)
+                    and row.get("record_type") == "MODEL_CALL" and row.get("call_id") == key]
+                if (len(selected) != 2
+                    or {row.get("phase") for row in selected} != {"ATTEMPTED", "FINISHED"}
+                    or not all(self._valid_model_call(row) for row in selected)):
+                    raise ValueError("exact attempted/finished receipt pair required")
+                digest = hashlib.sha256(("\n".join(json.dumps(row, sort_keys=True)
+                    for row in selected) + "\n").encode()).hexdigest()
+                if expected[key] and expected[key] != digest:
+                    raise ValueError("model receipt digest mismatch")
+                receipts.append({"call_id": key, "receipt_digest": digest})
+            correction = {"record_type": "MODEL_CALL_CLASSIFICATION",
+                "classification": "SYNTHETIC_TEST", "receipts": receipts}
+            present = any(isinstance(row, dict) and all(row.get(key) == value
+                for key, value in correction.items()) for row in records)
+            if apply and not present:
+                os.write(descriptor, (json.dumps({**correction,
+                    "timestamp": _iso(self.clock())}, sort_keys=True) + "\n").encode())
+                os.fsync(descriptor)
+            return {**correction, "disposition": "ALREADY_CLASSIFIED" if present
+                else "APPENDED" if apply else "READ_ONLY_PLAN"}
+        finally:
+            os.close(descriptor)
 
     def direct_request_allows(self, capability: str, context: RequestContext) -> bool:
         context.validate()
@@ -966,14 +1125,16 @@ class ExecutionAuthority:
         if not self.audit_path.is_file():
             return {"records": [], "count": 0}
         records: list[dict[str, Any]] = []
-        for line in self.audit_path.read_text(encoding="utf-8").splitlines()[-limit:]:
+        for line in self.audit_path.read_text(encoding="utf-8").splitlines():
             try:
                 value = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if isinstance(value, dict):
+            if isinstance(value, dict) and value.get("record_type") not in {
+                "MODEL_CALL", "MODEL_CALL_CLASSIFICATION",
+            }:
                 records.append(value)
-        return {"records": records, "count": len(records)}
+        return {"records": records[-limit:], "count": len(records[-limit:])}
 
     def status(self) -> dict[str, Any]:
         pending = self.pending_status()

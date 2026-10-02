@@ -390,7 +390,7 @@ def get_execution_authority_status() -> dict:
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 def get_recent_execution_audit(limit: int = 20) -> dict:
     """Read bounded metadata-only records of recent non-read execution attempts."""
-    return AUTHORITY.recent_audit(limit)
+    return {**AUTHORITY.recent_audit(limit), "model_calls": AUTHORITY.model_call_summary()}
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))

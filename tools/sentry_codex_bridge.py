@@ -16,6 +16,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from tools.sentry_model_calls import account_calls
 
 MODEL = "gpt-5.6-luna"
 EFFORTS = ("none", "low", "medium", "high", "xhigh", "max")
@@ -141,6 +142,7 @@ def _invoke_prompt(
     effort: str,
     timeout_seconds: int,
     native_web_search: bool = False,
+    purpose: str = "EVENT",
 ) -> tuple[dict[str, Any] | None, str | None, dict[str, Any] | None, str | None]:
     """Run one ephemeral OAuth Codex turn from an isolated temporary cwd.
 
@@ -189,7 +191,8 @@ def _invoke_prompt(
             "-",
         ])
         try:
-            completed = subprocess.run(
+            from tools.sentry_model_calls import accounted_run
+            completed = accounted_run(purpose, MODEL, subprocess.run,
                 args,
                 cwd=runtime_dir,
                 env=child_env,
@@ -214,6 +217,7 @@ def _invoke_prompt(
     return result, thread_id, usage, None
 
 
+@account_calls
 def invoke(event: dict[str, Any], effort: str, timeout_seconds: int) -> dict[str, Any]:
     result, thread_id, usage, error = _invoke_prompt(
         _prompt(event, effort),
@@ -235,6 +239,7 @@ def invoke(event: dict[str, Any], effort: str, timeout_seconds: int) -> dict[str
     }
 
 
+@account_calls
 def invoke_grounded_query(
     question: str,
     fact_packet: dict[str, Any],
@@ -277,6 +282,7 @@ def invoke_grounded_query(
     result, thread_id, usage, error = _invoke_prompt(
         prompt,
         schema_filename="sentry_grounded_response.schema.json",
+        purpose="GROUNDED",
         effort=effort,
         timeout_seconds=timeout_seconds,
     )
@@ -293,6 +299,7 @@ def invoke_grounded_query(
     }
 
 
+@account_calls
 def invoke_conversation_planner(
     question: str,
     tool_catalog: list[dict[str, Any]],
@@ -339,6 +346,7 @@ def invoke_conversation_planner(
     result, thread_id, usage, error = _invoke_prompt(
         prompt,
         schema_filename="sentry_conversation_plan.schema.json",
+        purpose="PLANNER",
         effort=effort,
         timeout_seconds=timeout_seconds,
     )
@@ -355,6 +363,7 @@ def invoke_conversation_planner(
     }
 
 
+@account_calls
 def invoke_conversation_synthesis(
     question: str,
     tool_results: list[dict[str, Any]],
@@ -404,6 +413,7 @@ def invoke_conversation_synthesis(
     result, thread_id, usage, error = _invoke_prompt(
         prompt,
         schema_filename="sentry_grounded_response.schema.json",
+        purpose="SYNTHESIS",
         effort=effort,
         timeout_seconds=timeout_seconds,
         native_web_search=native_web_authorized,
@@ -421,6 +431,7 @@ def invoke_conversation_synthesis(
     }
 
 
+@account_calls
 def invoke_proactive_judgment(
     fact_packet: dict[str, Any],
     *,
@@ -445,6 +456,7 @@ def invoke_proactive_judgment(
     result, thread_id, usage, error = _invoke_prompt(
         prompt,
         schema_filename="sentry_proactive_response.schema.json",
+        purpose="PROACTIVE",
         effort=effort,
         timeout_seconds=timeout_seconds,
     )

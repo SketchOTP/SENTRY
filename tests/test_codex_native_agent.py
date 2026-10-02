@@ -172,6 +172,10 @@ class CodexNativeAgentTests(unittest.TestCase):
         self.assertEqual(result["result"]["answer"], "Good day, old friend.")
         self.assertEqual(result["result"]["status"], "completed")
         self.assertEqual(len(calls), 2)
+        self.assertEqual(result["model_call_count"], 2)
+        self.assertEqual([row["purpose"] for row in result["model_calls"]],
+                         ["OPERATIONAL", "PRESENTATION"])
+        self.assertTrue(all(row["usage_status"] == "UNKNOWN" for row in result["model_calls"]))
         self.assertNotIn("film narrator", calls[0][1]["input"])
         self.assertIn("film narrator", calls[1][1]["input"])
 
@@ -447,7 +451,9 @@ class CodexNativeAgentTests(unittest.TestCase):
             self.assertEqual(confirmed["luna_invocations"], 0)
             self.assertFalse(authority.pending_status()["pending"])
             self.assertEqual(destination.read_text(encoding="utf-8"), "fixture")
-            self.assertEqual(replay["luna_invocations"], 1)
+            # This fixture injects an invoker, not a model subprocess. Scoped
+            # instrumentation must not manufacture a charged/provider call.
+            self.assertEqual(replay["model_call_count"], 0)
 
     def test_always_on_pending_action_waits_for_spoken_presentation_completion(self):
         with tempfile.TemporaryDirectory(dir=Path.home()) as tmp:

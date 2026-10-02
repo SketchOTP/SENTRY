@@ -1,11 +1,27 @@
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from tools import sentry_codex_bridge
-from tools.sentry_codex_bridge import invoke_conversation_planner, invoke_conversation_synthesis
+from tools.sentry_codex_bridge import (
+    invoke_conversation_planner,
+    invoke_conversation_synthesis,
+)
 
 
 class ConversationBridgeTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="sentry-bridge-test-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        environment = patch.dict("os.environ", {
+            "SENTRY_AUTHORITY_ROOT": str(self.root / "authority"),
+            "SENTRY_AGENT_WORKSPACE": str(self.root / "workspace"),
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
+
     def test_planner_prompt_makes_recent_turns_explicit_followup_context(self):
         with patch("tools.sentry_codex_bridge._invoke_prompt", return_value=({"tool_calls": [], "needs_final_synthesis": True}, "thread", {}, None)) as invoke:
             result = invoke_conversation_planner(
@@ -77,6 +93,8 @@ class ConversationBridgeTests(unittest.TestCase):
             "ANIMA_HA_ACCESS_TOKEN": "TEST_ONLY", "ANIMA_DB_PASSWORD": "TEST_ONLY",
             "ANIMA_PREBOUND_FILE": "/not-a-real-binding", "SENTRY_OPERATOR_REQUEST": "TEST_ONLY",
             "AWS_SECRET_ACCESS_KEY": "TEST_ONLY",
+            "SENTRY_AUTHORITY_ROOT": str(self.root / "authority"),
+            "SENTRY_AGENT_WORKSPACE": str(self.root / "workspace"),
         }
         with patch.dict("tools.sentry_codex_bridge.os.environ", environment, clear=True), patch(
             "tools.sentry_codex_bridge._launcher_args", return_value=["/opt/codex"]
