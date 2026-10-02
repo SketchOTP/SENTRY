@@ -1,5 +1,13 @@
 # Authority Project-State Index
 
+Current integration pointer — 2026-10-02T11:30Z: live feature862cc8ecff7390000fcc66f3fe5f32f23101b66e
+exact36998958481 PASS, compatible ANIMA7fe3c705 exact36998956233 PASS/deployed
+image02a42012. Private profile/model/thread/orb preserved. SAME sole Leibniz
+implements Stage5 in separate worktrees; parent-owned ANIMA027A CURRENT/reviews/
+GOAL-COVERAGE carry exact remaining full-goal boundaries. Android root/vendor,
+owner journeys and prospective learning remain unqualified. Earlier component
+snapshots below do not describe current runtime.
+
 ## Project identity
 - Project: SENTRY
 - Authority schema: 3.0

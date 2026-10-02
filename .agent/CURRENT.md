@@ -1,5 +1,78 @@
 # Current Project State
 
+## Exact Stage4 pair deployed — 2026-10-02T11:29Z
+
+Live feature862cc8ecff7390000fcc66f3fe5f32f23101b66e exact36998958481 PASS;
+compatible ANIMA7fe3c705 exact36998956233 PASS now running image02a42012.
+Voice2430477/UI2430480/supervisor2430479 relaunched11:25Z and active,0 restarts.
+Normal fast-forward preserves dirty governance/Graft, six private profile/token
+baselines and protected main. No owner model/thread/persona/orb change, new
+model turn, wake/physical test or overall acceptance. Parent exact audit
+classification applied/no-op repeat; actual ANIMA helper accounting remains
+PARTIAL in same sole-Coder Stage5. Detailed runtime/source/negative evidence in
+ANIMA027A NATIVE-ARCHITECT-REVIEWS11:29Z. Android root/vendor/owner/future gates
+remain explicit. Earlier running/pending statements below are retained history.
+
+Latest supersession — 2026-10-02T11:22Z: parent classified four known mocked
+model calls through reviewed operator-only exact-ID/digest helper. All eight
+original receipts/prefix remain unchanged; repeat ALREADY_CLASSIFIED is a no-op.
+Earlier unclassified statements below are preserved snapshots. Observed runtime
+attempts0 applies ONLY to the newly instrumented ledger, not all historical
+calls/billing. The actual separately installed ANIMA household-helper usage gap
+is included in same-Coder Stage5. Published862cc8ec exactCI36998958481 PASS;
+running89bbf6c7 remains pending compatible ANIMA CI/deployment. No profile/model/
+thread/orb/voice configuration change or new operational acceptance.
+
+## Native Stage4 source accepted/published — 2026-10-02T11:08Z
+
+Primary collected actual sole-Coder final and independently accepted bounded
+accounting/source bundle. Published compatible SENTRY862cc8ecff7390000fcc66f3fe5f32f23101b66e
+exactCI36998958481 PASS; ANIMA7fe3c705579e3a82985da848102558e25f17ba6a
+exactCI36998956233 IN_PROGRESS. Original/running89bbf6c7 remains unchanged
+pending compatible qualification/controlled recovery. Protected main unchanged.
+Full Coder586 passes/3 skips, parent independent77 passes, both manifest checks
+PASS. Model attempt/finish/unknown is not billing or application-success proof.
+Eight synthetic owner audit receipts remain preserved/unclassified; parent-only
+exact append correction is reviewed, not applied. No resident private changes.
+
+Same sole native Coder Leibniz01a0fc2d-54f3-7b81-ba44-919b8458db95 now has
+Stage5 supported owner-workflow/result vertical in distinct detached worktree
+/tmp/sentry-stage5-development.R8sgq7; parent-owned ANIMA027A assignment/result/
+reviews/coverage remain canonical. Stage4 frozen. No second packet/worker/brain,
+new model/privacy permission, live model turn or deployment by Coder. Both
+Notion authority acceptance additions fully verified after native mention
+normalization. Whole Goal, physical/Android/owner/prospective evidence open.
+
+## Controlled companion deployment — 2026-10-02T09:32Z
+
+Live feature/origin89bbf6c77d5e019956903fe1f57de341e718b0f4, exact hosted
+36979873750 PASS. Protected main unchanged. Compatible live ANIMA52e90c6b exact
+36984465148 PASS/image761b6182; private custody/Core CURRENT/relay CURRENT
+independently observed. Voice fresh LISTENING/office; private six baseline files
+and resident model/thread/profile/persona/orb/Graft unchanged. Effective ordinary
+and autonomous sandbox private-open denies pass, zero LLM calls in probes.
+Android NOT_READY/Binder root gate; no vendor/TTS/physical qualification follows.
+Canonical detailed evidence/negatives in ANIMA027A NATIVE-ARCHITECT-REVIEWS09:32Z.
+Dual Notion deployment update complete normalized readback verified. Same sole
+Coder Laplace continues Stage4; final outstanding, full Goal remains ACTIVE.
+
+## Stage3 publication qualification — 2026-10-02T08:03Z
+
+SENTRY product3e521a10c64344a834d0a72786216fb8ad1337ef and governed
+89bbf6c77d5e019956903fe1f57de341e718b0f4 are published on the preserved
+feature/v0.4-personal-continuity branch; exact hosted36979873750 PASS.
+Protected main970d1cf5f4df749d5d0844a19d5d392012ced910 unchanged. Running
+local/loaded source remains380422df; no runtime/profile/thread/model/persona/
+orb/voice configuration change is implied by publication.
+
+ANIMA governed55253b11 exact hosted36979872665 FAILED at the bridge restart
+fixture's uncommissioned household. Parent reproduced, retained the guard,
+and assigned SAME sole Laplace a bounded correction in separate ANIMA worktree;
+Stage4 drafts/assignment preserved, temporarily suspended until actual final
+and independent review. Same027A/R5F, full MO/A–O/Goal ACTIVE. No new worker.
+Canonical source/evidence/candidate-image/deployment-gate details remain in
+ANIMA027A NATIVE-ARCHITECT-REVIEWS; no vendor/audible/physical acceptance.
+
 ## Native Architect checkpoint — 2026-10-02T07:34Z
 
 Actual sole-Coder Stage3 final collected and source accepted independently.
